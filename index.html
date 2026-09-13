@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.5.0</title>
+  <title>健身减脂智能体 v1.6.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.5.0 · 全量热量联动</p>
+            <p class="text-xs text-gray-400">v1.6.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -241,26 +241,19 @@
           </div>
           
           <div class="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 class="font-bold mb-4">WebDAV 云盘同步</h3>
+            <h3 class="font-bold mb-4">GitHub 云端同步</h3>
             <div class="space-y-3">
               <div>
-                <label class="text-sm text-gray-600">WebDAV 地址</label>
-                <input type="text" id="setting-webdav-url" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="https://dav.jianguoyun.com/dav">
-              </div>
-              <div>
-                <label class="text-sm text-gray-600">用户名</label>
-                <input type="text" id="setting-webdav-user" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="">
-              </div>
-              <div>
-                <label class="text-sm text-gray-600">密码/令牌</label>
-                <input type="password" id="setting-webdav-pass" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="">
+                <label class="text-sm text-gray-600">GitHub Token</label>
+                <input type="password" id="setting-git-token" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="github_pat_xxx 或 ghp_xxx">
               </div>
               <div class="text-xs text-gray-400">
-                <p>推荐坚果云，开启WebDAV获取专用密码</p>
-                <p>知识库、餐谱、动作库存云盘，支持对话修改和自学习入库</p>
+                <p>知识库（动作/餐谱/食材/补剂/规则）备份到你的私有 GitHub Gist，免费支持跨域</p>
+                <p>Token获取：GitHub → Settings → Developer settings → Personal access tokens → Generate（勾选 gist）</p>
+                <p>⚠️ Token 仅保存在本机浏览器，请勿发给任何人</p>
               </div>
-              <button onclick="initKnowledgeBase()" class="w-full bg-green-500 text-white py-2.5 rounded-lg font-medium mt-1">初始化云盘知识库</button>
-              <button onclick="syncFromCloud()" class="w-full border border-gray-200 py-2.5 rounded-lg text-sm font-medium">从云盘同步</button>
+              <button onclick="initKnowledgeBase()" class="w-full bg-green-500 text-white py-2.5 rounded-lg font-medium mt-1">初始化云端知识库</button>
+              <button onclick="syncFromCloud()" class="w-full border border-gray-200 py-2.5 rounded-lg text-sm font-medium">从云端同步</button>
             </div>
           </div>
           
@@ -283,7 +276,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.5.0 · 全量热量联动版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.6.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -310,8 +303,8 @@
   </div>
 
   <script>
-    const VERSION = "1.5.0";
-    const DATA_VERSION = 5;
+    const VERSION = "1.6.0";
+    const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
     // ========== 完整知识库 ==========
@@ -654,6 +647,8 @@
         webdavUrl: "",
         webdavUser: "",
         webdavPass: "",
+        gitToken: "",
+        gistId: "",
         syncInterval: 300
       }
     };
@@ -689,6 +684,11 @@
         if (!data.trainingBurnToday) data.trainingBurnToday = {};
         data.dataVersion = 5;
       }
+      if (data.dataVersion < 6) {
+        if (!data.settings.gitToken) data.settings.gitToken = "";
+        if (!data.settings.gistId) data.settings.gistId = "";
+        data.dataVersion = 6;
+      }
       return data;
     }
     
@@ -701,72 +701,112 @@
       }
     }
     
-    // ========== WebDAV 云盘工具 ==========
-    async function webdavGet(path) {
-      if (!appData.settings.webdavUrl) return null;
+    // ========== GitHub Gist 云同步工具 ==========
+    async function gistRequest(method, url, body) {
+      if (!appData.settings.gitToken) return null;
       try {
-        const url = appData.settings.webdavUrl + path;
-        const auth = btoa(appData.settings.webdavUser + ":" + appData.settings.webdavPass);
-        const res = await fetch(url, { headers: { "Authorization": "Basic " + auth } });
-        if (res.ok) return await res.json();
-        return null;
+        const res = await fetch(url, {
+          method: method,
+          headers: {
+            "Authorization": "Bearer " + appData.settings.gitToken,
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+          },
+          body: body ? JSON.stringify(body) : undefined
+        });
+        if (!res.ok) return null;
+        return await res.json();
       } catch (e) { return null; }
     }
     
-    async function webdavPut(path, data) {
-      if (!appData.settings.webdavUrl) return false;
-      try {
-        const url = appData.settings.webdavUrl + path;
-        const auth = btoa(appData.settings.webdavUser + ":" + appData.settings.webdavPass);
-        const res = await fetch(url, {
-          method: "PUT",
-          headers: { "Authorization": "Basic " + auth, "Content-Type": "application/json" },
-          body: JSON.stringify(data, null, 2)
+    function knowledgeFiles() {
+      return {
+        "动作库.json": { content: JSON.stringify(TRAINING_LIBRARY, null, 2) },
+        "餐谱库.json": { content: JSON.stringify(MEAL_LIBRARY, null, 2) },
+        "食材价格库.json": { content: JSON.stringify(INGREDIENT_PRICES, null, 2) },
+        "补剂库.json": { content: JSON.stringify(SUPPLEMENT_LIBRARY, null, 2) },
+        "规则.json": { content: JSON.stringify(PERSONAL_RULES, null, 2) }
+      };
+    }
+    
+    // 上传全部知识库到 Gist（无则创建，有则更新）
+    async function gistPutAll() {
+      if (!appData.settings.gitToken) return false;
+      let gistId = appData.settings.gistId;
+      let res;
+      if (gistId) {
+        res = await gistRequest("PATCH", "https://api.github.com/gists/" + gistId, { files: knowledgeFiles() });
+      } else {
+        res = await gistRequest("POST", "https://api.github.com/gists", {
+          description: "健身减脂智能体知识库（自动同步）",
+          public: false,
+          files: knowledgeFiles()
         });
-        return res.ok;
-      } catch (e) { return false; }
+        if (res && res.id) { appData.settings.gistId = res.id; saveData(); }
+      }
+      return !!(res && res.id);
+    }
+    
+    // 从 Gist 拉取全部知识库
+    async function gistGetAll() {
+      if (!appData.settings.gitToken || !appData.settings.gistId) return null;
+      const res = await gistRequest("GET", "https://api.github.com/gists/" + appData.settings.gistId);
+      if (!res || !res.files) return null;
+      const out = {};
+      for (const name of Object.keys(res.files)) {
+        const file = res.files[name];
+        if (!file) continue;
+        try {
+          if (file.content) out[name] = JSON.parse(file.content);
+        } catch (e) {}
+      }
+      return out;
     }
     
     async function initKnowledgeBase() {
-      if (!appData.settings.webdavUrl) { alert("请先填写WebDAV地址和账号"); return; }
-      addMessage("assistant", "⏳ 正在初始化云盘知识库...");
+      const tokenInput = document.getElementById('setting-git-token');
+      if (tokenInput) appData.settings.gitToken = tokenInput.value.trim();
+      saveData();
+      if (!appData.settings.gitToken) { alert("请先填写 GitHub Token"); return; }
+      addMessage("assistant", "⏳ 正在上传知识库到 GitHub...");
       
-      await webdavPut("/知识库/动作库.json", TRAINING_LIBRARY);
-      await webdavPut("/知识库/餐谱库.json", MEAL_LIBRARY);
-      await webdavPut("/知识库/食材价格库.json", INGREDIENT_PRICES);
-      await webdavPut("/知识库/补剂库.json", SUPPLEMENT_LIBRARY);
-      await webdavPut("/配置/规则.json", PERSONAL_RULES);
-      
-      addMessage("assistant", "✅ 云盘知识库初始化完成！\n\n已创建完整知识库结构：\n• 动作库、餐谱库、食材库、补剂库\n• 个人规则配置\n\n现在可以：\n1. 知识类问题自动搜索\n2. 搜索到的有用内容说「存入」即可永久保存\n3. 越用越贴合你的需求");
-      updateSyncStatus("cloud");
+      const ok = await gistPutAll();
+      if (ok) {
+        addMessage("assistant", "✅ 云端知识库初始化完成！\n\n已上传到你的私有 GitHub Gist：\n• 动作库、餐谱库、食材库、补剂库\n• 个人规则配置\n\n现在可以：\n1. 知识类问题自动搜索\n2. 搜索到的有用内容说「存入」即可永久保存\n3. 越用越贴合你的需求");
+        updateSyncStatus("cloud");
+      } else {
+        addMessage("assistant", "❌ 上传失败：请检查 Token 是否正确、是否勾选了 gist 权限。");
+        updateSyncStatus("local");
+      }
     }
     
     async function syncFromCloud() {
-      addMessage("assistant", "🔄 正在从云盘同步知识库...");
+      const tokenInput = document.getElementById('setting-git-token');
+      if (tokenInput) { appData.settings.gitToken = tokenInput.value.trim(); saveData(); }
+      addMessage("assistant", "🔄 正在从云端同步知识库...");
       
-      const training = await webdavGet("/知识库/动作库.json");
-      const meals = await webdavGet("/知识库/餐谱库.json");
-      const prices = await webdavGet("/知识库/食材价格库.json");
-      const supplements = await webdavGet("/知识库/补剂库.json");
-      const rules = await webdavGet("/配置/规则.json");
-      
-      if (training) TRAINING_LIBRARY = training;
-      if (meals) MEAL_LIBRARY = meals;
-      if (prices) INGREDIENT_PRICES = prices;
-      if (supplements) SUPPLEMENT_LIBRARY = supplements;
-      if (rules) PERSONAL_RULES = rules;
-      
-      renderTrainingView();
-      renderDietView();
-      
-      addMessage("assistant", "✅ 同步完成！已加载最新云盘知识库。");
-      updateSyncStatus("cloud");
+      const data = await gistGetAll();
+      if (data) {
+        if (data["动作库.json"]) TRAINING_LIBRARY = data["动作库.json"];
+        if (data["餐谱库.json"]) MEAL_LIBRARY = data["餐谱库.json"];
+        if (data["食材价格库.json"]) INGREDIENT_PRICES = data["食材价格库.json"];
+        if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
+        if (data["规则.json"]) PERSONAL_RULES = data["规则.json"];
+        
+        renderTrainingView();
+        renderDietView();
+        addMessage("assistant", "✅ 同步完成！已加载最新云端知识库。");
+        updateSyncStatus("cloud");
+      } else {
+        addMessage("assistant", "⚠️ 同步失败：请先点「初始化云端知识库」，或检查 Token。");
+        updateSyncStatus("local");
+      }
     }
     
     function updateSyncStatus(type) {
       const el = document.getElementById("sync-status");
       if (type === "cloud") {
-        el.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-500"></div><span>云盘已连接</span>';
+        el.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-500"></div><span>云端已连接</span>';
       } else {
         el.innerHTML = '<div class="w-2 h-2 rounded-full bg-gray-400"></div><span>本地</span>';
       }
@@ -983,8 +1023,8 @@
 
     // ========== 自学习入库功能 ==========
     async function saveToKnowledgeBase(type, content) {
-      if (!appData.settings.webdavUrl) {
-        return { success: false, message: "请先配置云盘后再使用知识库存储功能" };
+      if (!appData.settings.gitToken) {
+        return { success: false, message: "请先配置 GitHub Token 后再使用知识库存储功能" };
       }
 
       switch(type) {
@@ -999,18 +1039,18 @@
             nutrition: content.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 },
             storage: "冷冻7天"
           };
-          await webdavPut("/知识库/餐谱库.json", MEAL_LIBRARY);
+          await gistPutAll();
           renderDietView();
           return { success: true, message: `✅ 已将「${content.name || '新食谱'}」存入餐谱库\n后续备餐、采购清单都会自动计算食材用量` };
 
         case "supplement":
           SUPPLEMENT_LIBRARY[content.name] = content;
-          await webdavPut("/知识库/补剂库.json", SUPPLEMENT_LIBRARY);
+          await gistPutAll();
           return { success: true, message: `✅ 已将「${content.name}」存入补剂知识库` };
 
         case "rule":
           Object.assign(PERSONAL_RULES, content);
-          await webdavPut("/配置/规则.json", PERSONAL_RULES);
+          await gistPutAll();
           return { success: true, message: `✅ 已更新个人规则` };
 
         default:
@@ -1070,7 +1110,7 @@
       if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
       if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
       if (text.includes("库存") || text.includes("还有多少")) return { type: "query_stock" };
-      if (text.includes("同步") && text.includes("云盘")) return { type: "sync_cloud" };
+      if (text.includes("同步")) return { type: "sync_cloud" };
       
       const paramMatch = text.match(/蛋白.*(系数|目标)?.*改成\s*(\d+\.?\d*)/i);
       if (paramMatch) return { type: "set_param", key: "proteinCoefficient", value: parseFloat(paramMatch[2]) };
@@ -1656,9 +1696,7 @@
       document.getElementById('setting-search-url').value = appData.settings.searchUrl;
       document.getElementById('setting-search-key').value = appData.settings.searchKey;
       document.getElementById('setting-auto-search').checked = appData.settings.autoSearch;
-      document.getElementById('setting-webdav-url').value = appData.settings.webdavUrl;
-      document.getElementById('setting-webdav-user').value = appData.settings.webdavUser;
-      document.getElementById('setting-webdav-pass').value = appData.settings.webdavPass;
+      document.getElementById('setting-git-token').value = appData.settings.gitToken;
     }
     
     function saveProfile() {
@@ -1672,7 +1710,8 @@
       appData.settings.searchUrl = document.getElementById('setting-search-url').value;
       appData.settings.searchKey = document.getElementById('setting-search-key').value;
       appData.settings.autoSearch = document.getElementById('setting-auto-search').checked;
-      
+      appData.settings.gitToken = document.getElementById('setting-git-token').value;
+
       saveData();
       alert("参数已保存");
       renderDashboard();
@@ -1785,7 +1824,7 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
       });
       
-      if (appData.settings.webdavUrl) {
+      if (appData.settings.gitToken) {
         updateSyncStatus("cloud");
         syncFromCloud().catch(() => {});
       }
@@ -1802,11 +1841,11 @@
 • 📦 食材库存 + 成品餐库存自动联动
 • 🌐 联网搜索知识，可自学习存入知识库
 • 🗣️ 全功能对话操作，张嘴就能搞定
-• ☁️ 云盘知识库，支持对话修改
+• ☁️ 云端知识库，支持对话修改
 
 **快速开始三步：**
 1. 先在「设置」里填写你的基础参数
-2. 配置WebDAV云盘，初始化知识库
+2. 配置GitHub Token，初始化云端知识库
 3. 配置Agnes API和搜索API，启用智能对话和联网学习
 
 有任何问题随时告诉我，我们边用边优化～`);
