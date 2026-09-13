@@ -1293,16 +1293,18 @@
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "query_stock": return handleQueryStock();
         case "set_stock_target": {
-          const t = parseFloat(args.targetStock);
+          const cmdArgs = (cmd && cmd.args) || {};
+          const t = parseFloat(cmdArgs.targetStock);
           if (isNaN(t) || t <= 0) return { success: false, message: "目标库存无效，请提供克数（如30kg=30000）" };
-          const name = String(args.name || '').trim();
+          const name = String(cmdArgs.name || '').trim();
           if (!PRODUCT_LIBRARY[name]) PRODUCT_LIBRARY[name] = { name, unit: '500g', category: '食材' };
           PRODUCT_LIBRARY[name].targetStock = t;
           saveData();
           return { success: true, message: "✅ " + name + " 已设为长耗材：库存低于 " + Math.round(t * 0.3) + "g（" + (Math.round(t * 0.3 / 100) / 10) + "kg）时，采购清单自动补货到 " + t + "g（" + (t / 1000) + "kg）" };
         }
         case "query_finance": {
-          const period = args.period === 'month' ? 'month' : 'week';
+          const cmdArgs = (cmd && cmd.args) || {};
+          const period = cmdArgs.period === 'month' ? 'month' : 'week';
           const s = calculateSpend(period);
           const mealCosts = Object.keys(MEAL_LIBRARY).map(id => {
             const c = calculateMealCost(id);
