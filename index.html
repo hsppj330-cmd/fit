@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.12.0</title>
+  <title>健身减脂智能体 v1.13.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.12.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.13.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -286,7 +286,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.12.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.13.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -313,7 +313,7 @@
   </div>
 
   <script>
-    const VERSION = "1.12.0";
+    const VERSION = "1.13.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -1098,6 +1098,63 @@
       return { period, total: Math.round(total * 100) / 100, count: bills.length, byItem };
     }
     
+    // ========== 采购清单 V2：按商品库包装计算 + 长耗材目标库存补货 ==========
+    function generatePurchaseListV2(plan) {
+      const requirements = {};
+      const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      days.forEach(day => {
+        const plan2 = plan[day];
+        if (!plan2) return;
+        ["breakfast", "lunch", "dinner"].forEach(mealType => {
+          const meal = MEAL_LIBRARY[plan2[mealType]];
+          if (meal && meal.ingredients) {
+            Object.entries(meal.ingredients).forEach(([name, amount]) => {
+              requirements[name] = (requirements[name] || 0) + amount;
+            });
+          }
+        });
+      });
+      const purchaseList = {};
+      Object.entries(requirements).forEach(([name, needed]) => {
+        const stock = appData.ingredientStock[name] || 0;
+        const priceInfo = INGREDIENT_PRICES[name] || {};
+        const prod = PRODUCT_LIBRARY[name];
+        // 周备餐需要 - 当前库存
+        let needGrams = Math.max(0, needed - stock);
+        // 长耗材：设置目标库存后，库存低于 30% 自动补到目标库存
+        if (prod && prod.targetStock) {
+          const reorderPoint = prod.targetStock * 0.3;
+          if (stock < reorderPoint) {
+            needGrams = Math.max(needGrams, prod.targetStock - stock);
+          }
+        }
+        if (needGrams <= 0) return;
+        // 包装规格：优先商品库（weight/price/unit），其次食材价格库
+        let packWeight = 500, packPrice = priceInfo.price || 0, packUnit = "500g", packUnitLabel = "500g/包";
+        if (prod && prod.weight) {
+          packWeight = prod.weight;
+          packPrice = prod.price || 0;
+          packUnit = prod.unit || (prod.weight + "g");
+          packUnitLabel = prod.spec || (prod.weight + (prod.unit || 'g') + "/件");
+        } else if (priceInfo.unit) {
+          const g = parseUnitGrams(priceInfo.unit);
+          packWeight = g;
+          packPrice = priceInfo.price || 0;
+          packUnit = priceInfo.unit;
+          packUnitLabel = priceInfo.unit + "/件";
+        }
+        const packs = Math.max(1, Math.ceil(needGrams / packWeight));
+        purchaseList[name] = {
+          amount: needGrams, packs, packWeight, packUnit, packUnitLabel, packPrice,
+          category: (prod && prod.category) || priceInfo.category || "其他",
+          storage: priceInfo.storage || "常温",
+          estimatedPrice: packs * packPrice,
+          isBulk: !!(prod && prod.targetStock)
+        };
+      });
+      return purchaseList;
+    }
+    
     function quickRecordTraining(type) {
       const training = TRAINING_LIBRARY[type];
       if (!training) return { success: false, message: "未知训练类型" };
@@ -1227,6 +1284,15 @@
         case "generate_purchase": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "query_stock": return handleQueryStock();
+        case "set_stock_target": {
+          const t = parseFloat(args.targetStock);
+          if (isNaN(t) || t <= 0) return { success: false, message: "目标库存无效，请提供克数（如30kg=30000）" };
+          const name = String(args.name || '').trim();
+          if (!PRODUCT_LIBRARY[name]) PRODUCT_LIBRARY[name] = { name, unit: '500g', category: '食材' };
+          PRODUCT_LIBRARY[name].targetStock = t;
+          saveData();
+          return { success: true, message: "✅ " + name + " 已设为长耗材：库存低于 " + Math.round(t * 0.3) + "g（" + (Math.round(t * 0.3 / 100) / 10) + "kg）时，采购清单自动补货到 " + t + "g（" + (t / 1000) + "kg）" };
+        }
         case "query_finance": {
           const period = args.period === 'month' ? 'month' : 'week';
           const s = calculateSpend(period);
@@ -1254,8 +1320,8 @@
     function handleGeneratePurchase() {
       const trainingDays = ["周一", "周二", "周四", "周五"];
       const plan = generateWeekMealPlan(trainingDays);
-      const list = generatePurchaseList(plan);
-      let msg = "📋 本周采购清单（按分类，含早餐食材）：\n\n";
+      const list = generatePurchaseListV2(plan);
+      let msg = "📋 本周采购清单（按商品包装，含早餐食材）：\n\n";
       let totalPrice = 0;
       const categories = {};
       Object.entries(list).forEach(([name, info]) => {
@@ -1265,11 +1331,13 @@
       });
       Object.entries(categories).forEach(([cat, items]) => {
         msg += `【${cat}】\n`;
-        items.forEach(item => msg += `• ${item.name}：${Math.round(item.amount)}g  约${Math.round(item.estimatedPrice)}元\n`);
+        items.forEach(item => {
+          msg += `• ${item.name}：需${item.packs}${item.packUnit.includes('g') || item.packUnit.includes('ml') ? '包' : '件'}（${item.packUnitLabel}） ${Math.round(item.estimatedPrice)}元${item.isBulk ? '（长耗材补货）' : ''}\n`;
+        });
         msg += "\n";
       });
       msg += `💰 预估总价：${Math.round(totalPrice)}元\n\n`;
-      msg += "采购完成后告诉我「买了XX多少克多少钱」即可自动入库。";
+      msg += "采购回来后勾选清单项即可自动入库；也可说「买了XX多少克多少钱」。";
       return { success: true, message: msg };
     }
     
@@ -1334,6 +1402,7 @@
       { type: "function", function: { name: "purchase", description: "记录食材采购入库，增加食材库存并记账单。用户说买了/采购/买了XX多少克多少钱时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, amount: { type: "number", description: "数量（克）" }, cost: { type: "number", description: "花费（元），可选" } }, required: ["name", "amount"] } } },
       { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "query_finance", description: "查询财务开销与每份备餐成本：本周/本月采购花费、各餐每份成本。用户问花了多少钱/开销/预算/每份餐多少钱/周开销时调用", parameters: { type: "object", properties: { period: { type: "string", description: "week或month，默认week" } } } } },
+      { type: "function", function: { name: "set_stock_target", description: "设置长耗材目标库存（如糙米目标库存30kg、囤货），库存低于30%时采购清单自动补货。用户说目标库存/囤/长期备货/一次买多少时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, targetStock: { type: "number", description: "目标库存克数（1kg=1000g，如30kg填30000）" } }, required: ["name", "targetStock"] } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } }
     ];
@@ -1376,6 +1445,15 @@
           return purchaseIngredient(String(args.name), amount, isNaN(cost) ? undefined : cost);
         }
         case "query_stock": return handleQueryStock();
+        case "set_stock_target": {
+          const t = parseFloat(args.targetStock);
+          if (isNaN(t) || t <= 0) return { success: false, message: "目标库存无效，请提供克数（如30kg=30000）" };
+          const name = String(args.name || '').trim();
+          if (!PRODUCT_LIBRARY[name]) PRODUCT_LIBRARY[name] = { name, unit: '500g', category: '食材' };
+          PRODUCT_LIBRARY[name].targetStock = t;
+          saveData();
+          return { success: true, message: "✅ " + name + " 已设为长耗材：库存低于 " + Math.round(t * 0.3) + "g（" + (Math.round(t * 0.3 / 100) / 10) + "kg）时，采购清单自动补货到 " + t + "g（" + (t / 1000) + "kg）" };
+        }
         case "query_finance": {
           const period = args.period === 'month' ? 'month' : 'week';
           const s = calculateSpend(period);
@@ -1758,11 +1836,13 @@
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="prep" onclick="switchDietTab('prep')">周备餐中心</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购清单</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="products" onclick="switchDietTab('products')">商品库</button>
           </div>
         </div>
         <div id="diet-daily" class="diet-panel">${renderDailyDiet()}</div>
         <div id="diet-prep" class="diet-panel hidden">${renderMealPrep()}</div>
         <div id="diet-purchase" class="diet-panel hidden">${renderPurchaseList()}</div>
+        <div id="diet-products" class="diet-panel hidden">${renderProductLibrary()}</div>
       `;
       document.getElementById('view-diet').innerHTML = html;
     }
@@ -1837,6 +1917,51 @@
       `;
     }
     
+    // ========== 商品库视图 ==========
+    function renderProductLibrary() {
+      const products = Object.entries(PRODUCT_LIBRARY);
+      if (!products.length) return `
+        <div class="bg-white rounded-xl p-8 text-center shadow-sm">
+          <p class="text-4xl mb-2">📦</p>
+          <p class="text-gray-500 text-sm">商品库还是空的</p>
+          <p class="text-xs text-gray-400 mt-1">在对话里上传商品截图（食材/饮品/补剂），自动导入这里</p>
+        </div>`;
+      return `
+        <div class="mb-4">
+          <h3 class="font-bold text-lg mb-1">📦 商品库（${products.length}件）</h3>
+          <p class="text-xs text-gray-400">采购清单按这里包装规格计算数量；输入目标库存可设为长耗材自动补货</p>
+        </div>
+        <div class="space-y-3">
+          ${products.map(([name, p]) => {
+            const np = p.nutritionPer100 || {};
+            const stock = appData.ingredientStock[name] || 0;
+            const unitLabel = p.unit && p.unit.includes('ml') ? '100mL' : '100g';
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="font-medium">${name}${p.brand ? ' <span class="text-xs text-gray-400">' + p.brand + '</span>' : ''}</div>
+                  <div class="text-xs text-gray-500 mt-0.5">${p.spec || (p.weight ? p.weight + 'g/件' : '')} · ${p.price ? p.price + '元' : ''}${p.perPrice ? '（折合' + p.perPrice + '元/' + (p.unit || '') + '）' : ''}</div>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full ${p.category === '补剂' ? 'bg-purple-50 text-purple-600' : p.category === '饮品' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}">${p.category || '食材'}</span>
+              </div>
+              ${np.calories ? `<div class="mt-2 text-xs text-gray-500">每${unitLabel}：${np.calories}kcal · 蛋白${np.protein || 0}g · 碳水${np.carbs || 0}g · 脂肪${np.fat || 0}g</div>` : ''}
+              ${p.targetStock ? `<div class="mt-1 text-xs text-purple-500">长耗材：目标库存 ${(p.targetStock / 1000)}kg（低于 ${Math.round(p.targetStock * 0.3 / 1000 * 10) / 10}kg 自动补货）</div>` : ''}
+              <div class="mt-2 flex items-center justify-between">
+                <div class="text-xs text-gray-500">当前库存：<span class="font-bold text-gray-700">${stock ? Math.round(stock) + 'g' : '无'}</span></div>
+                <div class="flex items-center gap-1 text-xs">
+                  <span class="text-gray-400">目标库存(g)：</span>
+                  <input type="number" id="target-stock-${name}" class="w-20 px-2 py-1 border border-gray-200 rounded-lg text-xs" placeholder="${p.targetStock || '不设'}" value="${p.targetStock || ''}">
+                  <button class="px-2 py-1 bg-purple-500 text-white rounded-lg text-xs" onclick="setStockTarget('${name}')">设长耗材</button>
+                  <button class="px-2 py-1 bg-red-50 text-red-500 rounded-lg text-xs" onclick="removeProduct('${name}')">删除</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      `;
+    }
+    
     function handleEatMeal(mealId, type) {
       const result = eatMeal(mealId, type);
       alert(result.message);
@@ -1896,7 +2021,7 @@
     function renderPurchaseList() {
       const trainingDays = ["周一", "周二", "周四", "周五"];
       const plan = generateWeekMealPlan(trainingDays);
-      const list = generatePurchaseList(plan);
+      const list = generatePurchaseListV2(plan);
       const categories = {};
       let totalPrice = 0;
       Object.entries(list).forEach(([name, info]) => {
@@ -1911,12 +2036,18 @@
             <h4 class="font-medium mb-2 text-gray-700">${cat}</h4>
             <div class="space-y-2">
               ${items.map(item => `
-                <div class="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
+                <div class="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm ${item.isBulk ? 'border-l-4 border-purple-400' : ''}">
                   <div class="flex items-center gap-3">
-                    <input type="checkbox" class="w-4 h-4 text-blue-500">
-                    <div><div class="text-sm font-medium">${item.name}</div><div class="text-xs text-gray-500">${Math.round(item.amount)}g · ${item.storage}</div></div>
+                    <input type="checkbox" class="w-4 h-4 text-blue-500" onchange="markPurchased('${item.name}')">
+                    <div>
+                      <div class="text-sm font-medium">${item.name}${item.isBulk ? ' <span class="text-purple-500 text-xs">长耗材</span>' : ''}</div>
+                      <div class="text-xs text-gray-500">需${item.packs}${item.packUnit.includes('g') || item.packUnit.includes('ml') ? '包' : '件'}（${item.packUnitLabel}） · ${item.storage}</div>
+                    </div>
                   </div>
-                  <div class="text-sm text-gray-600">约${Math.round(item.estimatedPrice)}元</div>
+                  <div class="text-right">
+                    <div class="text-sm text-gray-600 font-medium">${Math.round(item.estimatedPrice)}元</div>
+                    <div class="text-xs text-gray-400">${item.packPrice}元/件</div>
+                  </div>
                 </div>
               `).join('')}
             </div>
@@ -1927,9 +2058,45 @@
         <div class="mb-4 flex items-center justify-between">
           <div><h3 class="font-bold text-lg">本周采购清单</h3><p class="text-sm text-gray-500">预估总价：<span class="font-bold text-orange-500">${Math.round(totalPrice)}元</span></p></div>
         </div>
-        ${categoryHtml}
-        <div class="mt-4 text-xs text-gray-400 text-center">采购完成后对话说「买了XX多少克多少钱」自动入库</div>
+        <div class="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 mb-3">✅ 采购回来后勾选该项即可自动入库并记账；长耗材按目标库存自动补货</div>
+        ${categoryHtml || '<div class="text-center text-gray-400 py-8 text-sm">本周库存充足，无需采购 🎉</div>'}
+        <div class="mt-4 text-xs text-gray-400 text-center">也可以对话说「生成采购清单」「买了XX多少克多少钱」</div>
       `;
+    }
+    
+    // 采购清单勾选 → 入库 + 记账 + 刷新
+    function markPurchased(name) {
+      const trainingDays = ["周一", "周二", "周四", "周五"];
+      const list = generatePurchaseListV2(generateWeekMealPlan(trainingDays));
+      const item = list[name];
+      if (!item) { alert("该项不在当前采购清单中"); return; }
+      const grams = item.packs * item.packWeight;
+      appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) + grams;
+      appData.billRecords.push({ date: new Date().toISOString().split('T')[0], type: "食材采购", item: name, amount: grams, cost: item.estimatedPrice });
+      saveData();
+      renderDietView();
+      renderDashboard();
+      alert("✅ " + name + " 已入库 " + grams + "g（" + item.packs + "包 × " + item.packWeight + "g），花费 " + item.estimatedPrice + " 元，已记入账单与本周开销");
+    }
+    
+    // 商品库：设置长耗材目标库存
+    function setStockTarget(name) {
+      const input = document.getElementById('target-stock-' + name);
+      const v = parseFloat(input.value);
+      if (!v || v <= 0) { alert("请输入目标库存克数，如糙米 30000（即30kg）"); return; }
+      if (!PRODUCT_LIBRARY[name]) { alert("商品库中无此商品，请先上传商品截图导入"); return; }
+      PRODUCT_LIBRARY[name].targetStock = v;
+      saveData();
+      alert("✅ " + name + " 已设为长耗材：库存低于 " + Math.round(v * 0.3) + "g 时，采购清单自动补货到 " + v + "g（" + (v / 1000) + "kg）");
+      renderDietView();
+    }
+    
+    // 商品库：删除商品
+    function removeProduct(name) {
+      if (!confirm("确认从商品库删除 " + name + " ？")) return;
+      delete PRODUCT_LIBRARY[name];
+      saveData();
+      renderDietView();
     }
     
     function renderSettingsView() {
