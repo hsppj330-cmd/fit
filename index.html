@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.9.0</title>
+  <title>健身减脂智能体 v1.10.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.9.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.10.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -282,7 +282,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.9.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.10.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -309,7 +309,7 @@
   </div>
 
   <script>
-    const VERSION = "1.9.0";
+    const VERSION = "1.10.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -1934,7 +1934,54 @@
       const reader = new FileReader();
       reader.onload = async function(e) {
         addMessage('user', "[图片]");
-        if (appData.settings.apiKey) {
+        if (!appData.settings.apiKey) {
+          addMessage('assistant', "📸 图片识别功能需要配置API密钥后启用。\n\n你可以直接对话记录：体重体脂说「体重66kg体脂20.2%」，买菜说「买了西红柿500g3块5」。");
+          return;
+        }
+        addMessage('assistant', "📸 正在识别图片类型...");
+        // 第一步：判断图片类型
+        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/菜品/购物清单截图（如买菜APP、超市小票、菜品照片）；3-其他类型图片", e.target.result);
+        const typeNum = classify ? (String(classify).match(/[123]/) || [])[0] : null;
+        if (typeNum === '2') {
+          // ===== 食材/购物截图：识别并入库 =====
+          addMessage('assistant', "🛒 正在识别食材信息...");
+          const result = await callAI("请识别这张食材/购物截图中的食材信息，用JSON数组返回（不要输出其他文字）：[{\"name\":\"食材中文名\",\"weight\":\"重量克数，数字，无则null\",\"cost\":\"价格元，数字，无则null\"}]。名称用常见中文名（西红柿、黄瓜、鸡胸肉等），有规格的换算成克（如500g、1斤=500g、1kg=1000g），识别不准确宁可null。", e.target.result);
+          let items = [];
+          const arrMatch = result ? result.match(/\[[\s\S]*\]/) : null;
+          if (arrMatch) {
+            try {
+              const parsed = JSON.parse(arrMatch[0]);
+              if (Array.isArray(parsed)) items = parsed;
+              else if (parsed.items && Array.isArray(parsed.items)) items = parsed.items;
+            } catch (e) { console.error("食材JSON解析失败", e); }
+          }
+          if (items.length === 0) {
+            addMessage('assistant', "未能从这张图片中识别出食材，请直接说「买了西红柿500g3块5」即可入库。");
+            return;
+          }
+          const lines = [];
+          let okCount = 0, needWeight = [];
+          items.forEach(it => {
+            const name = String(it.name || '').trim();
+            if (!name) return;
+            const w = parseFloat(String(it.weight ?? '').replace(/[^0-9.]/g, ''));
+            const c = parseFloat(String(it.cost ?? '').replace(/[^0-9.]/g, ''));
+            if (!isNaN(w) && w > 0) {
+              const r = purchaseIngredient(name, Math.round(w), isNaN(c) ? undefined : c);
+              okCount++;
+              lines.push("· " + name + " " + Math.round(w) + "g" + (isNaN(c) ? "" : " " + c + "元") + " ✓");
+            } else {
+              needWeight.push(name + (isNaN(c) ? "" : " " + c + "元"));
+            }
+          });
+          let msg = "🛒 已识别入库：\n" + lines.join("\n");
+          if (needWeight.length) {
+            msg += "\n\n⚠️ 以下未入库（缺重量）：" + needWeight.join("、") + "\n请补充说「买了XX多少克」";
+          }
+          msg += "\n\n知识库没有的新食材可以说「存起来」加入知识库。";
+          addMessage('assistant', msg);
+        } else if (typeNum === '1') {
+          // ===== 体脂秤截图：全量身体成分识别 =====
           addMessage('assistant', "📸 正在识别体脂秤截图，请稍候...");
           const result = await callAI("请识别这张体脂秤（身体成分检测）截图中的所有数据，完整提取以下字段并用一个JSON对象返回（不要输出其他文字）：{bodyScore身体得分, bodyAge身体年龄, weight体重kg, bodyFat体脂率%, bmiBMI, bmr基础代谢大卡, muscle肌肉kg, visceralFat内脏脂肪等级, subcutaneousFat皮下脂肪%, protein蛋白质%, muscleRate骨骼肌率%, leanMass去脂体重kg, water水分%, boneMass骨量kg}。识别不到的字段设为null", e.target.result);
           if (result) {
@@ -1970,7 +2017,7 @@
             addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重66kg体脂20.2%」");
           }
         } else {
-          addMessage('assistant', "📸 截图识别功能需要配置API密钥后启用。\n\n你可以先手动输入数据，比如直接说「体重72.5kg体脂18.5%」，我会自动记录。");
+          addMessage('assistant', "这张图片不是体脂秤截图也不是食材截图。\n\n· 体测数据：上传Keep体脂秤截图，或说「体重66kg体脂20.2%」\n· 买菜记录：上传多多买菜/美团买菜截图，或说「买了西红柿500g3块5」");
         }
       };
       reader.readAsDataURL(file);
