@@ -1263,6 +1263,14 @@
       
       if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
       if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
+      // 长耗材目标库存（先于"库存"判断，避免被拦截）
+      const targetMatch = text.match(/([\u4e00-\u9fa5A-Za-z]+?)\s*(?:目标库存|囤货|长期备货)[设为到]?\s*(\d+\.?\d*)\s*(kg|公斤|克|g)?/i);
+      if (targetMatch) {
+        let grams = parseFloat(targetMatch[2]);
+        const unit = (targetMatch[3] || 'g').toLowerCase();
+        if (unit === 'kg' || unit === '公斤') grams = grams * 1000;
+        return { type: "set_stock_target", args: { name: targetMatch[1].replace(/[设为到库存囤货长期备货]/g, ''), targetStock: grams } };
+      }
       if (text.includes("库存") || text.includes("还有多少")) return { type: "query_stock" };
       if (text.includes("同步")) return { type: "sync_cloud" };
       
