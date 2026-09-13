@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.6.0</title>
+  <title>健身减脂智能体 v1.7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.6.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.7.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -224,19 +224,15 @@
           <div class="bg-white rounded-2xl p-4 shadow-sm">
             <h3 class="font-bold mb-4">联网搜索配置</h3>
             <div class="space-y-3">
-              <div>
-                <label class="text-sm text-gray-600">搜索 API 接口地址</label>
-                <input type="text" id="setting-search-url" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="https://api.baidu.com/search">
-              </div>
-              <div>
-                <label class="text-sm text-gray-600">搜索 API 密钥</label>
-                <input type="password" id="setting-search-key" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="你的搜索密钥">
-              </div>
               <div class="flex items-center gap-2">
                 <input type="checkbox" id="setting-auto-search" class="w-4 h-4" checked>
                 <label class="text-sm text-gray-600">知识类问题自动联网搜索</label>
               </div>
-              <p class="text-xs text-gray-400">食谱、动作、补剂等知识问题自动搜索，操作类指令不联网</p>
+              <div class="text-xs text-gray-400 space-y-1">
+                <p>✅ 已内置联网搜索（由 Agnes AI 自动联网检索），无需额外配置 API</p>
+                <p>食谱、动作、补剂等知识问题自动搜索实时资料，操作类指令不联网</p>
+                <p>搜索到的资料可直接「存起来」存入云端知识库，实现自学习</p>
+              </div>
             </div>
           </div>
           
@@ -276,7 +272,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.6.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.7.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -303,7 +299,7 @@
   </div>
 
   <script>
-    const VERSION = "1.6.0";
+    const VERSION = "1.7.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -812,28 +808,40 @@
       }
     }
 
-    // ========== 联网搜索 ==========
+    // ========== 联网搜索（Agnes 内置 web_search_preview，无需第三方搜索API） ==========
     async function searchWeb(query) {
-      if (!appData.settings.searchUrl || !appData.settings.searchKey) return null;
+      if (!appData.settings.apiUrl || !appData.settings.apiKey) return null;
       try {
-        const res = await fetch(`${appData.settings.searchUrl}?q=${encodeURIComponent(query)}&api_key=${appData.settings.searchKey}&count=5`);
+        const baseUrl = appData.settings.apiUrl.replace(/\/+$/, '');
+        const res = await fetch(baseUrl + '/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + appData.settings.apiKey
+          },
+          body: JSON.stringify({
+            model: appData.settings.model || 'agnes-2.5-flash',
+            input: query,
+            tools: [{ type: 'web_search_preview' }],
+            max_output_tokens: 1500
+          })
+        });
+        if (!res.ok) return null;
         const data = await res.json();
-        
-        if (data.articles && data.articles.length > 0) {
-          return data.articles.slice(0, 5).map(item => ({
-            title: item.title || "",
-            content: item.abstract || item.desc || item.snippet || ""
-          }));
+        let text = '';
+        if (data.output) {
+          for (const item of data.output) {
+            if (item.type === 'message' && item.content) {
+              for (const c of item.content) {
+                if (c.type === 'output_text' && c.text) text += c.text + '\n';
+              }
+            }
+          }
         }
-        if (data.items && data.items.length > 0) {
-          return data.items.slice(0, 5).map(item => ({
-            title: item.title || "",
-            content: item.snippet || item.description || ""
-          }));
-        }
-        return null;
+        if (!text.trim()) return null;
+        return [{ title: '联网搜索结果：' + query, content: text.trim() }];
       } catch (e) {
-        console.error("搜索失败", e);
+        console.error('搜索失败', e);
         return null;
       }
     }
@@ -1693,8 +1701,6 @@
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
       document.getElementById('setting-apikey').value = appData.settings.apiKey;
       document.getElementById('setting-model').value = appData.settings.model;
-      document.getElementById('setting-search-url').value = appData.settings.searchUrl;
-      document.getElementById('setting-search-key').value = appData.settings.searchKey;
       document.getElementById('setting-auto-search').checked = appData.settings.autoSearch;
       document.getElementById('setting-git-token').value = appData.settings.gitToken;
     }
@@ -1707,8 +1713,8 @@
       appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 500;
       appData.profile.bmr = Math.round(88.362 + (13.397 * appData.profile.weight) + (4.799 * 175) - (5.677 * 25));
       
-      appData.settings.searchUrl = document.getElementById('setting-search-url').value;
-      appData.settings.searchKey = document.getElementById('setting-search-key').value;
+      appData.settings.searchUrl = "";
+      appData.settings.searchKey = "";
       appData.settings.autoSearch = document.getElementById('setting-auto-search').checked;
       appData.settings.gitToken = document.getElementById('setting-git-token').value;
 
@@ -1738,7 +1744,7 @@
       let searchResults = null;
       const needSearch = appData.settings.autoSearch && isKnowledgeQuestion(text);
       
-      if (needSearch && appData.settings.searchKey) {
+      if (needSearch && appData.settings.apiKey) {
         addMessage('assistant', "🔍 正在联网搜索相关信息...");
         searchResults = await searchWeb(text);
       }
