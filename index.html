@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.11.0</title>
+  <title>健身减脂智能体 v1.12.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.11.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.12.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -156,7 +156,7 @@
           
           <div class="bg-white rounded-2xl p-4 shadow-sm">
             <h3 class="font-medium mb-3">本周统计</h3>
-            <div class="grid grid-cols-3 gap-3 text-center">
+            <div class="grid grid-cols-2 gap-3 text-center">
               <div>
                 <p class="text-xl font-bold text-blue-600" id="week-training-count">0</p>
                 <p class="text-xs text-gray-500">训练次数</p>
@@ -168,6 +168,10 @@
               <div>
                 <p class="text-xl font-bold text-orange-600" id="week-avg-protein">0</p>
                 <p class="text-xs text-gray-500">日均蛋白(g)</p>
+              </div>
+              <div>
+                <p class="text-xl font-bold text-purple-600" id="week-spend">0</p>
+                <p class="text-xs text-gray-500">本周开销(元)</p>
               </div>
             </div>
           </div>
@@ -282,7 +286,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.11.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.12.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -309,7 +313,7 @@
   </div>
 
   <script>
-    const VERSION = "1.11.0";
+    const VERSION = "1.12.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -617,6 +621,8 @@
     let INGREDIENT_PRICES = JSON.parse(JSON.stringify(DEFAULT_INGREDIENT_PRICES));
     let SUPPLEMENT_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_SUPPLEMENT_LIBRARY));
     let PERSONAL_RULES = JSON.parse(JSON.stringify(DEFAULT_RULES));
+    // 商品库（用户上传商品截图导入：食材/饮品/补剂，含规格价格营养）
+    let PRODUCT_LIBRARY = {};
 
     let currentContext = { type: null, content: null, searchResult: null };
     
@@ -730,6 +736,7 @@
         "动作库.json": { content: JSON.stringify(TRAINING_LIBRARY, null, 2) },
         "餐谱库.json": { content: JSON.stringify(MEAL_LIBRARY, null, 2) },
         "食材价格库.json": { content: JSON.stringify(INGREDIENT_PRICES, null, 2) },
+        "商品库.json": { content: JSON.stringify(PRODUCT_LIBRARY, null, 2) },
         "补剂库.json": { content: JSON.stringify(SUPPLEMENT_LIBRARY, null, 2) },
         "规则.json": { content: JSON.stringify(PERSONAL_RULES, null, 2) }
       };
@@ -796,6 +803,7 @@
         if (data["动作库.json"]) TRAINING_LIBRARY = data["动作库.json"];
         if (data["餐谱库.json"]) MEAL_LIBRARY = data["餐谱库.json"];
         if (data["食材价格库.json"]) INGREDIENT_PRICES = data["食材价格库.json"];
+        if (data["商品库.json"]) PRODUCT_LIBRARY = data["商品库.json"];
         if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
         if (data["规则.json"]) PERSONAL_RULES = data["规则.json"];
         
@@ -1050,6 +1058,46 @@
       return purchaseList;
     }
     
+    // ========== 财务系统 ==========
+    function parseUnitGrams(unit) {
+      if (!unit) return 500;
+      const m = String(unit).match(/(\d+)\s*(g|kg|ml)/i);
+      if (!m) return 500;
+      const n = parseFloat(m[1]);
+      const u = m[2].toLowerCase();
+      if (u === 'kg') return n * 1000;
+      return n;
+    }
+    
+    // 每份餐成本（按食材价格库单价 × 用量）
+    function calculateMealCost(mealId) {
+      const meal = MEAL_LIBRARY[mealId];
+      if (!meal || !meal.ingredients) return null;
+      let total = 0, unknown = [];
+      Object.entries(meal.ingredients).forEach(([name, amount]) => {
+        const p = INGREDIENT_PRICES[name];
+        if (p && p.price) {
+          total += amount / parseUnitGrams(p.unit) * p.price;
+        } else {
+          unknown.push(name);
+        }
+      });
+      return { cost: Math.round(total * 100) / 100, unknown };
+    }
+    
+    // 周期开销汇总
+    function calculateSpend(period) {
+      const now = new Date();
+      let start;
+      if (period === 'month') { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+      else { start = new Date(now); start.setDate(start.getDate() - start.getDay()); }
+      const bills = (appData.billRecords || []).filter(r => r.cost && new Date(r.date) >= start);
+      const total = bills.reduce((s, r) => s + (r.cost || 0), 0);
+      const byItem = {};
+      bills.forEach(r => { byItem[r.item] = (byItem[r.item] || 0) + (r.cost || 0); });
+      return { period, total: Math.round(total * 100) / 100, count: bills.length, byItem };
+    }
+    
     function quickRecordTraining(type) {
       const training = TRAINING_LIBRARY[type];
       if (!training) return { success: false, message: "未知训练类型" };
@@ -1179,6 +1227,17 @@
         case "generate_purchase": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "query_stock": return handleQueryStock();
+        case "query_finance": {
+          const period = args.period === 'month' ? 'month' : 'week';
+          const s = calculateSpend(period);
+          const mealCosts = Object.keys(MEAL_LIBRARY).map(id => {
+            const c = calculateMealCost(id);
+            return { id, name: MEAL_LIBRARY[id].name, cost: c ? c.cost : null };
+          }).filter(m => m.cost !== null);
+          const costLines = mealCosts.map(m => m.name + '：约' + m.cost + '元/份').join('\n');
+          const itemLines = Object.entries(s.byItem).map(([k, v]) => k + ' ' + v.toFixed(1) + '元').join('，');
+          return { success: true, message: (period === 'week' ? '本周' : '本月') + '采购开销：' + s.total + '元（' + s.count + '笔）' + (itemLines ? '\n明细：' + itemLines : '') + '\n\n各餐成本参考：\n' + (costLines || '（部分食材无价格，暂无法计算）') + '\n\n备餐5份成本约为单份×5，可调整食材价格库后重新计算' };
+        }
         case "sync_cloud": await syncFromCloud(); return { success: true, message: "已从云盘同步最新知识库" };
         case "set_param": appData.profile[cmd.key] = cmd.value; saveData(); return { success: true, message: `已将蛋白质系数设置为${cmd.value}g/kg` };
         case "save_knowledge":
@@ -1274,6 +1333,7 @@
       { type: "function", function: { name: "eat_meal", description: "记录吃了某餐（早餐/A餐/B餐/C餐），扣减对应库存并计入今日摄入热量。用户说吃了/早餐/A餐/B餐/C餐时调用", parameters: { type: "object", properties: { mealName: { type: "string", description: "餐名：早餐 / A餐 / B餐 / C餐" } }, required: ["mealName"] } } },
       { type: "function", function: { name: "purchase", description: "记录食材采购入库，增加食材库存并记账单。用户说买了/采购/买了XX多少克多少钱时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, amount: { type: "number", description: "数量（克）" }, cost: { type: "number", description: "花费（元），可选" } }, required: ["name", "amount"] } } },
       { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "query_finance", description: "查询财务开销与每份备餐成本：本周/本月采购花费、各餐每份成本。用户问花了多少钱/开销/预算/每份餐多少钱/周开销时调用", parameters: { type: "object", properties: { period: { type: "string", description: "week或month，默认week" } } } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } }
     ];
@@ -1316,6 +1376,17 @@
           return purchaseIngredient(String(args.name), amount, isNaN(cost) ? undefined : cost);
         }
         case "query_stock": return handleQueryStock();
+        case "query_finance": {
+          const period = args.period === 'month' ? 'month' : 'week';
+          const s = calculateSpend(period);
+          const mealCosts = Object.keys(MEAL_LIBRARY).map(id => {
+            const c = calculateMealCost(id);
+            return { id, name: MEAL_LIBRARY[id].name, cost: c ? c.cost : null };
+          }).filter(m => m.cost !== null);
+          const costLines = mealCosts.map(m => m.name + '：约' + m.cost + '元/份').join('\n');
+          const itemLines = Object.entries(s.byItem).map(([k, v]) => k + ' ' + v.toFixed(1) + '元').join('，');
+          return { success: true, message: (period === 'week' ? '本周' : '本月') + '采购开销：' + s.total + '元（' + s.count + '笔）' + (itemLines ? '\n明细：' + itemLines : '') + '\n\n各餐成本参考：\n' + (costLines || '（部分食材无价格，暂无法计算）') + '\n\n备餐5份成本约为单份×5，可调整食材价格库后重新计算' };
+        }
         case "generate_purchase_list": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
         default: return { success: false, message: "未知工具：" + name };
@@ -1497,6 +1568,9 @@
       const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
       const weekTraining = appData.trainingRecords.filter(r => new Date(r.date) >= weekStart);
       document.getElementById('week-training-count').textContent = weekTraining.length;
+      // 本周开销
+      const spend = calculateSpend('week');
+      document.getElementById('week-spend').textContent = spend.total;
       
       // 更新今日实时监控
       updateTodayMonitor();
@@ -1792,7 +1866,7 @@
                 <div class="flex items-center justify-between mb-2">
                   <div>
                     <h4 class="font-medium">${meal.name}</h4>
-                    <p class="text-xs text-gray-500">${meal.nutrition?.protein || 0}g蛋白 · ${meal.nutrition?.calories || 0}大卡/份</p>
+                    <p class="text-xs text-gray-500">${meal.nutrition?.protein || 0}g蛋白 · ${meal.nutrition?.calories || 0}大卡/份 · 💰约${(() => { const c = calculateMealCost(meal.id); return c ? c.cost + '元/份' : '价格待定'; })()}</p>
                   </div>
                   <button class="text-sm bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600" onclick="handleBatchCook('${meal.id}')">制作5份</button>
                 </div>
@@ -1940,12 +2014,12 @@
         }
         addMessage('assistant', "📸 正在识别图片类型...");
         // 第一步：判断图片类型
-        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/菜品/购物清单截图（如买菜APP、超市小票、菜品照片）；3-其他类型图片", e.target.result);
+        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/饮品/补剂/商品截图（买菜APP、商品详情页、营养标签、超市小票、补剂瓶身等）；3-其他类型图片", e.target.result);
         const typeNum = classify ? (String(classify).match(/[123]/) || [])[0] : null;
         if (typeNum === '2') {
-          // ===== 食材/商品截图：识别 → 查营养与价格，不自动入库 =====
-          addMessage('assistant', "🛒 正在识别食材信息...");
-          const result = await callAI("请识别这张食材/商品截图中的食材信息，用JSON数组返回（不要输出其他文字）：[{\"name\":\"食材中文名\",\"weight\":\"重量克数，数字，无则null\",\"cost\":\"价格元，数字，无则null\"}]。名称用常见中文名（西红柿、黄瓜、鸡胸肉等），有规格的换算成克（如500g、1斤=500g、1kg=1000g），识别不准确宁可null。", e.target.result);
+          // ===== 商品截图（食材/饮品/补剂）：识别 → 导入商品库 + 营养/财务参考，不入库存 =====
+          addMessage('assistant', "🛒 正在识别商品信息...");
+          const result = await callAI("请识别这张商品/食材/饮品/补剂截图，用JSON数组返回（不要输出其他文字）：[{\"name\":\"商品中文名\",\"brand\":\"品牌，无则null\",\"spec\":\"规格如200mL*24盒/箱\",\"unit\":\"计价基准单位如盒/瓶/500g/250ml\",\"weight\":\"重量或容量数字（500g→500，200mL→200，1kg→1000），无则null\",\"price\":\"整件价格元\",\"perPrice\":\"折合单价元（如每盒1.54元），无则null\",\"nutritionPer100\":{\"calories\":\"每100g或100mL热量千卡，能量表单位kJ需除以4.18换算\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"},\"category\":\"食材/饮品/补剂\"}]。识别不准确宁可null，不要编造。", e.target.result);
           let items = [];
           const arrMatch = result ? result.match(/\[[\s\S]*\]/) : null;
           if (arrMatch) {
@@ -1953,31 +2027,61 @@
               const parsed = JSON.parse(arrMatch[0]);
               if (Array.isArray(parsed)) items = parsed;
               else if (parsed.items && Array.isArray(parsed.items)) items = parsed.items;
-            } catch (e) { console.error("食材JSON解析失败", e); }
+            } catch (e) { console.error("商品JSON解析失败", e); }
           }
           if (items.length === 0) {
-            addMessage('assistant', "未能从这张图片中识别出食材。\n\n· 想了解食材营养：直接说「西红柿的热量」\n· 想记录采购：说「买了西红柿500g3块5」");
+            addMessage('assistant', "未能从这张图片中识别出商品。\n\n· 想了解营养：直接说「脱脂牛奶的热量」\n· 想记录采购：说「买了脱脂牛奶24盒36块」");
             return;
           }
-          // 本地知识库价格对比
-          const known = [], unknown = [];
+          // 导入商品库
+          const today = new Date().toISOString().split('T')[0];
+          const imported = [], skipped = [];
+          items.forEach(it => {
+            const name = String(it.name || '').trim();
+            if (!name) { return; }
+            const np = it.nutritionPer100 || {};
+            const toNum = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; };
+            PRODUCT_LIBRARY[name] = {
+              brand: String(it.brand || ''), spec: String(it.spec || ''),
+              unit: String(it.unit || '500g'),
+              weight: toNum(it.weight), price: toNum(it.price), perPrice: toNum(it.perPrice),
+              nutritionPer100: {
+                calories: toNum(np.calories), protein: toNum(np.protein),
+                carbs: toNum(np.carbs), fat: toNum(np.fat)
+              },
+              category: String(it.category || '其他'),
+              addedDate: today
+            };
+            imported.push(name);
+          });
+          // 与价格库联动：同品类更新价格参考
+          const priceUpdates = [];
           items.forEach(it => {
             const name = String(it.name || '').trim();
             if (!name) return;
-            const kb = INGREDIENT_PRICES[name];
-            if (kb) known.push(name + "（知识库价" + kb.price + "元/" + kb.unit + "，" + kb.category + "，" + kb.storage + "存储）");
-            else unknown.push(name);
+            const kbKey = Object.keys(INGREDIENT_PRICES).find(k => name.includes(k) || k.includes(name));
+            const per = parseFloat(String(it.perPrice ?? '').replace(/[^0-9.]/g, ''));
+            if (kbKey && !isNaN(per) && per > 0) {
+              priceUpdates.push(kbKey + "：知识库价 " + INGREDIENT_PRICES[kbKey].price + "元/" + INGREDIENT_PRICES[kbKey].unit + " → 参考 " + it.name + " " + per + "元/" + (it.unit || ''));
+            }
           });
-          const priceInfo = known.length ? "知识库价格参考：\n" + known.join("\n") : "这些食材都不在知识库中";
-          // 让 AI 结合联网给出每个食材的营养与减脂建议
-          addMessage('assistant', "📊 正在查询营养数据...");
-          const nut = await callAI("以下是识别出的食材清单（名称/重量/价格）：" + JSON.stringify(items.map(it => ({ name: it.name, weight: it.weight, cost: it.cost }))) + "。\n请逐个食材给出（可用联网资料）：\n1. 每100g热量、蛋白质、碳水、脂肪\n2. 按该重量计算的总热量与蛋白质\n3. 是否适合当前减脂期（高蛋白低脂优先）及一句话建议\n4. 价格是否合理（可与常见市场价比较）\n用简洁列表输出，不要提问。", e.target.result);
-          let msg = "🛒 已识别食材：" + items.map(it => (it.name || '') + (it.weight ? " " + it.weight + "g" : "") + (it.cost ? " " + it.cost + "元" : "")).join("、") + "\n\n";
-          msg += "📚 " + priceInfo + "\n\n";
-          msg += nut || "（营养信息获取失败，可单独问我「XX的热量」）";
-          msg += "\n\n⚠️ 这只是商品信息，尚未记入库存。如需购买入库请说「买了" + (items[0] && items[0].name || 'XX') + "多少克多少钱」";
-          if (unknown.length) msg += "\n新食材可说「存起来」加入知识库";
+          const lines = imported.map(nm => {
+            const p = PRODUCT_LIBRARY[nm];
+            const np = p.nutritionPer100 || {};
+            let line = "· " + nm;
+            if (p.brand) line += "（" + p.brand + "）";
+            if (p.spec) line += " " + p.spec;
+            if (p.price) line += " " + p.price + "元";
+            if (p.perPrice) line += "（" + p.perPrice + "元/" + (p.unit || '') + "）";
+            if (np.calories) line += "\n  每100" + (p.unit && p.unit.includes('ml') ? 'mL' : 'g') + "：" + np.calories + "kcal" + (np.protein ? " / 蛋白" + np.protein + "g" : "") + (np.carbs ? " / 碳水" + np.carbs + "g" : "") + (np.fat ? " / 脂肪" + np.fat + "g" : "");
+            return line;
+          });
+          let msg = "📦 已导入商品库" + imported.length + "件：\n" + lines.join("\n");
+          if (priceUpdates.length) msg += "\n\n📊 价格参考：" + priceUpdates.join("\n");
+          msg += "\n\n现在可用于：\n· 生成采购清单时参考价格\n· 备餐页查看每份餐成本\n· 问AI「这个食材热量多少」「本周花了多少钱」";
+          msg += "\n\n⚠️ 商品已入商品库（知识参考），尚未记入库存。买了请说「买了" + imported[0] + "多少多少」";
           addMessage('assistant', msg);
+          saveData();
         } else if (typeNum === '1') {
           // ===== 体脂秤截图：全量身体成分识别 =====
           addMessage('assistant', "📸 正在识别体脂秤截图，请稍候...");
