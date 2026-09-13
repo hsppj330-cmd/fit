@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#3b82f6">
+  <title>健身减脂智能体 v1.5.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { overscroll-behavior: none; }
+    .chat-bubble { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    input, textarea { -webkit-appearance: none; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="app" class="max-w-2xl mx-auto bg-gray-50 min-h-screen flex flex-col relative">
+    <!-- 顶部导航 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+      <div class="px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
+          <div>
+            <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
+            <p class="text-xs text-gray-400">v1.5.0 · 全量热量联动</p>
+          </div>
+        </div>
+        <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
+          <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span>本地</span>
+        </div>
+      </div>
+      
+      <!-- 标签导航 -->
+      <nav class="flex border-b border-gray-100">
+        <button class="nav-tab flex-1 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600" data-view="chat" onclick="switchView('chat')">
+          对话
+        </button>
+        <button class="nav-tab flex-1 py-2.5 text-sm font-medium text-gray-500" data-view="dashboard" onclick="switchView('dashboard')">
+          看板
+        </button>
+        <button class="nav-tab flex-1 py-2.5 text-sm font-medium text-gray-500" data-view="training" onclick="switchView('training')">
+          训练
+        </button>
+        <button class="nav-tab flex-1 py-2.5 text-sm font-medium text-gray-500" data-view="diet" onclick="switchView('diet')">
+          饮食
+        </button>
+        <button class="nav-tab flex-1 py-2.5 text-sm font-medium text-gray-500" data-view="settings" onclick="switchView('settings')">
+          设置
+        </button>
+      </nav>
+    </header>
+    
+    <!-- 主内容区 -->
+    <main class="flex-1 overflow-y-auto scrollbar-hide pb-20">
+      <!-- 对话视图 -->
+      <div id="view-chat" class="view-panel p-4">
+        <div id="chat-messages" class="space-y-4"></div>
+      </div>
+      
+      <!-- 数据看板 -->
+      <div id="view-dashboard" class="view-panel hidden p-4">
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <p class="text-sm text-gray-500 mb-1">当前体重</p>
+              <p class="text-2xl font-bold text-gray-800" id="dash-weight">--</p>
+              <p class="text-xs text-green-500 mt-1" id="dash-weight-change">较上周 --</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <p class="text-sm text-gray-500 mb-1">体脂率</p>
+              <p class="text-2xl font-bold text-gray-800" id="dash-bodyfat">--</p>
+              <p class="text-xs text-green-500 mt-1" id="dash-fat-change">较上周 --</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <p class="text-sm text-gray-500 mb-1">基础代谢</p>
+              <p class="text-2xl font-bold text-gray-800" id="dash-bmr">--</p>
+              <p class="text-xs text-gray-400 mt-1">大卡/天</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <p class="text-sm text-gray-500 mb-1">今日目标</p>
+              <p class="text-2xl font-bold text-gray-800" id="dash-today-target">--</p>
+              <p class="text-xs text-gray-400 mt-1">大卡/天</p>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <div class="flex justify-between items-center mb-2">
+              <p class="font-medium">体脂目标进度</p>
+              <span class="text-sm text-blue-600 font-medium" id="dash-progress-text">0%</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2.5">
+              <div id="dash-progress-bar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-medium mb-3">今日热量实时监控</h3>
+            <div class="mb-3">
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">已摄入</span>
+                <span class="font-medium" id="today-intake">0 大卡</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-3">
+                <div id="today-cal-bar" class="bg-green-500 rounded-full h-3 transition-all" style="width: 0%"></div>
+              </div>
+              <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span>剩余 <span id="today-remain">0</span> 大卡</span>
+                <span>目标 <span id="today-target">0</span> 大卡</span>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p class="text-lg font-bold text-blue-600" id="today-protein">0g</p>
+                <p class="text-xs text-gray-500">蛋白质</p>
+              </div>
+              <div>
+                <p class="text-lg font-bold text-yellow-600" id="today-carbs">0g</p>
+                <p class="text-xs text-gray-500">碳水</p>
+              </div>
+              <div>
+                <p class="text-lg font-bold text-orange-600" id="today-fat">0g</p>
+                <p class="text-xs text-gray-500">脂肪</p>
+              </div>
+            </div>
+            
+            <div class="mt-3 p-3 bg-blue-50 rounded-lg">
+              <p class="text-sm text-blue-700" id="today-advice">记录饮食后显示实时建议</p>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-medium mb-3">体重趋势</h3>
+            <canvas id="weightChart" height="120"></canvas>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-medium mb-3">本周统计</h3>
+            <div class="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p class="text-xl font-bold text-blue-600" id="week-training-count">0</p>
+                <p class="text-xs text-gray-500">训练次数</p>
+              </div>
+              <div>
+                <p class="text-xl font-bold text-green-600" id="week-avg-cal">0</p>
+                <p class="text-xs text-gray-500">日均热量</p>
+              </div>
+              <div>
+                <p class="text-xl font-bold text-orange-600" id="week-avg-protein">0</p>
+                <p class="text-xs text-gray-500">日均蛋白(g)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 训练视图 -->
+      <div id="view-training" class="view-panel hidden p-4"></div>
+      
+      <!-- 饮食视图 -->
+      <div id="view-diet" class="view-panel hidden p-4"></div>
+      
+      <!-- 设置视图 -->
+      <div id="view-settings" class="view-panel hidden p-4">
+        <div class="space-y-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-4">个人基础参数</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-sm text-gray-600">当前体重 (kg)</label>
+                <input type="number" id="setting-weight" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="70">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">当前体脂率 (%)</label>
+                <input type="number" id="setting-bodyfat" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="20">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">目标体脂率 (%)</label>
+                <input type="number" id="setting-target-fat" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="15">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">蛋白质系数 (g/kg)</label>
+                <input type="number" step="0.1" id="setting-protein" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="1.8">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">每日热量缺口 (大卡)</label>
+                <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
+              </div>
+              <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-4">Agnes 多模态 API</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-sm text-gray-600">API 接口地址</label>
+                <input type="text" id="setting-api-url" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="https://api.example.com/v1">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">API 密钥</label>
+                <input type="password" id="setting-apikey" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="sk-xxxxxxxx">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">模型名称</label>
+                <input type="text" id="setting-model" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="agnes-v1">
+              </div>
+              <p class="text-xs text-gray-400">配置后启用智能对话、截图识别体脂秤/睡眠数据功能</p>
+              <button onclick="testAI()" class="w-full bg-purple-500 text-white py-2.5 rounded-lg font-medium mt-1">测试连接</button>
+            </div>
+          </div>
+
+          <!-- 联网搜索配置 -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-4">联网搜索配置</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-sm text-gray-600">搜索 API 接口地址</label>
+                <input type="text" id="setting-search-url" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="https://api.baidu.com/search">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">搜索 API 密钥</label>
+                <input type="password" id="setting-search-key" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="你的搜索密钥">
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="setting-auto-search" class="w-4 h-4" checked>
+                <label class="text-sm text-gray-600">知识类问题自动联网搜索</label>
+              </div>
+              <p class="text-xs text-gray-400">食谱、动作、补剂等知识问题自动搜索，操作类指令不联网</p>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-4">WebDAV 云盘同步</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-sm text-gray-600">WebDAV 地址</label>
+                <input type="text" id="setting-webdav-url" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="https://dav.jianguoyun.com/dav">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">用户名</label>
+                <input type="text" id="setting-webdav-user" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">密码/令牌</label>
+                <input type="password" id="setting-webdav-pass" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="">
+              </div>
+              <div class="text-xs text-gray-400">
+                <p>推荐坚果云，开启WebDAV获取专用密码</p>
+                <p>知识库、餐谱、动作库存云盘，支持对话修改和自学习入库</p>
+              </div>
+              <button onclick="initKnowledgeBase()" class="w-full bg-green-500 text-white py-2.5 rounded-lg font-medium mt-1">初始化云盘知识库</button>
+              <button onclick="syncFromCloud()" class="w-full border border-gray-200 py-2.5 rounded-lg text-sm font-medium">从云盘同步</button>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-4">数据管理</h3>
+            <div class="space-y-2">
+              <button onclick="exportData()" class="w-full border border-gray-200 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">导出备份 JSON</button>
+              <button onclick="document.getElementById('import-file').click()" class="w-full border border-gray-200 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">导入备份</button>
+              <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+              <button onclick="clearAllData()" class="w-full border border-red-200 text-red-500 py-2.5 rounded-lg text-sm font-medium hover:bg-red-50">清空所有数据</button>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 class="font-bold mb-3">手机安装成APP</h3>
+            <div class="text-sm text-gray-600 space-y-2">
+              <p>🍎 iPhone：用Safari打开 → 点分享 → 添加到主屏幕</p>
+              <p>🤖 安卓：用Chrome打开 → 菜单 → 添加到主屏幕</p>
+              <p class="text-gray-400 text-xs">安装后从桌面点开，全屏无地址栏，和原生APP一样</p>
+            </div>
+          </div>
+          
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.5.0 · 全量热量联动版</p>
+        </div>
+      </div>
+    </main>
+    
+    <!-- 底部输入框 -->
+    <div id="chat-input-bar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 max-w-2xl mx-auto">
+      <div class="flex gap-2 items-end">
+        <button class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500" onclick="document.getElementById('image-input').click()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </button>
+        <input type="file" id="image-input" class="hidden" accept="image/*" onchange="handleImageFile(event)">
+        <div class="flex-1 relative">
+          <textarea id="chat-input" rows="1" class="w-full px-4 py-2.5 bg-gray-100 rounded-2xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" placeholder="输入消息..."></textarea>
+        </div>
+        <button onclick="sendMessage()" class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white hover:bg-blue-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERSION = "1.5.0";
+    const DATA_VERSION = 5;
+    const STORAGE_KEY = "fitness_ai_data_v150";
+    
+    // ========== 完整知识库 ==========
+    const DEFAULT_TRAINING_LIBRARY = {
+      push: {
+        name: "推日",
+        muscles: "胸、肩、三头肌",
+        calories: 400,
+        exercises: [
+          {
+            id: "bench_press",
+            name: "平板卧推",
+            target: "胸大肌",
+            sets: 4,
+            reps: "8-12",
+            rest: "90秒",
+            beginnerWeight: "20kg",
+            advancedWeight: "40kg",
+            steps: [
+              { name: "起始姿势", desc: "平躺在卧推凳上，双脚踏实地面，臀部贴紧凳面，肩胛骨下沉收紧，腰部保持自然弓度。握距略宽于肩，杠铃位于胸部正上方，手臂垂直地面。", key: "沉肩、收肩胛、核心收紧" },
+              { name: "顶峰收缩", desc: "吸气缓慢下放杠铃至胸部中下位置，大臂与身体呈45度角。呼气发力推起，感受胸肌收缩，推至手臂接近伸直但不锁死。", key: "45度夹肘、胸肌主导发力" },
+              { name: "还原位置", desc: "控制速度缓慢下放，回到起始位置，感受胸肌拉伸。下放时吸气，推起时呼气，节奏稳定。", key: "离心控制、不要弹胸" }
+            ],
+            mistakes: ["错误：耸肩、肩胛散开 → 导致肩峰撞击，练不到胸", "错误：手肘外展90度 → 肩关节压力过大", "错误：腰部过度拱起 → 腰椎受伤风险"],
+            tips: "想象把杠铃掰弯的感觉，全程保持肩胛收紧，下放慢、推起快。"
+          },
+          {
+            id: "incline_dumbbell_press",
+            name: "上斜哑铃卧推",
+            target: "上胸",
+            sets: 3,
+            reps: "10-12",
+            rest: "75秒",
+            beginnerWeight: "10kg/只",
+            advancedWeight: "20kg/只",
+            steps: [
+              { name: "起始姿势", desc: "上斜凳调至30-45度，背靠凳面，双脚踩地，双手持哑铃置于胸部两侧，掌心向前，手肘低于肩部。", key: "背部贴紧、核心稳定" },
+              { name: "顶峰收缩", desc: "呼气发力向上推起，哑铃向中间靠拢，感受上胸收缩，手臂自然伸直不锁死。", key: "向内夹胸、顶峰停顿1秒" },
+              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受上胸拉伸，手肘保持45度夹角。", key: "离心控制、不要砸肩" }
+            ],
+            mistakes: ["错误：角度过大超过45度 → 变成练肩", "错误：哑铃下放过低 → 肩关节拉伤"],
+            tips: "推起时想象两个哑铃要碰到一起，专注上胸的收缩感。"
+          },
+          {
+            id: "shoulder_press",
+            name: "坐姿哑铃推肩",
+            target: "三角肌中前束",
+            sets: 3,
+            reps: "10-12",
+            rest: "75秒",
+            beginnerWeight: "8kg/只",
+            advancedWeight: "15kg/只",
+            steps: [
+              { name: "起始姿势", desc: "坐在直角凳上，背部贴紧靠垫，双脚踩实，双手持哑铃置于肩部两侧，掌心向前，手肘呈90度。", key: "核心收紧、腰部贴紧靠背" },
+              { name: "顶峰收缩", desc: "呼气发力向上推起，哑铃沿弧线向头顶上方靠拢，感受肩部收缩，手臂微屈不锁死。", key: "垂直向上、不要后仰" },
+              { name: "还原位置", desc: "吸气缓慢下放，回到耳朵高度，感受肩部拉伸，控制节奏。", key: "下放至耳侧、不要低于肩膀" }
+            ],
+            mistakes: ["错误：身体后仰借力 → 腰椎压力大", "错误：推到头顶正上方 → 肩关节压力大"],
+            tips: "想象用手肘去够天花板，专注中束发力，全程保持身体稳定。"
+          },
+          {
+            id: "tricep_pushdown",
+            name: "绳索下压",
+            target: "肱三头肌",
+            sets: 3,
+            reps: "12-15",
+            rest: "60秒",
+            beginnerWeight: "15kg",
+            advancedWeight: "30kg",
+            steps: [
+              { name: "起始姿势", desc: "站在龙门架前，身体微微前倾，核心收紧，双手握住绳索把手，大臂贴紧身体两侧，手肘呈90度。", key: "大臂固定、身体稳定" },
+              { name: "顶峰收缩", desc: "呼气发力向下压动手臂，感受三头肌收缩，压至手臂完全伸直，停顿1秒。", key: "压到底、顶峰挤压" },
+              { name: "还原位置", desc: "吸气缓慢还原，回到起始位置，感受三头肌拉伸，大臂始终保持不动。", key: "控制还原、不要借力" }
+            ],
+            mistakes: ["错误：大臂前后晃动 → 借力背阔肌", "错误：身体前倾过多 → 重量压到肩膀"],
+            tips: "全程大臂像焊死在身体两侧一样，只动小臂，下压时呼气。"
+          }
+        ]
+      },
+      pull: {
+        name: "拉日",
+        muscles: "背、二头肌",
+        calories: 380,
+        exercises: [
+          {
+            id: "pull_up",
+            name: "引体向上",
+            target: "背阔肌",
+            sets: 4,
+            reps: "6-10",
+            rest: "90秒",
+            beginnerWeight: "自重",
+            advancedWeight: "负重10kg",
+            steps: [
+              { name: "起始姿势", desc: "双手握距略宽于肩，身体自然下垂，肩胛下沉收紧，核心收紧，身体微微后倾。", key: "沉肩、不要耸肩" },
+              { name: "顶峰收缩", desc: "呼气发力向上拉起，用手肘向地面压的感觉，将胸口拉向单杠，感受背阔肌收缩，下巴过杠。", key: "夹肘、背阔肌主导" },
+              { name: "还原位置", desc: "吸气缓慢下放，回到完全伸直的起始位置，感受背阔肌拉伸，控制节奏。", key: "离心控制、不要甩动" }
+            ],
+            mistakes: ["错误：耸肩借力 → 练不到背，斜方肌代偿", "错误：甩动身体借力 → 训练效果大打折扣", "错误：下放不充分 → 肌肉拉伸不足"],
+            tips: "想象用手肘去插裤兜的感觉，拉的时候夹肘，感受背部收紧。"
+          },
+          {
+            id: "bent_over_row",
+            name: "俯身哑铃划船",
+            target: "背阔肌中上部",
+            sets: 3,
+            reps: "10-12",
+            rest: "75秒",
+            beginnerWeight: "12kg/只",
+            advancedWeight: "25kg/只",
+            steps: [
+              { name: "起始姿势", desc: "双脚与肩同宽，膝盖微屈，臀部向后坐，上半身前倾45度，背部挺直，双手持哑铃自然下垂，掌心相对。", key: "腰背挺直、核心收紧" },
+              { name: "顶峰收缩", desc: "呼气发力将哑铃向腰部拉起，手肘贴紧身体两侧，感受背部收缩，顶峰停顿1秒。", key: "向后划、夹肩胛" },
+              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受背部拉伸，全程保持背部挺直。", key: "控制下放、不要甩动" }
+            ],
+            mistakes: ["错误：弯腰驼背 → 腰椎受伤风险", "错误：手肘外展 → 练不到背阔肌", "错误：重量过大 → 借力甩动"],
+            tips: "想象把哑铃拉向你的裤腰带位置，拉的时候挤压肩胛骨。"
+          },
+          {
+            id: "face_pull",
+            name: "绳索面拉",
+            target: "后束+斜方肌中下束",
+            sets: 3,
+            reps: "12-15",
+            rest: "60秒",
+            beginnerWeight: "10kg",
+            advancedWeight: "20kg",
+            steps: [
+              { name: "起始姿势", desc: "站在龙门架前，绳索调至头顶高度，双手握住绳索两端，手臂伸直，身体微微后倾，核心收紧。", key: "核心稳定、肩胛下沉" },
+              { name: "顶峰收缩", desc: "呼气发力将绳索拉向额头两侧，手肘向外打开，感受后束收缩，挤压肩胛骨。", key: "向外展开、后束发力" },
+              { name: "还原位置", desc: "吸气缓慢还原，回到起始位置，感受后束拉伸，控制节奏。", key: "控制还原、不要耸肩" }
+            ],
+            mistakes: ["错误：重量过大 → 斜方肌上束代偿", "错误：拉到下巴位置 → 练不到后束"],
+            tips: "想象用两个手肘去撞身后的墙，专注后束的收缩感。"
+          },
+          {
+            id: "bicep_curl",
+            name: "哑铃弯举",
+            target: "肱二头肌",
+            sets: 3,
+            reps: "10-12",
+            rest: "60秒",
+            beginnerWeight: "8kg/只",
+            advancedWeight: "15kg/只",
+            steps: [
+              { name: "起始姿势", desc: "双脚与肩同宽站立，双手持哑铃自然下垂，掌心向前，大臂贴紧身体两侧，核心收紧。", key: "大臂固定、身体稳定" },
+              { name: "顶峰收缩", desc: "呼气发力向上弯举，感受二头肌收缩，举到最高点停顿1秒，充分挤压。", key: "顶峰挤压、不要借力" },
+              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受二头肌拉伸，全程大臂保持不动。", key: "离心控制、放到底" }
+            ],
+            mistakes: ["错误：身体前后晃动借力 → 训练效果差", "错误：下放不充分 → 肌肉拉伸不足"],
+            tips: "全程大臂夹紧身体，想象只有小臂在动，下放要慢。"
+          }
+        ]
+      },
+      legs: {
+        name: "腿日",
+        muscles: "股四头肌、臀腿、腘绳肌",
+        calories: 450,
+        exercises: [
+          {
+            id: "back_squat",
+            name: "杠铃深蹲",
+            target: "股四头肌+臀大肌",
+            sets: 4,
+            reps: "8-12",
+            rest: "120秒",
+            beginnerWeight: "30kg",
+            advancedWeight: "60kg",
+            steps: [
+              { name: "起始姿势", desc: "杠铃置于斜方肌上束，双手握距略宽于肩，双脚与肩同宽，脚尖外展30度，核心收紧，腰背挺直。", key: "核心收紧、腰背挺直" },
+              { name: "下蹲位置", desc: "吸气屈膝屈髋下蹲，膝盖跟随脚尖方向，蹲至大腿平行地面或略低，重心保持在足中。", key: "膝盖追脚尖、蹲到平行" },
+              { name: "站起还原", desc: "呼气发力蹬地站起，感受腿部和臀部发力，回到起始位置，全程保持腰背挺直。", key: "蹬地发力、核心稳住" }
+            ],
+            mistakes: ["错误：膝盖内扣 → 膝关节受伤风险", "错误：弯腰驼背 → 腰椎压力大", "错误：蹲的深度不够 → 刺激不充分"],
+            tips: "下蹲时想象坐椅子，站起时想象用脚蹬穿地面，全程保持重心稳定。"
+          },
+          {
+            id: "romanian_deadlift",
+            name: "罗马尼亚硬拉",
+            target: "腘绳肌+臀大肌",
+            sets: 3,
+            reps: "10-12",
+            rest: "90秒",
+            beginnerWeight: "30kg",
+            advancedWeight: "50kg",
+            steps: [
+              { name: "起始姿势", desc: "双脚与肩同宽，杠铃置于大腿前侧，双手握距与肩同宽，核心收紧，腰背挺直，膝盖微屈。", key: "腰背挺直、膝盖微屈固定" },
+              { name: "下放位置", desc: "吸气髋部向后移，杠铃沿大腿前侧缓慢下放，感受腘绳肌拉伸，下放到小腿中部即可。", key: "屈髋不屈膝、背挺直" },
+              { name: "站起还原", desc: "呼气发力伸髋，拉起杠铃，感受臀部和腘绳肌收缩，回到起始位置，顶峰夹臀。", key: "伸髋发力、顶峰夹臀" }
+            ],
+            mistakes: ["错误：弯腰 → 腰椎受伤风险", "错误：膝盖弯曲过多 → 变成练腿", "错误：放得过低 → 弯腰代偿"],
+            tips: "想象你的身后有一堵墙，用屁股去往后碰墙的感觉。"
+          },
+          {
+            id: "leg_press",
+            name: "腿举",
+            target: "股四头肌",
+            sets: 3,
+            reps: "12-15",
+            rest: "75秒",
+            beginnerWeight: "50kg",
+            advancedWeight: "100kg",
+            steps: [
+              { name: "起始姿势", desc: "坐在腿举机上，背部贴紧靠垫，双脚踩在踏板中间，与肩同宽，脚尖微外展，膝盖微屈。", key: "背部贴紧、核心收紧" },
+              { name: "下放位置", desc: "吸气缓慢下放踏板，膝盖弯曲至90度左右，感受大腿前侧拉伸，膝盖不超过脚尖太多。", key: "控制下放、不要砸腿" },
+              { name: "蹬起还原", desc: "呼气发力蹬起踏板，感受股四头肌收缩，回到起始位置，膝盖不锁死。", key: "全脚掌蹬地、发力均匀" }
+            ],
+            mistakes: ["错误：膝盖锁死 → 膝关节压力大", "错误：下放过低 → 腰椎离开靠背受伤"],
+            tips: "全程保持背部贴紧靠背，用脚后跟发力蹬。"
+          },
+          {
+            id: "calf_raise",
+            name: "站姿提踵",
+            target: "小腿三头肌",
+            sets: 3,
+            reps: "15-20",
+            rest: "45秒",
+            beginnerWeight: "自重",
+            advancedWeight: "负重20kg",
+            steps: [
+              { name: "起始姿势", desc: "前脚掌站在台阶边缘，脚跟悬空，身体保持直立，核心收紧，双手可扶稳保持平衡。", key: "身体直立、核心稳定" },
+              { name: "顶峰收缩", desc: "呼气发力踮起脚尖，尽量抬高，感受小腿收缩，顶峰停顿1秒。", key: "踮到最高、顶峰挤压" },
+              { name: "还原位置", desc: "吸气缓慢下放脚跟，低于台阶平面，感受小腿拉伸，控制节奏。", key: "下放到底、充分拉伸" }
+            ],
+            mistakes: ["错误：身体前后晃动借力 → 训练效果差", "错误：幅度太小 → 刺激不充分"],
+            tips: "下放要慢，踮起要快，专注小腿的收缩感。"
+          }
+        ]
+      }
+    };
+    
+    const DEFAULT_MEAL_LIBRARY = {
+      breakfast_standard: {
+        id: "breakfast_standard",
+        name: "标准减脂早餐",
+        type: "breakfast",
+        desc: "全麦面包+全蛋+蛋清+绿叶菜+牛奶，高蛋白高纤维",
+        ingredients: { 
+          "全麦面包": 80, 
+          "鸡蛋（全蛋）": 50, 
+          "鸡蛋清": 30, 
+          "绿叶蔬菜": 100,
+          "纯牛奶": 250 
+        },
+        nutrition: { calories: 380, protein: 32, carbs: 38, fat: 12 }
+      },
+      meal_a: {
+        id: "meal_a",
+        name: "A餐·辣椒炒鸡胸",
+        type: "lunch_dinner",
+        suitable: "训练日",
+        ingredients: { "鸡胸肉": 200, "西兰花": 150, "糙米": 100, "青椒": 50 },
+        nutrition: { calories: 385, protein: 42, carbs: 38, fat: 9 },
+        storage: "冷冻7天"
+      },
+      meal_b: {
+        id: "meal_b",
+        name: "B餐·卤鸡腿配西芹",
+        type: "lunch_dinner",
+        suitable: "通用",
+        ingredients: { "鸡腿（去皮）": 220, "西芹": 150, "糙米": 100 },
+        nutrition: { calories: 400, protein: 40, carbs: 36, fat: 11 },
+        storage: "冷冻7天"
+      },
+      meal_c: {
+        id: "meal_c",
+        name: "C餐·巴沙鱼柳配时蔬",
+        type: "lunch_dinner",
+        suitable: "休息日",
+        ingredients: { "巴沙鱼柳": 200, "混合蔬菜": 200, "糙米": 80 },
+        nutrition: { calories: 340, protein: 38, carbs: 32, fat: 7 },
+        storage: "冷冻7天"
+      }
+    };
+    
+    const DEFAULT_INGREDIENT_PRICES = {
+      "鸡胸肉": { price: 24, unit: "500g", category: "肉禽冷冻", storage: "冷冻" },
+      "鸡腿（去皮）": { price: 28, unit: "500g", category: "肉禽冷冻", storage: "冷冻" },
+      "巴沙鱼柳": { price: 20, unit: "500g", category: "水产冷冻", storage: "冷冻" },
+      "鸡蛋（全蛋）": { price: 8, unit: "500g", category: "肉禽蛋", storage: "冷藏" },
+      "鸡蛋清": { price: 6, unit: "500g", category: "肉禽蛋", storage: "冷藏" },
+      "西兰花": { price: 8, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "西芹": { price: 6, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "青椒": { price: 5, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "绿叶蔬菜": { price: 5, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "混合蔬菜": { price: 10, unit: "500g", category: "蔬菜冷冻", storage: "冷冻" },
+      "糙米": { price: 12, unit: "1kg", category: "主食", storage: "常温" },
+      "全麦面包": { price: 15, unit: "500g", category: "主食", storage: "常温" },
+      "纯牛奶": { price: 6, unit: "250ml", category: "饮品", storage: "冷藏" }
+    };
+
+    const DEFAULT_SUPPLEMENT_LIBRARY = {};
+    const DEFAULT_RULES = {
+      cheatMealPerWeek: 1,
+      proteinCoefficient: 1.8,
+      calorieDeficit: 500,
+      trainingBurnCalories: 400,
+      notes: "可通过对话修改或自学习入库"
+    };
+    
+    // 运行时知识库
+    let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
+    let MEAL_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_MEAL_LIBRARY));
+    let INGREDIENT_PRICES = JSON.parse(JSON.stringify(DEFAULT_INGREDIENT_PRICES));
+    let SUPPLEMENT_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_SUPPLEMENT_LIBRARY));
+    let PERSONAL_RULES = JSON.parse(JSON.stringify(DEFAULT_RULES));
+
+    let currentContext = { type: null, content: null, searchResult: null };
+    
+    // ========== 默认数据结构 ==========
+    const DEFAULT_DATA = {
+      dataVersion: DATA_VERSION,
+      profile: { 
+        gender: "男", 
+        weight: 70, 
+        bodyFat: 20, 
+        targetWeight: 65, 
+        targetBodyFat: 15, 
+        bmr: 1700, 
+        proteinCoefficient: 1.8, 
+        calorieDeficit: 500 
+      },
+      bodyRecords: [],
+      sleepRecords: [],
+      trainingRecords: [],
+      foodRecords: {},
+      trainingBurnToday: {},
+      ingredientStock: {},
+      mealStock: {},
+      purchaseRecords: [],
+      billRecords: [],
+      mealPlans: {},
+      settings: {
+        apiUrl: "",
+        apiKey: "",
+        model: "",
+        searchUrl: "",
+        searchKey: "",
+        autoSearch: true,
+        webdavUrl: "",
+        webdavUser: "",
+        webdavPass: "",
+        syncInterval: 300
+      }
+    };
+    
+    let appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    let currentView = "chat";
+    let weightChart = null;
+    
+    // ========== 数据迁移 ==========
+    function migrateData(data) {
+      if (!data.dataVersion) data.dataVersion = 1;
+      if (data.dataVersion < 2) {
+        data.mealStock = data.mealStock || {};
+        data.ingredientStock = data.ingredientStock || {};
+        data.purchaseRecords = data.purchaseRecords || [];
+        data.billRecords = data.billRecords || [];
+        data.dataVersion = 2;
+      }
+      if (data.dataVersion < 3) {
+        data.sleepRecords = data.sleepRecords || [];
+        data.mealPlans = data.mealPlans || {};
+        if (!data.profile.proteinCoefficient) data.profile.proteinCoefficient = 1.8;
+        if (!data.profile.calorieDeficit) data.profile.calorieDeficit = 500;
+        data.dataVersion = 3;
+      }
+      if (data.dataVersion < 4) {
+        if (!data.settings.searchUrl) data.settings.searchUrl = "";
+        if (!data.settings.searchKey) data.settings.searchKey = "";
+        if (data.settings.autoSearch === undefined) data.settings.autoSearch = true;
+        data.dataVersion = 4;
+      }
+      if (data.dataVersion < 5) {
+        if (!data.trainingBurnToday) data.trainingBurnToday = {};
+        data.dataVersion = 5;
+      }
+      return data;
+    }
+    
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try { appData = JSON.parse(saved); appData = migrateData(appData); }
+        catch (e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+      }
+    }
+    
+    // ========== WebDAV 云盘工具 ==========
+    async function webdavGet(path) {
+      if (!appData.settings.webdavUrl) return null;
+      try {
+        const url = appData.settings.webdavUrl + path;
+        const auth = btoa(appData.settings.webdavUser + ":" + appData.settings.webdavPass);
+        const res = await fetch(url, { headers: { "Authorization": "Basic " + auth } });
+        if (res.ok) return await res.json();
+        return null;
+      } catch (e) { return null; }
+    }
+    
+    async function webdavPut(path, data) {
+      if (!appData.settings.webdavUrl) return false;
+      try {
+        const url = appData.settings.webdavUrl + path;
+        const auth = btoa(appData.settings.webdavUser + ":" + appData.settings.webdavPass);
+        const res = await fetch(url, {
+          method: "PUT",
+          headers: { "Authorization": "Basic " + auth, "Content-Type": "application/json" },
+          body: JSON.stringify(data, null, 2)
+        });
+        return res.ok;
+      } catch (e) { return false; }
+    }
+    
+    async function initKnowledgeBase() {
+      if (!appData.settings.webdavUrl) { alert("请先填写WebDAV地址和账号"); return; }
+      addMessage("assistant", "⏳ 正在初始化云盘知识库...");
+      
+      await webdavPut("/知识库/动作库.json", TRAINING_LIBRARY);
+      await webdavPut("/知识库/餐谱库.json", MEAL_LIBRARY);
+      await webdavPut("/知识库/食材价格库.json", INGREDIENT_PRICES);
+      await webdavPut("/知识库/补剂库.json", SUPPLEMENT_LIBRARY);
+      await webdavPut("/配置/规则.json", PERSONAL_RULES);
+      
+      addMessage("assistant", "✅ 云盘知识库初始化完成！\n\n已创建完整知识库结构：\n• 动作库、餐谱库、食材库、补剂库\n• 个人规则配置\n\n现在可以：\n1. 知识类问题自动搜索\n2. 搜索到的有用内容说「存入」即可永久保存\n3. 越用越贴合你的需求");
+      updateSyncStatus("cloud");
+    }
+    
+    async function syncFromCloud() {
+      addMessage("assistant", "🔄 正在从云盘同步知识库...");
+      
+      const training = await webdavGet("/知识库/动作库.json");
+      const meals = await webdavGet("/知识库/餐谱库.json");
+      const prices = await webdavGet("/知识库/食材价格库.json");
+      const supplements = await webdavGet("/知识库/补剂库.json");
+      const rules = await webdavGet("/配置/规则.json");
+      
+      if (training) TRAINING_LIBRARY = training;
+      if (meals) MEAL_LIBRARY = meals;
+      if (prices) INGREDIENT_PRICES = prices;
+      if (supplements) SUPPLEMENT_LIBRARY = supplements;
+      if (rules) PERSONAL_RULES = rules;
+      
+      renderTrainingView();
+      renderDietView();
+      
+      addMessage("assistant", "✅ 同步完成！已加载最新云盘知识库。");
+      updateSyncStatus("cloud");
+    }
+    
+    function updateSyncStatus(type) {
+      const el = document.getElementById("sync-status");
+      if (type === "cloud") {
+        el.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-500"></div><span>云盘已连接</span>';
+      } else {
+        el.innerHTML = '<div class="w-2 h-2 rounded-full bg-gray-400"></div><span>本地</span>';
+      }
+    }
+
+    // ========== 联网搜索 ==========
+    async function searchWeb(query) {
+      if (!appData.settings.searchUrl || !appData.settings.searchKey) return null;
+      try {
+        const res = await fetch(`${appData.settings.searchUrl}?q=${encodeURIComponent(query)}&api_key=${appData.settings.searchKey}&count=5`);
+        const data = await res.json();
+        
+        if (data.articles && data.articles.length > 0) {
+          return data.articles.slice(0, 5).map(item => ({
+            title: item.title || "",
+            content: item.abstract || item.desc || item.snippet || ""
+          }));
+        }
+        if (data.items && data.items.length > 0) {
+          return data.items.slice(0, 5).map(item => ({
+            title: item.title || "",
+            content: item.snippet || item.description || ""
+          }));
+        }
+        return null;
+      } catch (e) {
+        console.error("搜索失败", e);
+        return null;
+      }
+    }
+
+    function isKnowledgeQuestion(text) {
+      const keywords = ["怎么做", "做法", "是什么", "有什么用", "作用", "功效", "怎么选", "推荐", "区别", "原理", "方法", "技巧", "补剂", "蛋白粉", "肌酸", "支链", "减脂餐", "食谱"];
+      return keywords.some(kw => text.includes(kw));
+    }
+    
+    // ========== 核心热量计算 ==========
+    function getTodayTargetCalories() {
+      const today = new Date().toISOString().split('T')[0];
+      const burn = appData.trainingBurnToday[today] || 0;
+      return Math.round(appData.profile.bmr + burn - appData.profile.calorieDeficit);
+    }
+
+    function getTodayProteinTarget() {
+      return Math.round(appData.profile.weight * appData.profile.proteinCoefficient);
+    }
+    
+    // ========== 业务逻辑 ==========
+    function recordBodyData(weight, bodyFat) {
+      const today = new Date().toISOString().split('T')[0];
+      const record = { date: today };
+      if (weight) { appData.profile.weight = weight; record.weight = weight; }
+      if (bodyFat) { appData.profile.bodyFat = bodyFat; record.bodyFat = bodyFat; }
+      if (weight) appData.profile.bmr = Math.round(88.362 + (13.397 * weight) + (4.799 * 175) - (5.677 * 25));
+      appData.bodyRecords.push(record);
+      saveData();
+      return { success: true, message: `已记录：体重${weight}kg，体脂${bodyFat}%` };
+    }
+    
+    function recordSleep(hours) {
+      const today = new Date().toISOString().split('T')[0];
+      appData.sleepRecords.push({ date: today, totalHours: hours, deepSleepHours: Math.round(hours * 0.25 * 10) / 10, score: Math.min(100, Math.round(hours / 8 * 100)) });
+      saveData();
+      let tip = hours < 7 ? "睡眠不足，建议今天降低训练强度。" : "睡眠充足，今天训练状态会很好。";
+      return { success: true, message: `已记录今日睡眠${hours}小时。${tip}` };
+    }
+    
+    function purchaseIngredient(name, amount, cost) {
+      appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) + amount;
+      if (cost) appData.billRecords.push({ date: new Date().toISOString().split('T')[0], type: "食材采购", item: name, amount, cost });
+      saveData();
+      return { success: true, message: `${name}入库${amount}g，当前库存：${Math.round(appData.ingredientStock[name])}g` };
+    }
+    
+    function batchCookMeal(mealId, portions) {
+      const meal = MEAL_LIBRARY[mealId];
+      if (!meal || !meal.ingredients) return { success: false, message: "该餐谱不存在" };
+      for (const [name, amount] of Object.entries(meal.ingredients)) {
+        const needed = amount * portions;
+        if ((appData.ingredientStock[name] || 0) < needed) {
+          return { success: false, message: `${name}库存不足，需要${Math.round(needed)}g，现有${Math.round(appData.ingredientStock[name] || 0)}g` };
+        }
+      }
+      for (const [name, amount] of Object.entries(meal.ingredients)) {
+        appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) - amount * portions;
+      }
+      appData.mealStock[mealId] = (appData.mealStock[mealId] || 0) + portions;
+      saveData();
+      return { success: true, message: `已制作${portions}份${meal.name}，成品库存：${appData.mealStock[mealId]}份` };
+    }
+    
+    function eatMeal(mealId, mealType) {
+      const meal = MEAL_LIBRARY[mealId];
+      if (!meal) return { success: false, message: "未知餐谱" };
+      
+      // 早餐直接扣食材库存，成品餐扣成品库存
+      if (meal.type === "breakfast") {
+        if (meal.ingredients) {
+          for (const [name, amount] of Object.entries(meal.ingredients)) {
+            if ((appData.ingredientStock[name] || 0) < amount) {
+              return { success: false, message: `${name}库存不足，请先采购` };
+            }
+          }
+          for (const [name, amount] of Object.entries(meal.ingredients)) {
+            appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) - amount;
+          }
+        }
+      } else {
+        if ((appData.mealStock[mealId] || 0) < 1) {
+          return { success: false, message: `${meal.name}库存不足，请先备餐` };
+        }
+        appData.mealStock[mealId]--;
+      }
+      
+      const today = new Date().toISOString().split('T')[0];
+      if (!appData.foodRecords[today]) appData.foodRecords[today] = { breakfast: [], lunch: [], dinner: [], snacks: [], cheat: false };
+      appData.foodRecords[today][mealType].push({ mealId, name: meal.name, nutrition: { ...meal.nutrition } });
+      saveData();
+      
+      const daily = calculateDailyIntake(today);
+      const target = getTodayTargetCalories();
+      const remain = target - daily.calories;
+      
+      return { 
+        success: true, 
+        message: `已记录食用${meal.name}。\n今日已摄入${Math.round(daily.calories)}大卡，剩余${Math.round(remain)}大卡\n蛋白${Math.round(daily.protein)}g / 目标${getTodayProteinTarget()}g` 
+      };
+    }
+    
+    function calculateDailyIntake(date) {
+      const record = appData.foodRecords[date];
+      if (!record) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      let total = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      ["breakfast", "lunch", "dinner", "snacks"].forEach(type => {
+        record[type].forEach(item => {
+          if (item.nutrition) {
+            total.calories += item.nutrition.calories || 0;
+            total.protein += item.nutrition.protein || 0;
+            total.carbs += item.nutrition.carbs || 0;
+            total.fat += item.nutrition.fat || 0;
+          }
+        });
+      });
+      return total;
+    }
+    
+    function generateWeekMealPlan(trainingDays) {
+      const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      const plan = {};
+      days.forEach(day => {
+        const isTrainingDay = trainingDays.includes(day);
+        plan[day] = { 
+          breakfast: "breakfast_standard", 
+          lunch: isTrainingDay ? "meal_a" : "meal_c", 
+          dinner: isTrainingDay ? "meal_b" : "meal_c" 
+        };
+      });
+      return plan;
+    }
+    
+    function generatePurchaseList(weekPlan) {
+      const requirements = {};
+      const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      days.forEach(day => {
+        const plan = weekPlan[day];
+        if (!plan) return;
+        ["breakfast", "lunch", "dinner"].forEach(mealType => {
+          const meal = MEAL_LIBRARY[plan[mealType]];
+          if (meal && meal.ingredients) {
+            Object.entries(meal.ingredients).forEach(([name, amount]) => {
+              requirements[name] = (requirements[name] || 0) + amount;
+            });
+          }
+        });
+      });
+      const purchaseList = {};
+      Object.entries(requirements).forEach(([name, needed]) => {
+        const stock = appData.ingredientStock[name] || 0;
+        const needBuy = Math.max(0, needed - stock);
+        if (needBuy > 0) {
+          const priceInfo = INGREDIENT_PRICES[name] || {};
+          purchaseList[name] = { 
+            amount: needBuy, 
+            category: priceInfo.category || "其他", 
+            storage: priceInfo.storage || "常温", 
+            pricePerUnit: priceInfo.price || 0, 
+            unit: priceInfo.unit || "500g", 
+            estimatedPrice: (needBuy / 500) * (priceInfo.price || 0) 
+          };
+        }
+      });
+      return purchaseList;
+    }
+    
+    function quickRecordTraining(type) {
+      const training = TRAINING_LIBRARY[type];
+      if (!training) return { success: false, message: "未知训练类型" };
+      const today = new Date().toISOString().split('T')[0];
+      const record = {
+        date: today, type, name: training.name,
+        exercises: (training.exercises || []).map(e => ({ 
+          id: e.id, name: e.name, sets: e.sets, reps: e.reps, weight: e.beginnerWeight, completed: true 
+        })),
+        totalVolume: 0, fatigue: 7
+      };
+      appData.trainingRecords.push(record);
+      
+      // 记录当日训练消耗
+      appData.trainingBurnToday[today] = (appData.trainingBurnToday[today] || 0) + (training.calories || 400);
+      
+      saveData();
+      return { success: true, message: `已记录今日${training.name}训练完成。\n预计消耗约${training.calories || 400}大卡，今日热量目标已自动上调。` };
+    }
+
+    // ========== 自学习入库功能 ==========
+    async function saveToKnowledgeBase(type, content) {
+      if (!appData.settings.webdavUrl) {
+        return { success: false, message: "请先配置云盘后再使用知识库存储功能" };
+      }
+
+      switch(type) {
+        case "meal":
+          const mealId = "meal_" + Date.now();
+          MEAL_LIBRARY[mealId] = {
+            id: mealId,
+            name: content.name || "新学到的食谱",
+            type: "lunch_dinner",
+            suitable: "通用",
+            ingredients: content.ingredients || {},
+            nutrition: content.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 },
+            storage: "冷冻7天"
+          };
+          await webdavPut("/知识库/餐谱库.json", MEAL_LIBRARY);
+          renderDietView();
+          return { success: true, message: `✅ 已将「${content.name || '新食谱'}」存入餐谱库\n后续备餐、采购清单都会自动计算食材用量` };
+
+        case "supplement":
+          SUPPLEMENT_LIBRARY[content.name] = content;
+          await webdavPut("/知识库/补剂库.json", SUPPLEMENT_LIBRARY);
+          return { success: true, message: `✅ 已将「${content.name}」存入补剂知识库` };
+
+        case "rule":
+          Object.assign(PERSONAL_RULES, content);
+          await webdavPut("/配置/规则.json", PERSONAL_RULES);
+          return { success: true, message: `✅ 已更新个人规则` };
+
+        default:
+          return { success: false, message: "未知类型" };
+      }
+    }
+    
+    // ========== 对话指令引擎 ==========
+    function parseCommand(text) {
+      if (text.includes("存入") || text.includes("存起来") || text.includes("保存")) {
+        if (currentContext.content) {
+          return { type: "save_knowledge", context: currentContext };
+        }
+      }
+
+      const weightMatch = text.match(/体重\s*(\d+\.?\d*)\s*kg?/i);
+      const bodyFatMatch = text.match(/体脂\s*(\d+\.?\d*)%?/i);
+      if (weightMatch || bodyFatMatch) {
+        return { type: "record_body", weight: weightMatch ? parseFloat(weightMatch[1]) : null, bodyFat: bodyFatMatch ? parseFloat(bodyFatMatch[1]) : null };
+      }
+      const sleepMatch = text.match(/睡了\s*(\d+\.?\d*)\s*小时/i);
+      if (sleepMatch) return { type: "record_sleep", hours: parseFloat(sleepMatch[1]) };
+      
+      const purchaseMatch = text.match(/买了\s*(\d+)\s*(g|kg|斤)?\s*(.+?)\s*(\d+)\s*块钱/i);
+      if (purchaseMatch) {
+        let amount = parseInt(purchaseMatch[1]);
+        const unit = purchaseMatch[2] || 'g';
+        if (unit === 'kg') amount *= 1000;
+        if (unit === '斤') amount *= 500;
+        return { type: "purchase", name: purchaseMatch[3].trim(), amount, cost: parseInt(purchaseMatch[4]) };
+      }
+      
+      const cookMatch = text.match(/做了\s*(\d+)\s*份\s*(.+)/i);
+      if (cookMatch) {
+        const portions = parseInt(cookMatch[1]);
+        const mealName = cookMatch[2].trim();
+        let mealId = null;
+        for (const [id, meal] of Object.entries(MEAL_LIBRARY)) {
+          if (meal.name.includes(mealName) || mealName.includes(meal.name)) { mealId = id; break; }
+        }
+        if (mealId) return { type: "batch_cook", mealId, portions };
+      }
+      
+      if (text.includes("吃了早餐")) return { type: "eat_meal", mealId: "breakfast_standard", mealType: "breakfast" };
+      if (text.includes("吃了A餐") || text.includes("吃了a餐")) return { type: "eat_meal", mealId: "meal_a", mealType: "lunch" };
+      if (text.includes("吃了B餐") || text.includes("吃了b餐")) return { type: "eat_meal", mealId: "meal_b", mealType: "dinner" };
+      if (text.includes("吃了C餐") || text.includes("吃了c餐")) return { type: "eat_meal", mealId: "meal_c", mealType: "dinner" };
+      
+      if (text.includes("练了") && (text.includes("推日") || text.includes("拉日") || text.includes("腿日"))) {
+        let type = null;
+        if (text.includes("推日")) type = "push";
+        if (text.includes("拉日")) type = "pull";
+        if (text.includes("腿日")) type = "legs";
+        return { type: "record_training", trainingType: type };
+      }
+      
+      if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
+      if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
+      if (text.includes("库存") || text.includes("还有多少")) return { type: "query_stock" };
+      if (text.includes("同步") && text.includes("云盘")) return { type: "sync_cloud" };
+      
+      const paramMatch = text.match(/蛋白.*(系数|目标)?.*改成\s*(\d+\.?\d*)/i);
+      if (paramMatch) return { type: "set_param", key: "proteinCoefficient", value: parseFloat(paramMatch[2]) };
+      
+      return null;
+    }
+    
+    async function executeCommand(cmd) {
+      if (!cmd) return null;
+      switch (cmd.type) {
+        case "record_body": return recordBodyData(cmd.weight, cmd.bodyFat);
+        case "record_sleep": return recordSleep(cmd.hours);
+        case "purchase": return purchaseIngredient(cmd.name, cmd.amount, cmd.cost);
+        case "batch_cook": return batchCookMeal(cmd.mealId, cmd.portions);
+        case "eat_meal": return eatMeal(cmd.mealId, cmd.mealType);
+        case "record_training": return quickRecordTraining(cmd.trainingType);
+        case "generate_purchase": return handleGeneratePurchase();
+        case "generate_week_plan": return handleGenerateWeekPlan();
+        case "query_stock": return handleQueryStock();
+        case "sync_cloud": await syncFromCloud(); return { success: true, message: "已从云盘同步最新知识库" };
+        case "set_param": appData.profile[cmd.key] = cmd.value; saveData(); return { success: true, message: `已将蛋白质系数设置为${cmd.value}g/kg` };
+        case "save_knowledge":
+          const result = await saveToKnowledgeBase("meal", {
+            name: "新学到的食谱",
+            desc: currentContext.content
+          });
+          currentContext = { type: null, content: null, searchResult: null };
+          return result;
+        default: return null;
+      }
+    }
+    
+    function handleGeneratePurchase() {
+      const trainingDays = ["周一", "周二", "周四", "周五"];
+      const plan = generateWeekMealPlan(trainingDays);
+      const list = generatePurchaseList(plan);
+      let msg = "📋 本周采购清单（按分类，含早餐食材）：\n\n";
+      let totalPrice = 0;
+      const categories = {};
+      Object.entries(list).forEach(([name, info]) => {
+        if (!categories[info.category]) categories[info.category] = [];
+        categories[info.category].push({ name, ...info });
+        totalPrice += info.estimatedPrice;
+      });
+      Object.entries(categories).forEach(([cat, items]) => {
+        msg += `【${cat}】\n`;
+        items.forEach(item => msg += `• ${item.name}：${Math.round(item.amount)}g  约${Math.round(item.estimatedPrice)}元\n`);
+        msg += "\n";
+      });
+      msg += `💰 预估总价：${Math.round(totalPrice)}元\n\n`;
+      msg += "采购完成后告诉我「买了XX多少克多少钱」即可自动入库。";
+      return { success: true, message: msg };
+    }
+    
+    function handleGenerateWeekPlan() {
+      const trainingDays = ["周一", "周二", "周四", "周五"];
+      const mealPlan = generateWeekMealPlan(trainingDays);
+      const trainingCycle = ["push", "pull", "rest", "legs", "push", "rest", "rest"];
+      const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      let msg = "📅 本周训练+饮食计划：\n\n";
+      days.forEach((day, i) => {
+        const isTraining = trainingDays.includes(day);
+        const training = isTraining ? TRAINING_LIBRARY[trainingCycle[i]]?.name || "训练" : "休息";
+        const meals = mealPlan[day];
+        
+        msg += `${day}：${training}\n`;
+        msg += `  早餐：${MEAL_LIBRARY[meals.breakfast]?.name || "标准早餐"}\n`;
+        msg += `  午餐：${MEAL_LIBRARY[meals.lunch]?.name || "A餐"}\n`;
+        msg += `  晚餐：${MEAL_LIBRARY[meals.dinner]?.name || "B餐"}\n`;
+        if (isTraining) msg += `  🔥 训练日热量目标自动上浮\n`;
+        msg += "\n";
+      });
+      msg += "💡 训练日安排高蛋白高碳水餐，休息日安排清淡低卡餐。\n早餐已纳入全程热量计算和库存联动。";
+      appData.mealPlans = mealPlan;
+      saveData();
+      return { success: true, message: msg };
+    }
+    
+    function handleQueryStock() {
+      let msg = "📦 当前库存：\n\n【成品冷冻餐】\n";
+      let hasMeals = false;
+      Object.entries(appData.mealStock).forEach(([id, count]) => {
+        if (count > 0) {
+          const meal = MEAL_LIBRARY[id];
+          if (meal) { msg += `• ${meal.name}：${count}份\n`; hasMeals = true; }
+        }
+      });
+      if (!hasMeals) msg += "• 暂无库存\n";
+      msg += "\n【主要食材】\n";
+      let hasIng = false;
+      Object.entries(appData.ingredientStock).forEach(([name, amount]) => {
+        if (amount > 0) { msg += `• ${name}：${Math.round(amount)}g\n`; hasIng = true; }
+      });
+      if (!hasIng) msg += "• 暂无库存";
+      return { success: true, message: msg };
+    }
+    
+    // ========== AI 调用 ==========
+    function testAI() {
+      appData.settings.apiUrl = document.getElementById('setting-api-url').value;
+      appData.settings.apiKey = document.getElementById('setting-apikey').value;
+      appData.settings.model = document.getElementById('setting-model').value;
+      saveData();
+      alert("API配置已保存");
+    }
+    
+    async function callAI(prompt, imageBase64 = null, searchResults = null) {
+      if (!appData.settings.apiUrl || !appData.settings.apiKey) return null;
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const daily = calculateDailyIntake(today);
+        const target = getTodayTargetCalories();
+        
+        let systemPrompt = `你是专业的健身教练和营养师，擅长减脂、力量训练、饮食规划。回答简洁专业，贴合用户实际情况。
+
+用户个人参数：
+- 体重：${appData.profile.weight}kg
+- 体脂：${appData.profile.bodyFat}%
+- 基础代谢：${appData.profile.bmr}大卡
+- 今日热量目标：${target}大卡
+- 今日已摄入：${Math.round(daily.calories)}大卡
+- 每日蛋白目标：${getTodayProteinTarget()}g
+- 每日热量缺口：${appData.profile.calorieDeficit}大卡
+
+回答规则：
+1. 操作类问题直接执行，知识类问题结合参考资料回答
+2. 所有建议优先符合用户的个人情况和目标
+3. 回答简洁，重点突出，不要冗余
+4. 饮食建议要考虑当日剩余热量和蛋白配额`;
+
+        if (searchResults && searchResults.length > 0) {
+          systemPrompt += "\n\n参考资料（来自网络搜索）：\n";
+          searchResults.forEach((item, i) => {
+            systemPrompt += `${i+1}. ${item.title}\n${item.content}\n\n`;
+          });
+          systemPrompt += "请结合以上参考资料整理回答，确保准确。回答后询问用户是否将有用内容存入个人知识库。";
+        }
+
+        const messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt }
+        ];
+        
+        if (imageBase64) {
+          messages[1].content = [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64 } }];
+        }
+        
+        const res = await fetch(appData.settings.apiUrl + "/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + appData.settings.apiKey },
+          body: JSON.stringify({ model: appData.settings.model || "agnes-v1", messages, stream: false })
+        });
+        
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content;
+      } catch (e) { return null; }
+    }
+    
+    // ========== 界面渲染 ==========
+    function switchView(view) {
+      currentView = view;
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        tab.classList.add('text-gray-500');
+      });
+      document.querySelector(`.nav-tab[data-view="${view}"]`).classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+      document.querySelector(`.nav-tab[data-view="${view}"]`).classList.remove('text-gray-500');
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`view-${view}`).classList.remove('hidden');
+      const inputBar = document.getElementById('chat-input-bar');
+      inputBar.classList.toggle('hidden', view !== 'chat');
+      if (view === 'dashboard') renderDashboard();
+      if (view === 'training') renderTrainingView();
+      if (view === 'diet') renderDietView();
+      if (view === 'settings') renderSettingsView();
+    }
+    
+    function addMessage(role, text) {
+      const container = document.getElementById('chat-messages');
+      const isUser = role === 'user';
+      const div = document.createElement('div');
+      div.className = `chat-bubble flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      div.innerHTML = `
+        <div class="max-w-[85%] ${isUser ? 'bg-blue-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-gray-800 rounded-2xl rounded-bl-md shadow-sm'} px-4 py-3 text-sm whitespace-pre-wrap">
+          ${text}
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function renderDashboard() {
+      const latest = appData.bodyRecords[appData.bodyRecords.length - 1];
+      if (latest) {
+        document.getElementById('dash-weight').textContent = latest.weight + ' kg';
+        document.getElementById('dash-bodyfat').textContent = latest.bodyFat + '%';
+      } else {
+        document.getElementById('dash-weight').textContent = appData.profile.weight + ' kg';
+        document.getElementById('dash-bodyfat').textContent = appData.profile.bodyFat + '%';
+      }
+      document.getElementById('dash-bmr').textContent = appData.profile.bmr;
+      document.getElementById('dash-today-target').textContent = getTodayTargetCalories();
+      
+      const startFat = 25;
+      const progress = Math.min(100, Math.max(0, ((startFat - appData.profile.bodyFat) / (startFat - appData.profile.targetBodyFat)) * 100));
+      document.getElementById('dash-progress-text').textContent = Math.round(progress) + '%';
+      document.getElementById('dash-progress-bar').style.width = progress + '%';
+      
+      const today = new Date();
+      const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+      const weekTraining = appData.trainingRecords.filter(r => new Date(r.date) >= weekStart);
+      document.getElementById('week-training-count').textContent = weekTraining.length;
+      
+      // 更新今日实时监控
+      updateTodayMonitor();
+      
+      renderWeightChart();
+    }
+
+    function updateTodayMonitor() {
+      const today = new Date().toISOString().split('T')[0];
+      const daily = calculateDailyIntake(today);
+      const target = getTodayTargetCalories();
+      const proteinTarget = getTodayProteinTarget();
+      
+      const percent = Math.min(100, (daily.calories / target) * 100);
+      
+      document.getElementById('today-intake').textContent = Math.round(daily.calories) + ' 大卡';
+      document.getElementById('today-target').textContent = target;
+      document.getElementById('today-remain').textContent = Math.max(0, Math.round(target - daily.calories));
+      document.getElementById('today-cal-bar').style.width = percent + '%';
+      
+      // 进度条颜色
+      const bar = document.getElementById('today-cal-bar');
+      if (percent < 80) {
+        bar.className = 'bg-green-500 rounded-full h-3 transition-all';
+      } else if (percent < 100) {
+        bar.className = 'bg-yellow-500 rounded-full h-3 transition-all';
+      } else {
+        bar.className = 'bg-red-500 rounded-full h-3 transition-all';
+      }
+      
+      document.getElementById('today-protein').textContent = Math.round(daily.protein) + 'g';
+      document.getElementById('today-carbs').textContent = Math.round(daily.carbs) + 'g';
+      document.getElementById('today-fat').textContent = Math.round(daily.fat) + 'g';
+      
+      // 智能建议
+      const adviceEl = document.getElementById('today-advice');
+      const remain = target - daily.calories;
+      const proteinRemain = proteinTarget - daily.protein;
+      
+      let advice = '';
+      if (daily.calories === 0) {
+        advice = '今天还没有记录饮食，记得按时吃早餐，开启元气一天。';
+      } else if (remain > 300 && proteinRemain > 10) {
+        advice = `热量还有约${Math.round(remain)}大卡空间，蛋白还差${Math.round(proteinRemain)}g，下一餐可以多安排优质蛋白。`;
+      } else if (remain > 0 && remain < 300) {
+        advice = `今日热量接近目标，还剩${Math.round(remain)}大卡，下一餐注意控制分量。`;
+      } else if (remain < 0) {
+        advice = `⚠️ 今日已超标${Math.abs(Math.round(remain))}大卡，下一餐减少主食和油脂，增加蔬菜。`;
+      }
+      
+      const hasTraining = appData.trainingBurnToday[today] > 0;
+      if (hasTraining) {
+        advice += ' 今日有训练，热量目标已上浮。';
+      }
+      
+      adviceEl.textContent = advice;
+    }
+    
+    function renderWeightChart() {
+      const ctx = document.getElementById('weightChart');
+      if (!ctx) return;
+      const labels = [];
+      const data = [];
+      appData.bodyRecords.slice(-10).forEach(r => { labels.push(r.date.slice(5)); data.push(r.weight); });
+      if (weightChart) weightChart.destroy();
+      weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{ 
+            label: '体重(kg)', 
+            data, 
+            borderColor: '#3b82f6', 
+            backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+            tension: 0.4, 
+            fill: true, 
+            pointRadius: 3 
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { 
+            y: { beginAtZero: false, grid: { color: '#f3f4f6' } }, 
+            x: { grid: { display: false } } 
+          }
+        }
+      });
+    }
+    
+    function renderTrainingView() {
+      const dayIndex = new Date().getDay();
+      const trainingMap = { 1: "push", 2: "pull", 4: "legs", 5: "push", 6: "pull" };
+      const todayType = trainingMap[dayIndex];
+      
+      let html = '';
+      if (todayType) {
+        const training = TRAINING_LIBRARY[todayType];
+        html = `
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold">今日训练 · ${training.name}</h2>
+              <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
+            </div>
+            <p class="text-sm text-blue-600 mb-4">预计消耗约 ${training.calories || 400} 大卡，完成后今日热量目标自动上调</p>
+            <div class="space-y-3">
+        `;
+        (training.exercises || []).forEach((ex, idx) => {
+          html += `
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div class="flex items-center justify-between cursor-pointer" onclick="toggleExerciseDetail(${idx})">
+                <div>
+                  <h3 class="font-semibold">${ex.name}</h3>
+                  <p class="text-sm text-gray-500">${ex.target} · ${ex.sets}组 × ${ex.reps}次 · 休息${ex.rest}</p>
+                  <p class="text-xs text-blue-500 mt-1">参考：入门${ex.beginnerWeight} / 进阶${ex.advancedWeight}</p>
+                </div>
+                <div class="text-gray-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              <div id="exercise-detail-${idx}" class="hidden mt-4 pt-4 border-t border-gray-100">
+                ${ex.steps ? `
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                  ${ex.steps.map(step => `
+                    <div class="bg-gray-50 rounded-lg p-2 text-center">
+                      <div class="text-xs font-medium text-blue-600 mb-1">${step.name}</div>
+                      <div class="text-xs text-gray-500">要点：${step.key}</div>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="mb-3">
+                  <h4 class="text-sm font-medium mb-2">📝 分步详解</h4>
+                  <div class="space-y-2 text-sm text-gray-600">
+                    ${ex.steps.map((step, i) => `<div><span class="font-medium text-gray-800">${i+1}. ${step.name}：</span>${step.desc}</div>`).join('')}
+                  </div>
+                </div>` : ''}
+                ${ex.mistakes ? `
+                <div class="mb-3">
+                  <h4 class="text-sm font-medium mb-2 text-red-500">⚠️ 常见错误</h4>
+                  <ul class="text-sm text-gray-600 space-y-1">${ex.mistakes.map(m => `<li>• ${m}</li>`).join('')}</ul>
+                </div>` : ''}
+                ${ex.tips ? `
+                <div class="bg-blue-50 rounded-lg p-3 mb-4">
+                  <h4 class="text-sm font-medium text-blue-700 mb-1">💡 技巧提示</h4>
+                  <p class="text-sm text-blue-600">${ex.tips}</p>
+                </div>` : ''}
+                <button class="w-full bg-blue-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-600" onclick="completeTraining()">完成今日训练</button>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div></div>`;
+      } else {
+        html = `
+          <div class="text-center py-12">
+            <div class="text-5xl mb-4">🛋️</div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日</h3>
+            <p class="text-gray-500 text-sm">好好休息，给肌肉足够的恢复时间</p>
+            <p class="text-sm text-gray-400 mt-2">今日热量目标已按休息日计算</p>
+          </div>
+        `;
+      }
+      document.getElementById('view-training').innerHTML = html;
+    }
+    
+    function toggleExerciseDetail(idx) {
+      const el = document.getElementById(`exercise-detail-${idx}`);
+      if (el) el.classList.toggle('hidden');
+    }
+    
+    function completeTraining() {
+      const dayIndex = new Date().getDay();
+      const trainingMap = { 1: "push", 2: "pull", 4: "legs", 5: "push", 6: "pull" };
+      const type = trainingMap[dayIndex];
+      if (!type) { alert("今天是休息日哦"); return; }
+      const result = quickRecordTraining(type);
+      alert(result.message);
+      renderDashboard();
+    }
+    
+    function renderDietView() {
+      const html = `
+        <div class="mb-4">
+          <div class="flex bg-gray-100 rounded-lg p-1">
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="prep" onclick="switchDietTab('prep')">周备餐中心</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购清单</button>
+          </div>
+        </div>
+        <div id="diet-daily" class="diet-panel">${renderDailyDiet()}</div>
+        <div id="diet-prep" class="diet-panel hidden">${renderMealPrep()}</div>
+        <div id="diet-purchase" class="diet-panel hidden">${renderPurchaseList()}</div>
+      `;
+      document.getElementById('view-diet').innerHTML = html;
+    }
+    
+    function switchDietTab(tab) {
+      document.querySelectorAll('.diet-tab').forEach(t => {
+        t.classList.remove('bg-white', 'shadow-sm');
+        t.classList.add('text-gray-500');
+      });
+      document.querySelector(`.diet-tab[data-tab="${tab}"]`).classList.add('bg-white', 'shadow-sm');
+      document.querySelector(`.diet-tab[data-tab="${tab}"]`).classList.remove('text-gray-500');
+      document.querySelectorAll('.diet-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`diet-${tab}`).classList.remove('hidden');
+    }
+    
+    function renderDailyDiet() {
+      const today = new Date().toISOString().split('T')[0];
+      const daily = calculateDailyIntake(today);
+      const target = getTodayTargetCalories();
+      const proteinTarget = getTodayProteinTarget();
+      
+      return `
+        <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl p-5 mb-4">
+          <div class="text-sm opacity-90 mb-2">今日摄入</div>
+          <div class="text-3xl font-bold mb-1">${Math.round(daily.calories)} <span class="text-lg font-normal opacity-80">/ ${target} 大卡</span></div>
+          <div class="w-full bg-white/20 rounded-full h-2 mb-3">
+            <div class="bg-white rounded-full h-2" style="width: ${Math.min(100, daily.calories / target * 100)}%"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-sm">
+            <div><div class="font-bold">${Math.round(daily.protein)}g</div><div class="opacity-80 text-xs">蛋白质 / ${proteinTarget}g</div></div>
+            <div><div class="font-bold">${Math.round(daily.carbs)}g</div><div class="opacity-80 text-xs">碳水</div></div>
+            <div><div class="font-bold">${Math.round(daily.fat)}g</div><div class="opacity-80 text-xs">脂肪</div></div>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-medium">🌅 早餐</h3>
+              <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_standard', 'breakfast')">+ 记录已吃</button>
+            </div>
+            <p class="text-sm text-gray-500">全麦面包80g + 全蛋50g + 蛋清30g + 绿叶菜100g + 牛奶250ml</p>
+            <p class="text-xs text-gray-400 mt-1">380大卡 · 32g蛋白质</p>
+          </div>
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-medium">☀️ 午餐</h3>
+              <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_a || 0}份A餐</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · 辣椒炒鸡胸</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'lunch')">B餐 · 卤鸡腿</button>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-medium">🌙 晚餐</h3>
+              <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_b || 0}份B餐</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · 卤鸡腿</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_c', 'dinner')">C餐 · 巴沙鱼柳</button>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+              <h3 class="font-medium">🍔 放纵餐</h3>
+              <span class="text-xs text-orange-500">每周建议1次</span>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">安排在训练日后最佳，不影响整体进度</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    function handleEatMeal(mealId, type) {
+      const result = eatMeal(mealId, type);
+      alert(result.message);
+      renderDietView();
+      renderDashboard();
+    }
+    
+    function renderMealPrep() {
+      const meals = Object.values(MEAL_LIBRARY).filter(m => m.type === 'lunch_dinner');
+      return `
+        <div class="mb-4">
+          <h3 class="font-bold text-lg mb-3">📦 成品餐库存</h3>
+          <div class="grid grid-cols-3 gap-2">
+            ${meals.map(meal => `
+              <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-center">
+                <div class="text-2xl font-bold text-blue-600">${appData.mealStock[meal.id] || 0}</div>
+                <div class="text-xs text-gray-500">${meal.name}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="mb-4">
+          <h3 class="font-bold text-lg mb-3">👨‍🍳 批量制作</h3>
+          <div class="space-y-3">
+            ${meals.map(meal => `
+              <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h4 class="font-medium">${meal.name}</h4>
+                    <p class="text-xs text-gray-500">${meal.nutrition?.protein || 0}g蛋白 · ${meal.nutrition?.calories || 0}大卡/份</p>
+                  </div>
+                  <button class="text-sm bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600" onclick="handleBatchCook('${meal.id}')">制作5份</button>
+                </div>
+                <p class="text-xs text-gray-400">${meal.storage || '冷冻7天'} · 适合${meal.suitable || '通用'}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-4">
+          <h4 class="font-medium text-blue-700 mb-2">💡 备餐建议</h4>
+          <ul class="text-sm text-blue-600 space-y-1">
+            <li>• 建议周日一次性做好一周午晚餐</li>
+            <li>• 早餐食材新鲜采购，每日现做</li>
+            <li>• 使用定量油壶和盐罐，保证热量精准</li>
+            <li>• 冷却后再密封冷冻，避免产生冰晶</li>
+          </ul>
+        </div>
+      `;
+    }
+    
+    function handleBatchCook(mealId) {
+      const result = batchCookMeal(mealId, 5);
+      alert(result.message);
+      renderDietView();
+    }
+    
+    function renderPurchaseList() {
+      const trainingDays = ["周一", "周二", "周四", "周五"];
+      const plan = generateWeekMealPlan(trainingDays);
+      const list = generatePurchaseList(plan);
+      const categories = {};
+      let totalPrice = 0;
+      Object.entries(list).forEach(([name, info]) => {
+        if (!categories[info.category]) categories[info.category] = [];
+        categories[info.category].push({ name, ...info });
+        totalPrice += info.estimatedPrice;
+      });
+      let categoryHtml = '';
+      Object.entries(categories).forEach(([cat, items]) => {
+        categoryHtml += `
+          <div class="mb-4">
+            <h4 class="font-medium mb-2 text-gray-700">${cat}</h4>
+            <div class="space-y-2">
+              ${items.map(item => `
+                <div class="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <input type="checkbox" class="w-4 h-4 text-blue-500">
+                    <div><div class="text-sm font-medium">${item.name}</div><div class="text-xs text-gray-500">${Math.round(item.amount)}g · ${item.storage}</div></div>
+                  </div>
+                  <div class="text-sm text-gray-600">约${Math.round(item.estimatedPrice)}元</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+      return `
+        <div class="mb-4 flex items-center justify-between">
+          <div><h3 class="font-bold text-lg">本周采购清单</h3><p class="text-sm text-gray-500">预估总价：<span class="font-bold text-orange-500">${Math.round(totalPrice)}元</span></p></div>
+        </div>
+        ${categoryHtml}
+        <div class="mt-4 text-xs text-gray-400 text-center">采购完成后对话说「买了XX多少克多少钱」自动入库</div>
+      `;
+    }
+    
+    function renderSettingsView() {
+      document.getElementById('setting-weight').value = appData.profile.weight;
+      document.getElementById('setting-bodyfat').value = appData.profile.bodyFat;
+      document.getElementById('setting-target-fat').value = appData.profile.targetBodyFat;
+      document.getElementById('setting-protein').value = appData.profile.proteinCoefficient;
+      document.getElementById('setting-deficit').value = appData.profile.calorieDeficit;
+      document.getElementById('setting-api-url').value = appData.settings.apiUrl;
+      document.getElementById('setting-apikey').value = appData.settings.apiKey;
+      document.getElementById('setting-model').value = appData.settings.model;
+      document.getElementById('setting-search-url').value = appData.settings.searchUrl;
+      document.getElementById('setting-search-key').value = appData.settings.searchKey;
+      document.getElementById('setting-auto-search').checked = appData.settings.autoSearch;
+      document.getElementById('setting-webdav-url').value = appData.settings.webdavUrl;
+      document.getElementById('setting-webdav-user').value = appData.settings.webdavUser;
+      document.getElementById('setting-webdav-pass').value = appData.settings.webdavPass;
+    }
+    
+    function saveProfile() {
+      appData.profile.weight = parseFloat(document.getElementById('setting-weight').value) || 70;
+      appData.profile.bodyFat = parseFloat(document.getElementById('setting-bodyfat').value) || 20;
+      appData.profile.targetBodyFat = parseFloat(document.getElementById('setting-target-fat').value) || 15;
+      appData.profile.proteinCoefficient = parseFloat(document.getElementById('setting-protein').value) || 1.8;
+      appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 500;
+      appData.profile.bmr = Math.round(88.362 + (13.397 * appData.profile.weight) + (4.799 * 175) - (5.677 * 25));
+      
+      appData.settings.searchUrl = document.getElementById('setting-search-url').value;
+      appData.settings.searchKey = document.getElementById('setting-search-key').value;
+      appData.settings.autoSearch = document.getElementById('setting-auto-search').checked;
+      
+      saveData();
+      alert("参数已保存");
+      renderDashboard();
+    }
+    
+    // ========== 消息处理 ==========
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      addMessage('user', text);
+      input.value = '';
+      
+      const cmd = parseCommand(text);
+      if (cmd) {
+        const result = await executeCommand(cmd);
+        if (result && result.success) {
+          setTimeout(() => { addMessage('assistant', result.message); renderDashboard(); renderTrainingView(); renderDietView(); }, 300);
+          return;
+        }
+      }
+
+      let searchResults = null;
+      const needSearch = appData.settings.autoSearch && isKnowledgeQuestion(text);
+      
+      if (needSearch && appData.settings.searchKey) {
+        addMessage('assistant', "🔍 正在联网搜索相关信息...");
+        searchResults = await searchWeb(text);
+      }
+      
+      const aiReply = await callAI(text, null, searchResults);
+      if (aiReply) {
+        if (searchResults) {
+          currentContext = { type: "meal", content: aiReply, searchResult: searchResults };
+        }
+        addMessage('assistant', aiReply);
+      } else {
+        setTimeout(() => {
+          addMessage('assistant', "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～");
+        }, 500);
+      }
+    }
+    
+    async function handleImageFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        addMessage('user', "[图片]");
+        if (appData.settings.apiKey) {
+          addMessage('assistant', "📸 正在识别截图...");
+          const result = await callAI("请识别这张体脂秤截图中的数据，提取体重、体脂率、骨骼肌量、基础代谢，用JSON格式返回", e.target.result);
+          if (result) {
+            addMessage('assistant', "识别结果：\n" + result + "\n\n确认无误的话我帮你记录到身体数据里。");
+          } else {
+            addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重72.5kg体脂18.5%」");
+          }
+        } else {
+          addMessage('assistant', "📸 截图识别功能需要配置API密钥后启用。\n\n你可以先手动输入数据，比如直接说「体重72.5kg体脂18.5%」，我会自动记录。");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    // ========== 数据导出导入 ==========
+    function exportData() {
+      const dataStr = JSON.stringify(appData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `健身数据备份_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          appData = migrateData(data);
+          saveData();
+          alert("数据导入成功");
+          location.reload();
+        } catch (err) { alert("导入失败，文件格式错误"); }
+      };
+      reader.readAsText(file);
+    }
+    
+    function clearAllData() {
+      if (confirm("确定要清空所有数据吗？此操作不可恢复！")) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+    }
+    
+    // ========== 初始化 ==========
+    function init() {
+      loadData();
+      renderDashboard();
+      renderTrainingView();
+      renderDietView();
+      renderSettingsView();
+      
+      document.getElementById('chat-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+      });
+      
+      if (appData.settings.webdavUrl) {
+        updateSyncStatus("cloud");
+        syncFromCloud().catch(() => {});
+      }
+      
+      if (appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
+        setTimeout(() => {
+          addMessage('assistant', `👋 欢迎使用你的专属健身减脂智能体 v${VERSION}！
+
+我是你的私人教练+营养师，可以帮你：
+• 📊 记录体重体脂、睡眠数据
+• 💪 三分化训练计划，每个动作带详细要点
+• 🍱 早餐+午晚餐全结构化，精准热量计算
+• 🔥 训练消耗自动联动，热量目标动态调整
+• 📦 食材库存 + 成品餐库存自动联动
+• 🌐 联网搜索知识，可自学习存入知识库
+• 🗣️ 全功能对话操作，张嘴就能搞定
+• ☁️ 云盘知识库，支持对话修改
+
+**快速开始三步：**
+1. 先在「设置」里填写你的基础参数
+2. 配置WebDAV云盘，初始化知识库
+3. 配置Agnes API和搜索API，启用智能对话和联网学习
+
+有任何问题随时告诉我，我们边用边优化～`);
+        }, 300);
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
