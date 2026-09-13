@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.10.0</title>
+  <title>健身减脂智能体 v1.11.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.10.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.11.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -282,7 +282,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.10.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.11.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -309,7 +309,7 @@
   </div>
 
   <script>
-    const VERSION = "1.10.0";
+    const VERSION = "1.11.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -1943,9 +1943,9 @@
         const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/菜品/购物清单截图（如买菜APP、超市小票、菜品照片）；3-其他类型图片", e.target.result);
         const typeNum = classify ? (String(classify).match(/[123]/) || [])[0] : null;
         if (typeNum === '2') {
-          // ===== 食材/购物截图：识别并入库 =====
+          // ===== 食材/商品截图：识别 → 查营养与价格，不自动入库 =====
           addMessage('assistant', "🛒 正在识别食材信息...");
-          const result = await callAI("请识别这张食材/购物截图中的食材信息，用JSON数组返回（不要输出其他文字）：[{\"name\":\"食材中文名\",\"weight\":\"重量克数，数字，无则null\",\"cost\":\"价格元，数字，无则null\"}]。名称用常见中文名（西红柿、黄瓜、鸡胸肉等），有规格的换算成克（如500g、1斤=500g、1kg=1000g），识别不准确宁可null。", e.target.result);
+          const result = await callAI("请识别这张食材/商品截图中的食材信息，用JSON数组返回（不要输出其他文字）：[{\"name\":\"食材中文名\",\"weight\":\"重量克数，数字，无则null\",\"cost\":\"价格元，数字，无则null\"}]。名称用常见中文名（西红柿、黄瓜、鸡胸肉等），有规格的换算成克（如500g、1斤=500g、1kg=1000g），识别不准确宁可null。", e.target.result);
           let items = [];
           const arrMatch = result ? result.match(/\[[\s\S]*\]/) : null;
           if (arrMatch) {
@@ -1956,29 +1956,27 @@
             } catch (e) { console.error("食材JSON解析失败", e); }
           }
           if (items.length === 0) {
-            addMessage('assistant', "未能从这张图片中识别出食材，请直接说「买了西红柿500g3块5」即可入库。");
+            addMessage('assistant', "未能从这张图片中识别出食材。\n\n· 想了解食材营养：直接说「西红柿的热量」\n· 想记录采购：说「买了西红柿500g3块5」");
             return;
           }
-          const lines = [];
-          let okCount = 0, needWeight = [];
+          // 本地知识库价格对比
+          const known = [], unknown = [];
           items.forEach(it => {
             const name = String(it.name || '').trim();
             if (!name) return;
-            const w = parseFloat(String(it.weight ?? '').replace(/[^0-9.]/g, ''));
-            const c = parseFloat(String(it.cost ?? '').replace(/[^0-9.]/g, ''));
-            if (!isNaN(w) && w > 0) {
-              const r = purchaseIngredient(name, Math.round(w), isNaN(c) ? undefined : c);
-              okCount++;
-              lines.push("· " + name + " " + Math.round(w) + "g" + (isNaN(c) ? "" : " " + c + "元") + " ✓");
-            } else {
-              needWeight.push(name + (isNaN(c) ? "" : " " + c + "元"));
-            }
+            const kb = INGREDIENT_PRICES[name];
+            if (kb) known.push(name + "（知识库价" + kb.price + "元/" + kb.unit + "，" + kb.category + "，" + kb.storage + "存储）");
+            else unknown.push(name);
           });
-          let msg = "🛒 已识别入库：\n" + lines.join("\n");
-          if (needWeight.length) {
-            msg += "\n\n⚠️ 以下未入库（缺重量）：" + needWeight.join("、") + "\n请补充说「买了XX多少克」";
-          }
-          msg += "\n\n知识库没有的新食材可以说「存起来」加入知识库。";
+          const priceInfo = known.length ? "知识库价格参考：\n" + known.join("\n") : "这些食材都不在知识库中";
+          // 让 AI 结合联网给出每个食材的营养与减脂建议
+          addMessage('assistant', "📊 正在查询营养数据...");
+          const nut = await callAI("以下是识别出的食材清单（名称/重量/价格）：" + JSON.stringify(items.map(it => ({ name: it.name, weight: it.weight, cost: it.cost }))) + "。\n请逐个食材给出（可用联网资料）：\n1. 每100g热量、蛋白质、碳水、脂肪\n2. 按该重量计算的总热量与蛋白质\n3. 是否适合当前减脂期（高蛋白低脂优先）及一句话建议\n4. 价格是否合理（可与常见市场价比较）\n用简洁列表输出，不要提问。", e.target.result);
+          let msg = "🛒 已识别食材：" + items.map(it => (it.name || '') + (it.weight ? " " + it.weight + "g" : "") + (it.cost ? " " + it.cost + "元" : "")).join("、") + "\n\n";
+          msg += "📚 " + priceInfo + "\n\n";
+          msg += nut || "（营养信息获取失败，可单独问我「XX的热量」）";
+          msg += "\n\n⚠️ 这只是商品信息，尚未记入库存。如需购买入库请说「买了" + (items[0] && items[0].name || 'XX') + "多少克多少钱」";
+          if (unknown.length) msg += "\n新食材可说「存起来」加入知识库";
           addMessage('assistant', msg);
         } else if (typeNum === '1') {
           // ===== 体脂秤截图：全量身体成分识别 =====
