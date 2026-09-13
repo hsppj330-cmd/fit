@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.8.0</title>
+  <title>健身减脂智能体 v1.9.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.8.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.9.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -101,6 +101,16 @@
             <div class="w-full bg-gray-100 rounded-full h-2.5">
               <div id="dash-progress-bar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-2.5 rounded-full" style="width: 0%"></div>
             </div>
+          </div>
+
+          <!-- 身体成分（Keep 体脂秤全量） -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <div class="flex justify-between items-center mb-2">
+              <p class="font-medium">身体成分</p>
+              <span class="text-xs text-gray-400" id="body-comp-date">暂无体测数据</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center" id="body-comp-grid"></div>
+            <div id="body-health-tips" class="mt-3 space-y-1"></div>
           </div>
           
           <div class="bg-white rounded-2xl p-4 shadow-sm">
@@ -272,7 +282,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.8.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.9.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -299,7 +309,7 @@
   </div>
 
   <script>
-    const VERSION = "1.8.0";
+    const VERSION = "1.9.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -863,15 +873,46 @@
     }
     
     // ========== 业务逻辑 ==========
-    function recordBodyData(weight, bodyFat) {
+    function recordBodyData(weight, bodyFat, extra) {
+      extra = extra || {};
       const today = new Date().toISOString().split('T')[0];
       const record = { date: today };
       if (weight) { appData.profile.weight = weight; record.weight = weight; }
       if (bodyFat) { appData.profile.bodyFat = bodyFat; record.bodyFat = bodyFat; }
-      if (weight) appData.profile.bmr = Math.round(88.362 + (13.397 * weight) + (4.799 * 175) - (5.677 * 25));
+      // 身体成分扩展字段（Keep 体脂秤全量）
+      const fields = ['bmi','bmr','muscle','visceralFat','subcutaneousFat','protein','muscleRate','leanMass','water','boneMass','bodyScore','bodyAge'];
+      fields.forEach(f => {
+        if (extra[f] !== undefined && extra[f] !== null && extra[f] !== '' && !isNaN(parseFloat(extra[f]))) {
+          record[f] = parseFloat(extra[f]);
+        }
+      });
+      // 基础代谢：优先实测值（Keep），其次公式估算
+      if (record.bmr) {
+        appData.profile.bmr = Math.round(record.bmr);
+      } else if (weight) {
+        appData.profile.bmr = Math.round(88.362 + (13.397 * weight) + (4.799 * 175) - (5.677 * 25));
+      }
+      // 保存最近一次身体成分（供 AI 上下文与看板）
+      appData.profile.latestBodyComp = {
+        date: today,
+        weight: record.weight || appData.profile.weight,
+        bodyFat: (record.bodyFat !== undefined) ? record.bodyFat : appData.profile.bodyFat,
+        bmi: record.bmi, bmr: appData.profile.bmr,
+        muscle: record.muscle, visceralFat: record.visceralFat,
+        subcutaneousFat: record.subcutaneousFat, protein: record.protein,
+        muscleRate: record.muscleRate, leanMass: record.leanMass,
+        water: record.water, boneMass: record.boneMass,
+        bodyScore: record.bodyScore, bodyAge: record.bodyAge
+      };
       appData.bodyRecords.push(record);
       saveData();
-      return { success: true, message: `已记录：体重${weight}kg，体脂${bodyFat}%` };
+      let msg = `已记录：体重${record.weight || appData.profile.weight}kg`;
+      if (record.bodyFat !== undefined) msg += `，体脂${record.bodyFat}%`;
+      if (record.bmi !== undefined) msg += `，BMI ${record.bmi}`;
+      if (record.bmr) msg += `，基础代谢${record.bmr}大卡`;
+      if (record.visceralFat !== undefined) msg += `，内脏脂肪${record.visceralFat}`;
+      if (record.water !== undefined) msg += `，水分${record.water}%`;
+      return { success: true, message: msg };
     }
     
     function recordSleep(hours) {
@@ -1227,7 +1268,7 @@
     
     // ========== AI 工具定义（自然语言 → 真实功能联动） ==========
     const AI_TOOLS = [
-      { type: "function", function: { name: "record_body", description: "记录今日体重和体脂数据，自动更新个人参数、基础代谢、热量目标与看板。用户提到称重/体脂秤/体重/体脂时调用", parameters: { type: "object", properties: { weight: { type: "number", description: "体重，单位kg（可选）" }, bodyFat: { type: "number", description: "体脂率，单位%（可选）" } } } } },
+      { type: "function", function: { name: "record_body", description: "记录今日体重、体脂及身体成分数据（体脂秤全量），自动更新个人参数、基础代谢、热量目标与看板。用户提到称重/体脂秤/体重/体脂/BMI/内脏脂肪/肌肉/水分/骨量/身体得分/身体年龄等时调用", parameters: { type: "object", properties: { weight: { type: "number", description: "体重，单位kg（可选）" }, bodyFat: { type: "number", description: "体脂率，单位%（可选）" }, bmi: { type: "number", description: "BMI（可选）" }, bmr: { type: "number", description: "基础代谢大卡/天（可选，实测值优先）" }, muscle: { type: "number", description: "肌肉量kg（可选）" }, visceralFat: { type: "number", description: "内脏脂肪等级（可选）" }, subcutaneousFat: { type: "number", description: "皮下脂肪%（可选）" }, protein: { type: "number", description: "蛋白质%（可选）" }, muscleRate: { type: "number", description: "骨骼肌率%（可选）" }, leanMass: { type: "number", description: "去脂体重kg（可选）" }, water: { type: "number", description: "水分%（可选）" }, boneMass: { type: "number", description: "骨量kg（可选）" }, bodyScore: { type: "number", description: "身体得分（可选）" }, bodyAge: { type: "number", description: "身体年龄岁（可选）" } } } } },
       { type: "function", function: { name: "record_sleep", description: "记录今日睡眠时长，含评分和建议。用户提到睡眠/睡觉/小时数时调用", parameters: { type: "object", properties: { hours: { type: "number", description: "睡眠小时数" } }, required: ["hours"] } } },
       { type: "function", function: { name: "record_training", description: "记录完成一次训练（推日/拉日/腿日），自动累加训练消耗并上调今日热量目标。用户说练了/训练完成/推日/拉日/腿日时调用", parameters: { type: "object", properties: { type: { type: "string", enum: ["push", "pull", "legs"], description: "训练类型：push=推日(胸肩三头)，pull=拉日(背二头)，legs=腿日" } }, required: ["type"] } } },
       { type: "function", function: { name: "eat_meal", description: "记录吃了某餐（早餐/A餐/B餐/C餐），扣减对应库存并计入今日摄入热量。用户说吃了/早餐/A餐/B餐/C餐时调用", parameters: { type: "object", properties: { mealName: { type: "string", description: "餐名：早餐 / A餐 / B餐 / C餐" } }, required: ["mealName"] } } },
@@ -1243,7 +1284,10 @@
         case "record_body": {
           const w = parseFloat(args.weight), bf = parseFloat(args.bodyFat);
           if (isNaN(w) && isNaN(bf)) return { success: false, message: "未提供有效体重或体脂数据" };
-          return recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf);
+          const extra = {};
+          const keys = ['bmi','bmr','muscle','visceralFat','subcutaneousFat','protein','muscleRate','leanMass','water','boneMass','bodyScore','bodyAge'];
+          keys.forEach(k => { const v = parseFloat(args[k]); if (!isNaN(v)) extra[k] = v; });
+          return recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf, extra);
         }
         case "record_sleep": {
           const h = parseFloat(args.hours);
@@ -1294,7 +1338,7 @@
 - 今日热量目标：${target}大卡
 - 今日已摄入：${Math.round(daily.calories)}大卡
 - 每日蛋白目标：${getTodayProteinTarget()}g
-- 每日热量缺口：${appData.profile.calorieDeficit}大卡
+- 每日热量缺口：${appData.profile.calorieDeficit}大卡${appData.profile.latestBodyComp ? `\n- 最近体测（${appData.profile.latestBodyComp.date}）：BMI ${appData.profile.latestBodyComp.bmi || '-'}，骨骼肌率 ${appData.profile.latestBodyComp.muscleRate || '-'}%，内脏脂肪 ${appData.profile.latestBodyComp.visceralFat || '-'}，水分 ${appData.profile.latestBodyComp.water || '-'}%，骨量 ${appData.profile.latestBodyComp.boneMass || '-'}kg，身体年龄 ${appData.profile.latestBodyComp.bodyAge || '-'}岁` : ''}
 
 回答规则：
 1. 当用户提出记录/操作类需求（记录体重体脂、睡眠、训练、饮食、采购、查询库存、生成清单或计划）时，必须调用对应工具来真正执行，执行结果会返回给你，你再基于结果简洁回复用户
@@ -1385,17 +1429,64 @@
       container.scrollTop = container.scrollHeight;
     }
     
+    function renderBodyComposition() {
+      const comp = appData.profile.latestBodyComp;
+      const grid = document.getElementById('body-comp-grid');
+      const dateEl = document.getElementById('body-comp-date');
+      const tipsEl = document.getElementById('body-health-tips');
+      if (!comp) {
+        dateEl.textContent = '暂无体测数据';
+        grid.innerHTML = '<p class="col-span-3 text-xs text-gray-400 py-2">上传 Keep 体脂秤截图或对话中报体重体脂，即可显示全量身体成分</p>';
+        tipsEl.innerHTML = '';
+        return;
+      }
+      dateEl.textContent = '最近测量 ' + comp.date;
+      const items = [
+        { label: 'BMI', value: comp.bmi, warn: comp.bmi && (comp.bmi < 18.5 || comp.bmi > 24) },
+        { label: '骨骼肌率', value: comp.muscleRate !== undefined ? comp.muscleRate + '%' : null, warn: comp.muscleRate !== undefined && comp.muscleRate < 40 },
+        { label: '肌肉量', value: comp.muscle !== undefined ? comp.muscle + 'kg' : null },
+        { label: '内脏脂肪', value: comp.visceralFat, warn: comp.visceralFat >= 9, danger: comp.visceralFat >= 10 },
+        { label: '皮下脂肪', value: comp.subcutaneousFat !== undefined ? comp.subcutaneousFat + '%' : null },
+        { label: '蛋白质', value: comp.protein !== undefined ? comp.protein + '%' : null, warn: comp.protein !== undefined && comp.protein < 16 },
+        { label: '水分', value: comp.water !== undefined ? comp.water + '%' : null, warn: comp.water !== undefined && comp.water < 55 },
+        { label: '骨量', value: comp.boneMass !== undefined ? comp.boneMass + 'kg' : null, warn: comp.boneMass !== undefined && comp.boneMass < 2.7 },
+        { label: '身体得分', value: comp.bodyScore, warn: comp.bodyScore && comp.bodyScore < 70 },
+        { label: '身体年龄', value: comp.bodyAge !== undefined ? comp.bodyAge + '岁' : null, warn: comp.bodyAge && comp.bodyAge > 30 }
+      ];
+      grid.innerHTML = items.map(it => {
+        if (it.value === null || it.value === undefined) return '';
+        let cls = 'text-gray-800';
+        if (it.danger) cls = 'text-red-600';
+        else if (it.warn) cls = 'text-yellow-600';
+        return `<div class="py-2 bg-gray-50 rounded-lg">
+          <p class="text-[11px] text-gray-500">${it.label}</p>
+          <p class="text-base font-bold ${cls}">${it.value}</p>
+        </div>`;
+      }).join('');
+      // 健康提示
+      const tips = [];
+      if (comp.visceralFat >= 10) tips.push('⚠️ <b>内脏脂肪偏高（' + comp.visceralFat + '）</b>：建议控制精制碳水、增加有氧训练、保证睡眠，降低内脏脂肪可改善代谢健康');
+      else if (comp.visceralFat >= 9) tips.push('⚠️ 内脏脂肪接近偏高（' + comp.visceralFat + '），注意饮食结构');
+      if (comp.water !== undefined && comp.water < 55) tips.push('💧 <b>水分偏低（' + comp.water + '%）</b>：每天建议饮水 2-3L，训练后及时补水和电解质');
+      if (comp.boneMass !== undefined && comp.boneMass < 2.7) tips.push('🦴 <b>骨量不足（' + comp.boneMass + 'kg）</b>：建议补充钙质+维生素D，加入负重训练（深蹲/硬拉）');
+      if (comp.bodyAge && comp.bodyAge > 30) tips.push('🎯 身体年龄 ' + comp.bodyAge + ' 岁，坚持训练与规律作息可改善');
+      if (comp.protein !== undefined && comp.protein < 16) tips.push('🥩 蛋白质比例偏低（' + comp.protein + '%），多吃优质蛋白（鸡胸/鱼/蛋/乳清）');
+      if (comp.muscleRate !== undefined && comp.muscleRate < 40) tips.push('💪 骨骼肌率偏低（' + comp.muscleRate + '%），坚持力量训练可提升基础代谢');
+      tipsEl.innerHTML = tips.map(t => `<div class="p-2 rounded-lg text-xs ${t.includes('⚠️') ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'}">${t}</div>`).join('');
+    }
+
     function renderDashboard() {
       const latest = appData.bodyRecords[appData.bodyRecords.length - 1];
       if (latest) {
         document.getElementById('dash-weight').textContent = latest.weight + ' kg';
-        document.getElementById('dash-bodyfat').textContent = latest.bodyFat + '%';
+        document.getElementById('dash-bodyfat').textContent = (latest.bodyFat !== undefined) ? latest.bodyFat + '%' : '--';
       } else {
         document.getElementById('dash-weight').textContent = appData.profile.weight + ' kg';
         document.getElementById('dash-bodyfat').textContent = appData.profile.bodyFat + '%';
       }
       document.getElementById('dash-bmr').textContent = appData.profile.bmr;
       document.getElementById('dash-today-target').textContent = getTodayTargetCalories();
+      renderBodyComposition();
       
       const startFat = 25;
       const progress = Math.min(100, Math.max(0, ((startFat - appData.profile.bodyFat) / (startFat - appData.profile.targetBodyFat)) * 100));
@@ -1844,8 +1935,8 @@
       reader.onload = async function(e) {
         addMessage('user', "[图片]");
         if (appData.settings.apiKey) {
-          addMessage('assistant', "📸 正在识别截图...");
-          const result = await callAI("请识别这张体脂秤截图中的数据，提取体重、体脂率、骨骼肌量、基础代谢，用JSON格式返回", e.target.result);
+          addMessage('assistant', "📸 正在识别体脂秤截图，请稍候...");
+          const result = await callAI("请识别这张体脂秤（身体成分检测）截图中的所有数据，完整提取以下字段并用一个JSON对象返回（不要输出其他文字）：{bodyScore身体得分, bodyAge身体年龄, weight体重kg, bodyFat体脂率%, bmiBMI, bmr基础代谢大卡, muscle肌肉kg, visceralFat内脏脂肪等级, subcutaneousFat皮下脂肪%, protein蛋白质%, muscleRate骨骼肌率%, leanMass去脂体重kg, water水分%, boneMass骨量kg}。识别不到的字段设为null", e.target.result);
           if (result) {
             const jsonMatch = result.match(/\{[\s\S]*\}/);
             let recorded = false;
@@ -1855,18 +1946,28 @@
                 const w = parseFloat(parsed.weight ?? parsed.体重);
                 const bf = parseFloat(parsed.bodyFat ?? parsed.体脂 ?? parsed.body_fat);
                 if (!isNaN(w) || !isNaN(bf)) {
-                  const r = recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf);
+                  const extra = {};
+                  const map = { bmi: ['bmi','BMI'], bmr: ['bmr','基础代谢','基础代谢大卡'], muscle: ['muscle','肌肉'], visceralFat: ['visceralFat','内脏脂肪'], subcutaneousFat: ['subcutaneousFat','皮下脂肪'], protein: ['protein','蛋白质'], muscleRate: ['muscleRate','骨骼肌率'], leanMass: ['leanMass','去脂体重'], water: ['water','水分'], boneMass: ['boneMass','骨量'], bodyScore: ['bodyScore','身体得分'], bodyAge: ['bodyAge','身体年龄'] };
+                  for (const [key, keys] of Object.entries(map)) {
+                    for (const k of keys) {
+                      if (parsed[k] !== undefined && parsed[k] !== null && parsed[k] !== '') {
+                        const v = parseFloat(String(parsed[k]).replace(/[^0-9.\-]/g, ''));
+                        if (!isNaN(v)) { extra[key] = v; break; }
+                      }
+                    }
+                  }
+                  const r = recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf, extra);
                   renderDashboard();
-                  addMessage('assistant', "📸 已识别并记录：" + r.message);
+                  addMessage('assistant', "📸 已识别并记录：" + r.message + "\n已同步更新看板·身体成分");
                   recorded = true;
                 }
               } catch (e) { console.error("识别JSON解析失败", e); }
             }
             if (!recorded) {
-              addMessage('assistant', "识别结果：\n" + result + "\n\n如需记录请直接说「体重72.5kg体脂18.5%」");
+              addMessage('assistant', "识别结果：\n" + result + "\n\n如需手动记录请说「体重66kg体脂20.2%」");
             }
           } else {
-            addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重72.5kg体脂18.5%」");
+            addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重66kg体脂20.2%」");
           }
         } else {
           addMessage('assistant', "📸 截图识别功能需要配置API密钥后启用。\n\n你可以先手动输入数据，比如直接说「体重72.5kg体脂18.5%」，我会自动记录。");
