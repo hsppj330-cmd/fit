@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.7.0</title>
+  <title>健身减脂智能体 v1.8.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.7.0 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v1.8.0 · 云端知识库</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -272,7 +272,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.7.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.8.0 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -299,7 +299,7 @@
   </div>
 
   <script>
-    const VERSION = "1.7.0";
+    const VERSION = "1.8.0";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -1225,6 +1225,59 @@
       alert("API配置已保存");
     }
     
+    // ========== AI 工具定义（自然语言 → 真实功能联动） ==========
+    const AI_TOOLS = [
+      { type: "function", function: { name: "record_body", description: "记录今日体重和体脂数据，自动更新个人参数、基础代谢、热量目标与看板。用户提到称重/体脂秤/体重/体脂时调用", parameters: { type: "object", properties: { weight: { type: "number", description: "体重，单位kg（可选）" }, bodyFat: { type: "number", description: "体脂率，单位%（可选）" } } } } },
+      { type: "function", function: { name: "record_sleep", description: "记录今日睡眠时长，含评分和建议。用户提到睡眠/睡觉/小时数时调用", parameters: { type: "object", properties: { hours: { type: "number", description: "睡眠小时数" } }, required: ["hours"] } } },
+      { type: "function", function: { name: "record_training", description: "记录完成一次训练（推日/拉日/腿日），自动累加训练消耗并上调今日热量目标。用户说练了/训练完成/推日/拉日/腿日时调用", parameters: { type: "object", properties: { type: { type: "string", enum: ["push", "pull", "legs"], description: "训练类型：push=推日(胸肩三头)，pull=拉日(背二头)，legs=腿日" } }, required: ["type"] } } },
+      { type: "function", function: { name: "eat_meal", description: "记录吃了某餐（早餐/A餐/B餐/C餐），扣减对应库存并计入今日摄入热量。用户说吃了/早餐/A餐/B餐/C餐时调用", parameters: { type: "object", properties: { mealName: { type: "string", description: "餐名：早餐 / A餐 / B餐 / C餐" } }, required: ["mealName"] } } },
+      { type: "function", function: { name: "purchase", description: "记录食材采购入库，增加食材库存并记账单。用户说买了/采购/买了XX多少克多少钱时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, amount: { type: "number", description: "数量（克）" }, cost: { type: "number", description: "花费（元），可选" } }, required: ["name", "amount"] } } },
+      { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } }
+    ];
+
+    async function executeToolCall(name, args) {
+      args = args || {};
+      switch (name) {
+        case "record_body": {
+          const w = parseFloat(args.weight), bf = parseFloat(args.bodyFat);
+          if (isNaN(w) && isNaN(bf)) return { success: false, message: "未提供有效体重或体脂数据" };
+          return recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf);
+        }
+        case "record_sleep": {
+          const h = parseFloat(args.hours);
+          if (isNaN(h)) return { success: false, message: "未提供有效睡眠时长" };
+          return recordSleep(h);
+        }
+        case "record_training": {
+          const t = String(args.type || "").toLowerCase();
+          if (!["push", "pull", "legs"].includes(t)) return { success: false, message: "训练类型需为 push/pull/legs（推日/拉日/腿日）" };
+          return quickRecordTraining(t);
+        }
+        case "eat_meal": {
+          const name = String(args.mealName || "");
+          let mealId = null, mealType = "lunch";
+          if (name.includes("早餐")) { mealId = "breakfast_standard"; mealType = "breakfast"; }
+          else if (/[Aa]餐|餐A/.test(name)) { mealId = "meal_a"; mealType = "lunch"; }
+          else if (/[Bb]餐|餐B/.test(name)) { mealId = "meal_b"; mealType = "dinner"; }
+          else if (/[Cc]餐|餐C/.test(name)) { mealId = "meal_c"; mealType = "lunch"; }
+          if (!mealId) return { success: false, message: "未识别餐名，请说：早餐 / A餐 / B餐 / C餐" };
+          return eatMeal(mealId, mealType);
+        }
+        case "purchase": {
+          const amount = parseFloat(args.amount);
+          const cost = parseFloat(args.cost);
+          if (!args.name || isNaN(amount)) return { success: false, message: "请提供食材名称和数量（克）" };
+          return purchaseIngredient(String(args.name), amount, isNaN(cost) ? undefined : cost);
+        }
+        case "query_stock": return handleQueryStock();
+        case "generate_purchase_list": return handleGeneratePurchase();
+        case "generate_week_plan": return handleGenerateWeekPlan();
+        default: return { success: false, message: "未知工具：" + name };
+      }
+    }
+
     async function callAI(prompt, imageBase64 = null, searchResults = null) {
       if (!appData.settings.apiUrl || !appData.settings.apiKey) return null;
       try {
@@ -1244,10 +1297,11 @@
 - 每日热量缺口：${appData.profile.calorieDeficit}大卡
 
 回答规则：
-1. 操作类问题直接执行，知识类问题结合参考资料回答
-2. 所有建议优先符合用户的个人情况和目标
-3. 回答简洁，重点突出，不要冗余
-4. 饮食建议要考虑当日剩余热量和蛋白配额`;
+1. 当用户提出记录/操作类需求（记录体重体脂、睡眠、训练、饮食、采购、查询库存、生成清单或计划）时，必须调用对应工具来真正执行，执行结果会返回给你，你再基于结果简洁回复用户
+2. 知识类问题结合参考资料回答
+3. 所有建议优先符合用户的个人情况和目标
+4. 回答简洁，重点突出，不要冗余
+5. 饮食建议要考虑当日剩余热量和蛋白配额`;
 
         if (searchResults && searchResults.length > 0) {
           systemPrompt += "\n\n参考资料（来自网络搜索）：\n";
@@ -1266,15 +1320,36 @@
           messages[1].content = [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64 } }];
         }
         
-        const res = await fetch(appData.settings.apiUrl + "/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + appData.settings.apiKey },
-          body: JSON.stringify({ model: appData.settings.model || "agnes-v1", messages, stream: false })
-        });
-        
-        const data = await res.json();
-        return data.choices?.[0]?.message?.content;
-      } catch (e) { return null; }
+        // 工具调用循环（最多 4 轮，防止死循环）
+        const useTools = !imageBase64;
+        for (let round = 0; round < 4; round++) {
+          const payload = { model: appData.settings.model || "agnes-v1", messages, stream: false };
+          if (useTools) payload.tools = AI_TOOLS;
+          const res = await fetch(appData.settings.apiUrl + "/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + appData.settings.apiKey },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          const msg = data.choices?.[0]?.message;
+          if (msg && msg.tool_calls && msg.tool_calls.length > 0) {
+            messages.push(msg);
+            for (const tc of msg.tool_calls) {
+              let result;
+              try {
+                result = await executeToolCall(tc.function.name, JSON.parse(tc.function.arguments || "{}"));
+              } catch (e) {
+                result = { success: false, message: "工具执行出错：" + (e && e.message || e) };
+              }
+              messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+            }
+            renderDashboard(); renderTrainingView(); renderDietView();
+            continue;
+          }
+          return msg?.content || null;
+        }
+        return null;
+      } catch (e) { console.error("AI调用失败", e); return null; }
     }
     
     // ========== 界面渲染 ==========
@@ -1772,7 +1847,24 @@
           addMessage('assistant', "📸 正在识别截图...");
           const result = await callAI("请识别这张体脂秤截图中的数据，提取体重、体脂率、骨骼肌量、基础代谢，用JSON格式返回", e.target.result);
           if (result) {
-            addMessage('assistant', "识别结果：\n" + result + "\n\n确认无误的话我帮你记录到身体数据里。");
+            const jsonMatch = result.match(/\{[\s\S]*\}/);
+            let recorded = false;
+            if (jsonMatch) {
+              try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                const w = parseFloat(parsed.weight ?? parsed.体重);
+                const bf = parseFloat(parsed.bodyFat ?? parsed.体脂 ?? parsed.body_fat);
+                if (!isNaN(w) || !isNaN(bf)) {
+                  const r = recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf);
+                  renderDashboard();
+                  addMessage('assistant', "📸 已识别并记录：" + r.message);
+                  recorded = true;
+                }
+              } catch (e) { console.error("识别JSON解析失败", e); }
+            }
+            if (!recorded) {
+              addMessage('assistant', "识别结果：\n" + result + "\n\n如需记录请直接说「体重72.5kg体脂18.5%」");
+            }
           } else {
             addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重72.5kg体脂18.5%」");
           }
