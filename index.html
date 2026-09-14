@@ -2214,8 +2214,8 @@ const DEFAULT_INGREDIENT_PRICES = {
               <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_a || 0}份A餐</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · 辣椒炒鸡胸</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'lunch')">B餐 · 卤鸡腿</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · ${(MEAL_LIBRARY.meal_a && MEAL_LIBRARY.meal_a.name || '辣椒炒鸡胸').replace('A餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'lunch')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
             </div>
           </div>
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -2224,8 +2224,8 @@ const DEFAULT_INGREDIENT_PRICES = {
               <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_b || 0}份B餐</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · 卤鸡腿</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_c', 'dinner')">C餐 · 巴沙鱼柳</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_c', 'dinner')">C餐 · ${(MEAL_LIBRARY.meal_c && MEAL_LIBRARY.meal_c.name || '巴沙鱼柳').replace('C餐·', '')}</button>
             </div>
           </div>
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
