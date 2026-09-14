@@ -1012,6 +1012,37 @@ const DEFAULT_INGREDIENT_PRICES = {
       }
     }
     
+    // 云端动作库合并：默认新库（Keep实名+哑铃器械）为准，同名覆盖关键字段，用户自创动作保留
+    function mergeTrainingFromCloud(cloud) {
+      const merged = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
+      Object.entries(cloud || {}).forEach(([type, t]) => {
+        if (!merged[type]) { merged[type] = t; return; }
+        const map = {};
+        (t.exercises || []).forEach(e => map[e.id] = e);
+        merged[type].exercises.forEach(de => {
+          const uw = map[de.id] ? map[de.id].userWeight : undefined;
+          map[de.id] = Object.assign({}, map[de.id] || {}, JSON.parse(JSON.stringify(de)), uw ? { userWeight: uw } : {});
+        });
+        merged[type].exercises = Object.values(map);
+      });
+      return merged;
+    }
+    
+    // 云端餐谱合并：默认新库（谭师食材+做法流程）为准，同名覆盖，用户自创餐保留
+    function mergeMealFromCloud(cloud) {
+      const merged = JSON.parse(JSON.stringify(DEFAULT_MEAL_LIBRARY));
+      Object.entries(cloud || {}).forEach(([id, m]) => {
+        if (merged[id]) {
+          const extras = {};
+          ['userNote', 'customName'].forEach(k => { if (m[k]) extras[k] = m[k]; });
+          merged[id] = Object.assign({}, m, JSON.parse(JSON.stringify(DEFAULT_MEAL_LIBRARY[id])), extras);
+        } else {
+          merged[id] = m;
+        }
+      });
+      return merged;
+    }
+    
     async function syncFromCloud() {
       const tokenInput = document.getElementById('setting-git-token');
       if (tokenInput) { appData.settings.gitToken = tokenInput.value.trim(); saveData(); }
@@ -1019,8 +1050,8 @@ const DEFAULT_INGREDIENT_PRICES = {
       
       const data = await gistGetAll();
       if (data) {
-        if (data["动作库.json"]) TRAINING_LIBRARY = data["动作库.json"];
-        if (data["餐谱库.json"]) MEAL_LIBRARY = data["餐谱库.json"];
+        if (data["动作库.json"]) TRAINING_LIBRARY = mergeTrainingFromCloud(data["动作库.json"]);
+        if (data["餐谱库.json"]) MEAL_LIBRARY = mergeMealFromCloud(data["餐谱库.json"]);
         if (data["食材价格库.json"]) INGREDIENT_PRICES = data["食材价格库.json"];
         if (data["商品库.json"]) PRODUCT_LIBRARY = data["商品库.json"];
         if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
