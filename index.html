@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.15.0</title>
+  <title>健身减脂智能体 v1.15.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -286,7 +286,7 @@
             </div>
           </div>
           
-          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.15.0 · 云端知识库版</p>
+          <p class="text-center text-xs text-gray-400">健身减脂智能体 v1.15.1 · 云端知识库版</p>
         </div>
       </div>
     </main>
@@ -313,7 +313,7 @@
   </div>
 
   <script>
-    const VERSION = "1.15.0";
+    const VERSION = "1.15.1";
     const DATA_VERSION = 6;
     const STORAGE_KEY = "fitness_ai_data_v150";
     
@@ -343,20 +343,20 @@
           },
           {
             id: "incline_dumbbell_press",
-            name: "哑铃平地窄距卧推",
-            target: "胸大肌内缝+肱三头肌",
-            sets: 3,
-            reps: "10-12",
-            rest: "75秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "12kg/只",
+            name: "哑铃上斜卧推",
+            target: "胸大肌上束",
+            sets: 4,
+            reps: "8-12",
+            rest: "90秒",
+            beginnerWeight: "8kg/只",
+            advancedWeight: "16kg/只",
             steps: [
-              { name: "起始姿势", desc: "平躺瑜伽垫，双手持哑铃于胸前，拳心相对（对握），两哑铃贴紧，大臂贴紧身体两侧。", key: "对握、哑铃贴紧" },
-              { name: "顶峰收缩", desc: "呼气发力向上推起，哑铃保持贴紧，手臂接近伸直，感受胸内缝和三头收缩。", key: "贴紧上推、肘不外张" },
-              { name: "还原位置", desc: "吸气控制下放，大臂贴近身体，肘呈90度，感受胸肌拉伸。", key: "肘贴身体、控制下放" }
+              { name: "起始姿势", desc: "哑铃凳调至30-45度上斜，肩胛骨后缩下沉贴紧靠背，双手持哑铃于胸上方，掌心朝前。", key: "凳30-45度、肩胛贴背" },
+              { name: "顶峰收缩", desc: "呼气发力将哑铃推向上胸上方，轨迹略向内收，手臂接近伸直时感受上胸收缩，停顿1秒。", key: "推向上胸、向内收" },
+              { name: "还原位置", desc: "吸气控制下放，手肘呈90度左右，感受上胸拉伸，不要砸胸。", key: "控制下放、肩胛固定" }
             ],
-            mistakes: ["错误：手肘外张 → 变宽距卧推", "错误：哑铃分开 → 失去窄距意义"],
-            tips: "保持两只哑铃全程贴紧，专注胸内缝。Keep搜索：哑铃平地窄距卧推。"
+            mistakes: ["错误：凳角太大 → 变成推举，上胸失位", "错误：腰部悬空弓起 → 腰椎压力大"],
+            tips: "凳角30-45度，想象上胸在推天花板。谭师本人也做此动作。Keep搜索：哑铃上斜卧推。"
           },
           {
             id: "fly_dumbbell",
@@ -377,20 +377,20 @@
           },
           {
             id: "shoulder_press",
-            name: "站姿哑铃推举",
+            name: "坐姿哑铃推举",
             target: "三角肌前中束",
-            sets: 3,
-            reps: "10-12",
-            rest: "75秒",
+            sets: 4,
+            reps: "8-12",
+            rest: "90秒",
             beginnerWeight: "6kg/只",
             advancedWeight: "14kg/只",
             steps: [
-              { name: "起始姿势", desc: "站姿双脚与肩同宽，核心收紧，双手持哑铃于肩部两侧，掌心朝前，手肘略低于肩。", key: "核心收紧、不要挺腰" },
-              { name: "顶峰收缩", desc: "呼气发力向上推举，哑铃在头顶上方接近靠拢，手臂接近伸直，感受肩部收缩。", key: "向上推、头微前探" },
+              { name: "起始姿势", desc: "哑铃凳调至90度直立，背部完全贴紧靠背，双脚踩实地面，双手持哑铃于肩部两侧，掌心朝前。", key: "背部贴靠背、核心收紧" },
+              { name: "顶峰收缩", desc: "呼气发力向上推举，哑铃在头顶上方接近靠拢，手臂接近伸直，感受肩部收缩，停顿1秒。", key: "向上推、不挺腰" },
               { name: "还原位置", desc: "吸气控制下放回到肩部两侧，感受三角肌拉伸。", key: "控制下放、不砸肩" }
             ],
-            mistakes: ["错误：挺腰借力 → 腰椎压力大", "错误：耸肩 → 斜方肌代偿"],
-            tips: "推起时想象把哑铃推离身体，核心绷紧。Keep搜索：站姿哑铃推举。"
+            mistakes: ["错误：背部离开靠背挺腰 → 腰椎压力大", "错误：耸肩 → 斜方肌代偿"],
+            tips: "坐姿更稳、更能上重量，背部贴死靠背。Keep搜索：坐姿哑铃推举。"
           },
           {
             id: "lateral_raise",
@@ -578,20 +578,20 @@
           },
           {
             id: "leg_press",
-            name: "哑铃后撤交替箭步蹲",
+            name: "哑铃保加利亚分腿蹲",
             target: "股四头肌+臀大肌",
             sets: 3,
-            reps: "12-15/侧",
-            rest: "75秒",
-            beginnerWeight: "8kg/只",
-            advancedWeight: "16kg/只",
+            reps: "10-12/侧",
+            rest: "90秒",
+            beginnerWeight: "6kg/只",
+            advancedWeight: "14kg/只",
             steps: [
-              { name: "起始姿势", desc: "站立双手持哑铃垂于体侧，核心收紧，双脚与髋同宽。", key: "核心收紧、身体直立" },
-              { name: "下蹲位置", desc: "吸气单腿后撤一大步，前腿下蹲至大腿与地面平行，后膝接近地面，前膝不超过脚尖。", key: "前膝不过脚尖、躯干直立" },
-              { name: "蹬起还原", desc: "呼气前脚蹬地站起，回到起始位置，换另一侧交替进行。", key: "前脚发力、控制平衡" }
+              { name: "起始姿势", desc: "背对哑铃凳，前脚距凳约一步，后脚脚背搭在凳面上，双手持哑铃垂于体侧，核心收紧。", key: "后脚搭凳、身体直立" },
+              { name: "下蹲位置", desc: "吸气垂直下蹲，前腿下蹲至大腿与地面平行或略低，前膝不超过脚尖，躯干保持直立。", key: "垂直下蹲、前膝不过脚尖" },
+              { name: "蹬起还原", desc: "呼气前脚蹬地站起，回到起始位置，完成一侧再换边。", key: "前脚发力、控制平衡" }
             ],
-            mistakes: ["错误：前膝内扣 → 膝关节压力大", "错误：身体前倾 → 腰部代偿"],
-            tips: "重心放前脚脚跟，交替做。Keep搜索：哑铃后撤交替箭步蹲。"
+            mistakes: ["错误：前膝内扣 → 膝关节压力大", "错误：身体前倾弯腰 → 腰部代偿"],
+            tips: "单腿稳定性要求高，重心放前脚中后部，可扶墙保持平衡。Keep搜索：保加利亚分腿蹲。"
           },
           {
             id: "leg_extension",
@@ -734,6 +734,90 @@ const DEFAULT_MEAL_LIBRARY = {
         },
         substitutes: { "巴沙鱼柳": ["龙利鱼", "鸡胸肉", "虾仁"], "混合蔬菜": ["西兰花", "绿叶蔬菜", "青椒"], "糙米": ["红薯", "贝贝南瓜", "燕麦"] }
       },
+      breakfast_alt: {
+        id: "breakfast_alt",
+        name: "谭师全麦早餐",
+        type: "breakfast",
+        suitable: "通用",
+        ingredients: { "全麦面包": 40, "花生酱": 10, "南瓜子": 10, "鸡蛋（全蛋）": 100 },
+        nutrition: { calories: 430, protein: 24, carbs: 36, fat: 22 },
+        storage: "每日现做",
+        prep: {
+          steps: [
+            "全麦面包40g：约2片，直接食用或烤1-2分钟更香",
+            "花生酱10g：约一小勺，均匀抹在面包上",
+            "鸡蛋2个：冷水下锅，水开后煮6-8分钟，过凉水剥壳",
+            "南瓜子10g：直接撒食，不用加工",
+            "按份制作：面包+花生酱+2蛋+南瓜子，约430大卡/24g蛋白（谭师视频同款）"
+          ],
+          marinade: "无需腌制",
+          batchNote: "早餐每日现做（5分钟）；全麦面包按片分装冷冻可存1个月，吃前烤2分钟"
+        },
+        substitutes: { "全麦面包": ["燕麦", "荞麦面"], "花生酱": ["橄榄油"], "南瓜子": ["混合坚果"], "鸡蛋（全蛋）": ["鸡蛋清", "纯牛奶"] }
+      },
+      meal_e: {
+        id: "meal_e",
+        name: "E餐·番茄虾仁豆腐煲",
+        type: "lunch_dinner",
+        suitable: "休息日",
+        ingredients: { "虾仁": 120, "嫩豆腐": 200, "番茄": 250, "玉米": 100 },
+        nutrition: { calories: 460, protein: 38, carbs: 45, fat: 12 },
+        storage: "冷藏3天（不宜久冻）",
+        prep: {
+          steps: [
+            "【准备】虾仁解冻去虾线，用厨房纸吸干；番茄切块；嫩豆腐切块；玉米粒解冻",
+            "【腌制】虾仁每500g：盐2g+料酒5g+白胡椒1g+玉米淀粉5g，抓匀冷藏15分钟",
+            "【烹饪】少油下番茄块中火炒出沙，加一碗水煮开；下豆腐和玉米中火煮5分钟；下虾仁煮2-3分钟至变色",
+            "【调味】加盐2g+白胡椒，最后撒葱花；汤多留一点拌饭",
+            "【批量】5份→虾仁600g/豆腐1000g/番茄1250g；豆腐冷冻会变蜂窝状口感，建议做3天内吃的份量，其他食材可分批"
+          ],
+          marinade: "每500g虾仁：盐2g+料酒5g+白胡椒1g+玉米淀粉5g",
+          batchNote: "豆腐不适合久冻，建议冷藏3天内吃完；虾仁可单份分装冷冻"
+        },
+        substitutes: { "虾仁": ["龙利鱼", "鸡胸肉", "巴沙鱼柳"], "嫩豆腐": ["老豆腐", "冻豆腐"], "番茄": ["彩椒", "冬瓜"], "玉米": ["贝贝南瓜", "红薯"] }
+      },
+      meal_f: {
+        id: "meal_f",
+        name: "F餐·香煎三文鱼杂粮饭",
+        type: "lunch_dinner",
+        suitable: "休息日",
+        ingredients: { "三文鱼": 150, "藜麦": 50, "混合蔬菜": 200 },
+        nutrition: { calories: 540, protein: 38, carbs: 40, fat: 24 },
+        storage: "冷藏3天",
+        prep: {
+          steps: [
+            "【准备】三文鱼解冻后用厨房纸吸干水分，藜麦淘洗2遍（藜麦带皂苷会苦），混合蔬菜解冻备用",
+            "【腌制】三文鱼每500g：盐2g+黑胡椒2g+柠檬汁5g，腌10分钟（鱼别腌太久）",
+            "【烹饪】不粘锅少油中火，三文鱼带皮面朝下先煎3分钟，翻面再煎2分钟至两面金黄；藜麦水煮12-15分钟至出小芽；蔬菜快炒2分钟",
+            "【组装】餐盒放藜麦熟重约150g + 三文鱼150g + 蔬菜200g，淋少许柠檬汁",
+            "【批量】5份→三文鱼750g/藜麦250g。三文鱼煎好单份分装冷冻（2周），吃前复热；藜麦冷藏3天"
+          ],
+          marinade: "每500g三文鱼：盐2g+黑胡椒2g+柠檬汁5g",
+          batchNote: "三文鱼富含Omega-3，谭师建议脂肪优先优质来源，每周1-2次；煎好分装冷冻"
+        },
+        substitutes: { "三文鱼": ["巴沙鱼柳", "龙利鱼", "鲈鱼"], "藜麦": ["糙米", "燕麦"], "混合蔬菜": ["西兰花", "绿叶蔬菜"] }
+      },
+      meal_g: {
+        id: "meal_g",
+        name: "G餐·黑椒牛肉时蔬饭",
+        type: "lunch_dinner",
+        suitable: "训练日",
+        ingredients: { "瘦牛肉": 120, "彩椒": 60, "洋葱": 50, "西兰花": 80, "糙米": 60 },
+        nutrition: { calories: 480, protein: 34, carbs: 50, fat: 12 },
+        storage: "冷冻7天",
+        prep: {
+          steps: [
+            "【准备】瘦牛肉逆纹切薄片，冷水浸泡去血水；彩椒切条、洋葱切丝、西兰花切小朵；糙米提前泡30分钟",
+            "【腌制】牛肉每500g：生抽10g+黑胡椒3g+玉米淀粉5g+橄榄油5g，抓匀冷藏30分钟",
+            "【烹饪】不粘锅少油中大火，牛肉快炒1分钟变色盛出（别炒老）；下洋葱炒香、彩椒西兰花炒2分钟，牛肉回锅加黑胡椒翻匀",
+            "【组装】餐盒放糙米熟重约160g + 黑椒牛肉时蔬",
+            "【批量】5份→牛肉600g/彩椒300g/洋葱250g/西兰花400g。牛肉炒好分装冷冻（1个月），蔬菜可现炒"
+          ],
+          marinade: "每500g牛肉：生抽10g+黑胡椒3g+玉米淀粉5g+橄榄油5g",
+          batchNote: "牛肉快炒保持嫩度，批量做时牛肉和蔬菜分开炒好再分装"
+        },
+        substitutes: { "瘦牛肉": ["鸡胸肉", "鸡腿（去皮）", "虾仁"], "彩椒": ["青椒", "西芹"], "洋葱": ["小葱", "香菇"], "西兰花": ["西芹", "青椒", "绿叶蔬菜"], "糙米": ["藜麦", "红薯"] }
+      },
       meal_d: {
         id: "meal_d",
         name: "D餐·牛肉薯类晚餐",
@@ -778,7 +862,16 @@ const DEFAULT_INGREDIENT_PRICES = {
       "蓝莓": { price: 12, unit: "500g", category: "水果", storage: "冷藏" },
       "南瓜子": { price: 15, unit: "500g", category: "坚果", storage: "常温" },
       "混合坚果": { price: 35, unit: "500g", category: "坚果", storage: "常温" },
-      "橄榄油": { price: 20, unit: "500ml", category: "油脂", storage: "常温" }
+      "橄榄油": { price: 20, unit: "500ml", category: "油脂", storage: "常温" },
+      "虾仁": { price: 28, unit: "500g", category: "水产冷冻", storage: "冷冻" },
+      "嫩豆腐": { price: 4, unit: "500g", category: "豆制品", storage: "冷藏" },
+      "番茄": { price: 4, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "玉米": { price: 6, unit: "500g", category: "蔬菜冷冻", storage: "冷冻" },
+      "三文鱼": { price: 45, unit: "500g", category: "水产冷冻", storage: "冷冻" },
+      "藜麦": { price: 20, unit: "500g", category: "主食", storage: "常温" },
+      "彩椒": { price: 6, unit: "500g", category: "蔬菜", storage: "冷藏" },
+      "洋葱": { price: 3, unit: "500g", category: "蔬菜", storage: "常温" },
+      "花生酱": { price: 15, unit: "500g", category: "油脂", storage: "常温" }
     };
 
     const DEFAULT_SUPPLEMENT_LIBRARY = {};
@@ -793,9 +886,9 @@ const DEFAULT_INGREDIENT_PRICES = {
     // ===== Keep 动作对照表：每动作预计消耗(kcal/10分钟)/器械/Keep自定义训练里的动作名 =====
     const EXERCISE_META = {
       bench_press: { kcal: 52, equip: "哑铃+瑜伽垫", keep: "哑铃平地卧推" },
-      incline_dumbbell_press: { kcal: 46, equip: "哑铃", keep: "哑铃平地窄距卧推" },
+      incline_dumbbell_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "哑铃上斜卧推" },
       fly_dumbbell: { kcal: 40, equip: "哑铃+瑜伽垫", keep: "哑铃平地飞鸟" },
-      shoulder_press: { kcal: 48, equip: "哑铃", keep: "站姿哑铃推举" },
+      shoulder_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "坐姿哑铃推举" },
       lateral_raise: { kcal: 34, equip: "哑铃", keep: "哑铃侧平举" },
       tricep_pushdown: { kcal: 36, equip: "哑铃", keep: "俯身哑铃臂屈伸" },
       pull_up: { kcal: 44, equip: "哑铃", keep: "弓步单臂划船" },
@@ -806,7 +899,7 @@ const DEFAULT_INGREDIENT_PRICES = {
       hammer_curl: { kcal: 30, equip: "哑铃", keep: "哑铃锤式弯举" },
       back_squat: { kcal: 58, equip: "哑铃", keep: "哑铃深蹲" },
       romanian_deadlift: { kcal: 52, equip: "哑铃", keep: "哑铃罗马尼亚硬拉" },
-      leg_press: { kcal: 48, equip: "哑铃", keep: "哑铃后撤交替箭步蹲" },
+      leg_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "保加利亚分腿蹲" },
       leg_extension: { kcal: 42, equip: "哑铃", keep: "哑铃相扑深蹲" },
       hip_thrust: { kcal: 38, equip: "哑铃/自重", keep: "臀桥" },
       calf_raise: { kcal: 28, equip: "哑铃+台阶", keep: "站姿小哑铃提踵" }
@@ -2203,10 +2296,13 @@ const DEFAULT_INGREDIENT_PRICES = {
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-2">
               <h3 class="font-medium">🌅 早餐</h3>
-              <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_standard', 'breakfast')">+ 记录已吃</button>
+              <div class="flex gap-2">
+                <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_standard', 'breakfast')">标准款</button>
+                <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_alt', 'breakfast')">全麦款</button>
+              </div>
             </div>
-            <p class="text-sm text-gray-500">燕麦60g + 全蛋2个 + 南瓜子15g + 蓝莓80g（谭师早餐结构）</p>
-            <p class="text-xs text-gray-400 mt-1">450大卡 · 26g蛋白质 · 53g碳水</p>
+            <p class="text-sm text-gray-500">标准：燕麦60g+全蛋2+南瓜子15g+蓝莓80g（450大卡）｜全麦：面包40g+花生酱10g+全蛋2+南瓜子10g（430大卡）</p>
+            <p class="text-xs text-gray-400 mt-1">两款均为谭师早餐结构，交替吃更不腻</p>
           </div>
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-2">
@@ -2214,8 +2310,10 @@ const DEFAULT_INGREDIENT_PRICES = {
               <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_a || 0}份A餐</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · ${(MEAL_LIBRARY.meal_a && MEAL_LIBRARY.meal_a.name || '辣椒炒鸡胸').replace('A餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · ${(MEAL_LIBRARY.meal_a && MEAL_LIBRARY.meal_a.name || '香煎鸡胸').replace('A餐·', '')}</button>
               <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'lunch')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_g', 'lunch')">G餐 · ${(MEAL_LIBRARY.meal_g && MEAL_LIBRARY.meal_g.name || '黑椒牛肉').replace('G餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_e', 'lunch')">E餐 · ${(MEAL_LIBRARY.meal_e && MEAL_LIBRARY.meal_e.name || '虾仁豆腐').replace('E餐·', '')}</button>
             </div>
           </div>
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -2224,8 +2322,10 @@ const DEFAULT_INGREDIENT_PRICES = {
               <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_b || 0}份B餐</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_d', 'dinner')">D餐 · ${(MEAL_LIBRARY.meal_d && MEAL_LIBRARY.meal_d.name || '牛肉红薯').replace('D餐·', '')}</button>
               <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_c', 'dinner')">C餐 · ${(MEAL_LIBRARY.meal_c && MEAL_LIBRARY.meal_c.name || '巴沙鱼柳').replace('C餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_f', 'dinner')">F餐 · ${(MEAL_LIBRARY.meal_f && MEAL_LIBRARY.meal_f.name || '三文鱼').replace('F餐·', '')}</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
             </div>
           </div>
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
