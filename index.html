@@ -1043,6 +1043,11 @@ const DEFAULT_INGREDIENT_PRICES = {
       return merged;
     }
     
+    // 云端价格库合并：保留云端已有价格（用户可能改过价），补齐默认新食材
+    function mergePricesFromCloud(cloud) {
+      return Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_INGREDIENT_PRICES)), cloud || {});
+    }
+    
     async function syncFromCloud() {
       const tokenInput = document.getElementById('setting-git-token');
       if (tokenInput) { appData.settings.gitToken = tokenInput.value.trim(); saveData(); }
@@ -1052,7 +1057,7 @@ const DEFAULT_INGREDIENT_PRICES = {
       if (data) {
         if (data["动作库.json"]) TRAINING_LIBRARY = mergeTrainingFromCloud(data["动作库.json"]);
         if (data["餐谱库.json"]) MEAL_LIBRARY = mergeMealFromCloud(data["餐谱库.json"]);
-        if (data["食材价格库.json"]) INGREDIENT_PRICES = data["食材价格库.json"];
+        if (data["食材价格库.json"]) INGREDIENT_PRICES = mergePricesFromCloud(data["食材价格库.json"]);
         if (data["商品库.json"]) PRODUCT_LIBRARY = data["商品库.json"];
         if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
         if (data["规则.json"]) PERSONAL_RULES = data["规则.json"];
