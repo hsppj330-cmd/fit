@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.2";
+    const VERSION = "2.0.3";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1942,8 +1942,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       appData.trainingBurnToday[today] = (appData.trainingBurnToday[today] || 0) + kcal;
       saveData();
       const proteinSuggest = Math.round(appData.profile.weight * 0.4);
-      const newTarget = getTodayTargetCalories();
-      return { success: true, message: `✅ 已记录 Keep 跟练完成（${name || typeName} · ${dur}分钟 · ${kcal}大卡）\n\n💪 练后补充建议：\n· 30分钟内补蛋白约 ${proteinSuggest}g（≈${Math.round(proteinSuggest / 7)}个全蛋 或 ${Math.round(proteinSuggest / 24 * 100)}g鸡胸肉）\n· 今日热量目标已上调至 ${newTarget} 大卡\n· 下一餐优先：高蛋白+主食（补糖原助恢复）` };
+      return { success: true, message: `✅ 已记录${name || typeName}完成（${dur}分钟 · ${kcal}大卡）\n\n💪 练后补充建议：\n· 30分钟内补蛋白约 ${proteinSuggest}g（≈${Math.round(proteinSuggest / 7)}个全蛋 或 ${Math.round(proteinSuggest / 24 * 100)}g鸡胸肉）\n· 今日配餐目标不变（按当日训练/休息档位），额外消耗 = 更大缺口，助燃脂\n· 下一餐优先：高蛋白+主食（补糖原助恢复）` };
     }
     
     // ========== 自学习入库功能 ==========
@@ -2061,6 +2060,11 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       if (weekHoursMatch) return { type: "update_profile_setting", args: { weekHours: weekHoursMatch[1] + "-" + weekHoursMatch[2] } };
       const paramMatch = text.match(/蛋白.*(系数|目标)?.*改成\s*(\d+\.?\d*)/i);
       if (paramMatch) return { type: "set_param", key: "proteinCoefficient", value: parseFloat(paramMatch[2]) };
+      const jumpMatch = text.match(/跳绳\s*(\d+)?\s*分钟?/i);
+      if (jumpMatch || (/(跳绳|跳完)/.test(text) && (text.includes("完成") || text.includes("跳完") || text.includes("打卡") || text.includes("了")))) {
+        const mins = jumpMatch ? Math.max(5, Math.min(120, parseInt(jumpMatch[1]))) : 20;
+        return { type: "record_cardio", args: { minutes: mins } };
+      }
       
       return null;
     }
@@ -2081,6 +2085,11 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
         case "weekly_review": return handleWeeklyReview();
         case "query_stock": return handleQueryStock();
         case "update_profile_setting": return handleUpdateProfileSetting((cmd && cmd.args) || {});
+        case "record_cardio": {
+          const mins = parseInt((cmd && cmd.args && cmd.args.minutes) || 20);
+          const kcal = Math.round(mins * 10);  // 66kg 中速跳绳约 10kcal/分钟
+          return recordWorkout("空腹跳绳", "cardio", mins, kcal);
+        }
         case "set_stock_target": {
           const cmdArgs = (cmd && cmd.args) || {};
           const t = parseFloat(cmdArgs.targetStock);
@@ -2741,6 +2750,12 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
               <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
             </div>
             <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 400} 大卡，Keep 跟练后按实际消耗打卡更准</p>
+            <div class="bg-orange-50 rounded-xl p-4 mb-4 text-sm text-orange-800 leading-relaxed">
+              <b>🌅 今日空腹有氧（跳绳）约 20 分钟</b><br>
+              晨起空腹（先喝 200ml 水）跳绳 20 分钟，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130）。
+              空腹状态脂肪供能比例更高，且不影响晚上力量训练。跳完对我说「跳绳了」自动打卡。<br>
+              <span class="text-orange-600">计入周运动时长 → 建议每周运动时长档位用 8-9 小时</span>
+            </div>
             <div class="bg-indigo-50 rounded-xl p-4 mb-4 text-sm text-indigo-800 leading-relaxed">
               <b>📱 如何用 Keep 跟练：</b><br>
               1. 打开 Keep → 训练 → 自定义训练 → 新建课程<br>
@@ -2797,11 +2812,17 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
         html += `</div></div>`;
       } else {
         html = `
-          <div class="text-center py-12">
+          <div class="text-center py-8">
             <div class="text-5xl mb-4">🛋️</div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日</h3>
-            <p class="text-gray-500 text-sm">好好休息，给肌肉足够的恢复时间</p>
-            <p class="text-sm text-gray-400 mt-2">今日热量目标已按休息日计算（碳水 2.2g/kg 低碳）</p>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日 · 力量停</h3>
+            <p class="text-gray-500 text-sm mb-4">肌肉恢复日，但空腹有氧不停，保持消耗</p>
+            <div class="bg-orange-50 rounded-xl p-4 mx-2 mb-4 text-sm text-orange-800 leading-relaxed text-left">
+              <b>🌅 空腹有氧（跳绳）加量 35-40 分钟</b><br>
+              今天不练力量，跳绳可以加量到 35-40 分钟（可分 10 分钟×4 组，组间喝水休息）。
+              配合休息日低碳（碳水 2.2g/kg），糖原储备低时更能调动脂肪供能。<br>
+              <span class="text-orange-600">跳完对我说「跳绳了」自动打卡记录消耗</span>
+            </div>
+            <p class="text-sm text-gray-400">今日热量目标已按休息日计算（碳水 2.2g/kg 低碳）</p>
           </div>
         `;
       }
