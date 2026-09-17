@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.1";
+    const VERSION = "2.0.2";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2034,6 +2034,10 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       
       if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
       if (text.includes("复盘") || text.includes("周总结") || text.includes("本周效果")) return { type: "weekly_review" };
+      // 查询类（必须先于"配餐"生成命令，避免问"缺口/碳水倍率"被拦截成生成周餐）
+      if (!/改|调|设/.test(text) && (/(热量缺口|缺口).{0,10}(多少|是几|几大卡|什么|多少大卡)/.test(text) || /几倍碳水|碳水.{0,4}(几倍|倍率|多少)/.test(text) || /配餐.{0,6}(热量缺口|碳水倍率|多少热量)/.test(text))) {
+        return { type: "query_plan_summary" };
+      }
       if (text.includes("重新配餐") || text.includes("重配餐") || text.includes("重新生成周餐") || text.includes("按新体重")) return { type: "generate_week_plan_v2" };
       if (text.includes("配餐") || text.includes("生成周餐") || text.includes("下周吃什么") || text.includes("本周吃什么")) return { type: "generate_week_plan_v2" };
       if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
@@ -2073,6 +2077,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
         case "generate_purchase": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
+        case "query_plan_summary": return handleQueryPlanSummary();
         case "weekly_review": return handleWeeklyReview();
         case "query_stock": return handleQueryStock();
         case "update_profile_setting": return handleUpdateProfileSetting((cmd && cmd.args) || {});
@@ -2200,7 +2205,8 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       { type: "function", function: { name: "set_stock_target", description: "设置长耗材目标库存（如糙米目标库存30kg、囤货），库存低于30%时采购清单自动补货。用户说目标库存/囤/长期备货/一次买多少时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, targetStock: { type: "number", description: "目标库存克数（1kg=1000g，如30kg填30000）" } }, required: ["name", "targetStock"] } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } },
-      { type: "function", function: { name: "generate_week_plan_v2", description: "生成v2周循环配餐计划：按谭师系数（周运动时长档位）+训练日/休息日，从食材库自动搭配一周三餐。用户说配餐/生成周餐/重新配餐/下周吃什么/安排饮食时调用", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "generate_week_plan_v2", description: "生成/重新生成v2周循环配餐计划：按谭师系数（周运动时长档位）+训练日/休息日，从食材库自动搭配一周三餐。仅在用户要求生成、重算、安排一周餐时调用；若只是问缺口/目标/碳水倍率等数据查询，用 query_plan_summary", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "query_plan_summary", description: "查询当前热量缺口、碳水倍率、今日配餐目标、蛋白脂肪等数据概览。用户问缺口多少、几倍碳水、碳水倍率、热量目标/目标是多少、配餐参数、摄入多少等数据查询问题时调用", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "weekly_review", description: "执行周复盘：对比周初与当前体重，按谭师规则建议下周碳水调整（下降良好保持/不明显减15g/上升减25g），并记录历史。用户说复盘/周总结/本周效果/该调整吗时调用", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "update_ingredient", description: "更新食材库中某食材的价格/营养/库存（用户说某食材涨价了/多少钱/多少大卡/买回来多少时调用），无则新增。修改后配餐成本与采购自动联动", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, price: { type: "number", description: "价格元（可选）" }, unit: { type: "string", description: "计价单位如500g/1L（可选）" }, proteinPer100: { type: "number", description: "每100g蛋白质g（可选）" }, carbsPer100: { type: "number", description: "每100g碳水g（可选）" }, fatPer100: { type: "number", description: "每100g脂肪g（可选）" }, kcalPer100: { type: "number", description: "每100g热量kcal（可选）" }, stockGrams: { type: "number", description: "现有库存克数（可选）" } }, required: ["name"] } } },
       { type: "function", function: { name: "query_ingredient_lib", description: "查询食材营养库（含用户上传商品），返回食材列表与营养/价格", parameters: { type: "object", properties: { category: { type: "string", description: "类别筛选：碳水主食/蛋白/蔬菜/脂肪/水果（可选）" } } } } },
@@ -2275,11 +2281,39 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
         case "update_ingredient": return handleUpdateIngredient(args);
         case "query_ingredient_lib": return handleQueryIngredientLib(args);
         case "update_profile_setting": return handleUpdateProfileSetting(args);
+        case "query_plan_summary": return handleQueryPlanSummary();
         default: return { success: false, message: "未知工具：" + name };
       }
     }
 
     // ========== v2.0 新增工具执行 ==========
+    function handleQueryPlanSummary() {
+      const p = appData.profile;
+      const t = getTanshiMacrosV2();
+      const rest = computeDayMacros('rest');
+      const abs = computeDayMacros('abs');
+      const dow = new Date().getDay();
+      const todayType = dow === 4 ? '休息日' : (dow === 0 ? '腹肌日' : '训练日');
+      const target = getTodayTargetCalories();
+      const tdee = Math.round(p.bmr * 1.45);
+      const weekAvg = Math.round((t.calories * 5 + rest.calories + abs.calories) / 7);
+      const weekPlan = appData.weeklyPlan;
+      let msg = "📊 本周配餐热量概览（按最新身体数据）\n";
+      msg += "· 身体：体重 " + p.weight + "kg / 体脂 " + p.bodyFat + "% / 基础代谢 " + p.bmr + " 大卡\n";
+      msg += "· 每周运动时长 " + p.weekHours + " 小时（谭师档位）\n\n";
+      msg += "【碳水倍率】\n";
+      msg += "· 训练日：碳水 " + t.carbsK + "g/kg → " + t.carbs + "g\n";
+      msg += "· 休息日：2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
+      msg += "· 腹肌日：2.5g/kg → " + abs.carbs + "g\n";
+      msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 1.0g/kg → " + t.fat + "g（全天固定）\n\n";
+      msg += "【热量缺口】\n";
+      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.45，含训练）\n";
+      msg += "· 今日（" + todayType + "）目标 " + target + " 大卡 → 当日缺口约 " + Math.max(0, tdee - target) + " 大卡\n";
+      msg += "· 本周平均目标 " + weekAvg + " 大卡 → 平均缺口约 " + Math.max(0, tdee - weekAvg) + " 大卡（谭师建议温和缺口 200-300，保肌优先）\n";
+      if (weekPlan && weekPlan.weekStart) msg += "\n本周配餐起始日 " + weekPlan.weekStart + "（起始体重 " + weekPlan.weekStartWeight + "kg）";
+      return { success: true, message: msg };
+    }
+
     function handleGenerateWeekPlanV2() {
       if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
         const plan = generateWeeklyPlanV2();
@@ -2389,6 +2423,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
 2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腹（三分化+腹肌）
 3. 训练日碳水=档位系数（高碳），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
+3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
 4. 每周配餐从食材库（DEFAULT_INGREDIENT_LIBRARY + 用户上传商品库 PRODUCT_LIBRARY 自动并入）自动搭配三餐，不是固定菜谱：
    - 早餐模板：燕麦60g+全蛋2+南瓜籽15g+蓝莓80g
    - 午餐：生米（按碳水余量换算克数）+肉类150-200g+蔬菜200g+烹调油
