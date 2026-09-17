@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.1";
+    const VERSION = "2.1.2";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2336,8 +2336,9 @@ let PRODUCT_LIBRARY = {
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 50], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);
       const riceGrams = isRest ? 70 : 90;   // 休息日低碳
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", 130], ["西兰花", 150], ["上海青", 100], ["牛油果油", 15]], lib);
-      const dinner = buildMeal([["土豆", isRest ? 220 : 280], ["琵琶腿", 180], ["西兰花", 200]], lib);
+      // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", 130], ["上海青", 100], ["大青椒", 100], ["牛油果油", 15]], lib);
+      const dinner = buildMeal([["土豆", isRest ? 220 : 280], ["琵琶腿", 180], ["西兰花", 250]], lib);
       // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 30]], lib)
@@ -2569,7 +2570,7 @@ let PRODUCT_LIBRARY = {
       appData.trainingBurnToday[today] = (appData.trainingBurnToday[today] || 0) + (training.calories || 400);
       
       saveData();
-      return { success: true, message: `已记录今日${training.name}训练完成。\n预计消耗约${training.calories || 400}大卡，今日热量目标已自动上调。` };
+      return { success: true, message: `已记录今日${training.name}训练完成。\n预计消耗约${training.calories || 400}大卡，今日热量目标已自动上调。\n📈 渐进超负荷：下次同部位训练同动作 +1-2 次/组；能完成全部组数就加重（上肢+2.5kg/只、下肢+5kg）。` };
     }
 
     // ========== Keep 跟练打卡：记录实际训练时长/消耗并联动 ==========
@@ -3423,6 +3424,13 @@ let PRODUCT_LIBRARY = {
               以不影响力量状态为准（谭师建议：有氧每周 3-4 次、每次 30-40min）。跳完对我说「跳绳了」自动打卡。<br>
               <span class="text-orange-600">本周有氧安排：周二 / 周四（40min）/ 周六，共 3 次</span>
             </div>` : ''}
+            <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-blue-800 leading-relaxed">
+              <b>📈 渐进超负荷（谭师核心）</b><br>
+              原则：每练比上次 +1-2 次/组，或 +2.5% 重量（哑铃 2.5kg 一档）；能按目标组数×次数全程高质量完成 → 下次加重、次数回到下限重新爬升。${(() => {
+                const same = (appData.trainingRecords || []).filter(r => r.type === todayType);
+                const last = same[same.length - 1];
+                return last ? '上次「' + (last.name || training.name) + '」' + (last.date || '') + '，下次同动作记得加次或加重。' : '本周首次' + training.name + '，用参考入门重量起步，练完记录实际重量。';
+              })()}</div>
             <div class="bg-indigo-50 rounded-xl p-4 mb-4 text-sm text-indigo-800 leading-relaxed">
               <b>📱 如何用 Keep 跟练：</b><br>
               1. 打开 Keep → 训练 → 自定义训练 → 新建课程<br>
@@ -3618,19 +3626,20 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-blue-700 mb-1">🥩 午餐 · 批量7份 · 炒鸡胸糙米饭</div>
               <div>腌制（每500g鸡胸）：生抽10g + 蚝油5g + 料酒5g + 盐3g + 玉米淀粉10g + 黑胡椒2g，抓匀冷藏30分钟以上</div>
-              <div>鸡胸910g（130g×7）煎熟切条；三色糙米630g（90g×7）泡30分钟煮熟；西兰花1050g + 上海青700g 焯水快炒</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约200g + 炒鸡胸约95g + 炒蔬菜约175g，淋牛油果油15g</div>
+              <div>鸡胸910g（130g×7）煎熟切条；三色糙米630g（90g×7）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约200g + 炒鸡胸约95g + 炒蔬菜约170g，淋牛油果油15g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-purple-700 mb-1">🍗 晚餐 · 批量7份 · 卤鸡腿土豆餐（无油）</div>
-              <div>卤水（每1kg琵琶腿）：生抽20g + 老抽10g + 料酒10g + 姜片10g + 八角2个，卤25分钟关火焖10分钟</div>
-              <div>琵琶腿1260g（180g×7）卤好去皮食用；土豆1960g（280g×7）烤/水煮；西兰花1400g（200g×7）水煮</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约250g + 卤鸡腿去皮约110g + 水煮西兰花180g</div>
+              <div>卤水（每1kg琵琶腿）：卤料包1袋 + 生抽20g + 老抽10g + 料酒10g + 姜片10g + 葱段；卤料包已含八角/桂皮/香叶/花椒等香料，无需另加。卤25分钟关火焖10分钟</div>
+              <div>琵琶腿1260g（180g×7）卤好去皮食用；土豆1960g（280g×7）烤/水煮；西兰花1750g（250g×7）水煮</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约250g + 卤鸡腿去皮约110g + 水煮西兰花225g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
               <div>乳清蛋白粉30g冲泡（约1勺，22g蛋白）</div>
             </div>
+            <div class="text-xs text-gray-500">🧂 每日用盐≈2.3g（腌制+卤汁合计，含酱油/蚝油等隐形盐，按全量计入），低于「每日≤5g」标准；但复热/蘸料若额外加盐请计入，总量别超5g。酱油建议选薄盐型。</div>
             <div class="text-xs text-gray-500">冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
           </div>
         </div>`;
