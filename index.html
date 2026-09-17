@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.4";
+    const VERSION = "2.0.5";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1076,7 +1076,577 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     let SUPPLEMENT_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_SUPPLEMENT_LIBRARY));
     let PERSONAL_RULES = JSON.parse(JSON.stringify(DEFAULT_RULES));
     // 商品库（用户上传商品截图导入：食材/饮品/补剂，含规格价格营养）
-    let PRODUCT_LIBRARY = {};
+let PRODUCT_LIBRARY = {
+"鸡胸肉": {
+"brand": "圣农",
+"product": "圣农冷冻鸡胸肉（去皮鸡大胸）",
+"spec": "4.5kg（到手9斤）",
+"price": 59.1,
+"perPrice": 6.57,
+"unit": "500g",
+"category": "蛋白",
+"storage": "冷冻",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 118,
+"protein": 24.6,
+"carbs": 0.6,
+"fat": 1.9
+},
+"detail": "自然谷饲、无笼养殖、急速锁鲜；高蛋白低脂肪，减脂期首选蛋白来源。每100g去皮生鸡胸约118kcal/蛋白24.6g/脂肪1.9g。"
+},
+"琵琶腿": {
+"brand": "双汇",
+"product": "双汇冻琵琶腿（大号）",
+"spec": "4kg（8斤）",
+"price": 58.5,
+"perPrice": 7.31,
+"unit": "500g",
+"category": "蛋白",
+"storage": "冷冻",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 181,
+"protein": 16,
+"carbs": 0,
+"fat": 13
+},
+"detail": "鸡腿上鸡爪与大腿之间部位，形似琵琶；带皮带骨，食部约69%（每500g毛重约345g可食）。脂肪较高，减脂期适量吃或去皮。"
+},
+"纯牛奶": {
+"brand": "新希望雪兰",
+"product": "新希望雪兰纯牛奶（云南高原奶）",
+"spec": "250g×24盒（6kg）",
+"price": 36.8,
+"perPrice": 3.07,
+"unit": "500ml",
+"category": "蛋白",
+"storage": "常温",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 67,
+"protein": 3.2,
+"carbs": 4.8,
+"fat": 3.7
+},
+"detail": "100%生牛乳，云南高原牧场；每100g含原生蛋白3.2g（每盒250ml约8g蛋白），口感丝滑。全脂奶，热量适中。"
+},
+"脱脂牛奶": {
+"brand": "祁连山",
+"product": "祁连山生态脱脂纯牛奶",
+"spec": "250ml×24盒（6L）",
+"price": 31.99,
+"perPrice": 2.67,
+"unit": "500ml",
+"category": "蛋白",
+"storage": "常温",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 35,
+"protein": 3.4,
+"carbs": 5.0,
+"fat": 0.1
+},
+"detail": "100%生牛乳物理脱脂，0脂肪；北纬39.4°祁连山生态冰川牧场，原生乳钙+优质蛋白。减脂期奶类首选，热量几乎减半。"
+},
+"燕麦片": {
+"brand": "农科院",
+"product": "中国农科院作科所纯燕麦片",
+"spec": "200g×5袋（1kg）",
+"price": 32.9,
+"perPrice": 16.45,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "常温",
+"source": "电商·券后",
+"nutritionPer100": {
+"calories": 367,
+"protein": 15.6,
+"carbs": 61.6,
+"fat": 6.7,
+"fiber": 9.4
+},
+"detail": "中国农科院作科所从1492份燕麦品种中筛选，北纬42°黄金产区；每百克膳食纤维9.4g、蛋白质约15.6g、β-葡聚糖高达4%以上。早餐碳水+纤维王者。"
+},
+"三色糙米": {
+"brand": "十月稻田",
+"product": "十月稻田三色糙米杂粮饭（糙米/红米/黑米）",
+"spec": "2.5kg（真空5斤装）",
+"price": 20.48,
+"perPrice": 4.1,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "常温",
+"source": "电商·券后",
+"nutritionPer100": {
+"calories": 344,
+"protein": 7.6,
+"carbs": 72,
+"fat": 2.4,
+"fiber": 3.5
+},
+"detail": "糙米+红米+黑米科学配比，保留麸皮与胚芽；低GI缓释碳水，减脂期主食优选，可粥可饭。"
+},
+"南瓜子仁": {
+"brand": "盒装2A级",
+"product": "2A级生南瓜子仁（原味生·大颗粒）",
+"spec": "500g（净重）",
+"price": 19.2,
+"perPrice": 19.2,
+"unit": "500g",
+"category": "脂肪",
+"storage": "常温",
+"source": "电商·券后",
+"nutritionPer100": {
+"calories": 566,
+"protein": 33.2,
+"carbs": 4.9,
+"fat": 48.1,
+"fiber": 4.9
+},
+"detail": "坚果中蛋白质第一（33g/100g）、锌含量优秀（2.57mg）；锌对睾酮合成和增肌重要。原味生，无多余加工。每天一小把约10-15g。"
+},
+"牛油果油": {
+"brand": "滁谷",
+"product": "滁谷牛油果油（墨西哥原油进口）",
+"spec": "1L（约910g）",
+"price": 51.4,
+"perPrice": 28.24,
+"unit": "500g",
+"category": "脂肪",
+"storage": "常温",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 884,
+"protein": 0,
+"carbs": 0,
+"fat": 100
+},
+"detail": "墨西哥进口原油，单不饱和脂肪酸约71%（油酸为主），维生素E约14mg/100g；烟点高适合热炒，也可冷吃凉拌。减脂期优质脂肪来源。"
+},
+"乳清蛋白粉": {
+"brand": "马泰时刻",
+"product": "马泰时刻乳清蛋白粉（茉莉抹茶味·2磅）",
+"spec": "907g/罐",
+"price": 135.5,
+"perPrice": 74.7,
+"unit": "500g",
+"category": "蛋白",
+"storage": "常温",
+"source": "电商·拼单",
+"nutritionPer100": {
+"calories": 397,
+"protein": 73,
+"carbs": 8,
+"fat": 7
+},
+"detail": "73%蛋白、乳清为主（浓缩+鸡蛋蛋白+酵母）；氨基酸互补配方、3重快慢矩阵蛋白；脂肪约0.9g/勺，含天然抹茶粉。训练后/加餐补蛋白方便。"
+},
+"巴西莓粉": {
+"brand": "Vegique",
+"product": "冻干巴西莓粉（PREMIUM ACAI BERRY POWDER）",
+"spec": "101g/罐",
+"price": 15.3,
+"perPrice": 75.74,
+"unit": "500g",
+"category": "水果",
+"storage": "常温",
+"source": "电商",
+"nutritionPer100": {
+"calories": 533,
+"protein": 8,
+"carbs": 52,
+"fat": 33,
+"fiber": 27
+},
+"detail": "中国农科院特产研究所技术支持、零下40°真空锁鲜；富含花青素（抗氧化）与膳食纤维。营养为冻干粉通用估算值，各品牌差异较大。每日5-10g拌酸奶/燕麦即可。"
+},
+"西兰花": {
+"brand": "多多买菜",
+"product": "新鲜西兰花（花蕾紧实）",
+"spec": "2斤±0.2斤/份（约1000g）",
+"price": 7.59,
+"perPrice": 3.8,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 33,
+"protein": 4.1,
+"carbs": 4.3,
+"fat": 0.6,
+"fiber": 1.6
+},
+"detail": "十字花科蔬菜蛋白王者（每100g蛋白4.1g），高钾低钠、富含叶酸与维生素C；减脂餐核心蔬菜，饱腹感强。"
+},
+"上海青": {
+"brand": "多多买菜",
+"product": "上海青（每日现摘）",
+"spec": "1000g±100g/袋",
+"price": 4.99,
+"perPrice": 2.5,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 15,
+"protein": 1.4,
+"carbs": 2.4,
+"fat": 0.3,
+"fiber": 1.1
+},
+"detail": "深绿叶菜，热量极低、钙与维生素K丰富；清炒/白灼皆宜，备餐百搭绿叶菜。"
+},
+"胡萝卜": {
+"brand": "多多买菜",
+"product": "胡萝卜（基地直供）",
+"spec": "2.5kg±0.25kg/袋",
+"price": 4.29,
+"perPrice": 0.86,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "常温",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 39,
+"protein": 1.2,
+"carbs": 8.8,
+"fat": 0.2,
+"fiber": 1.1
+},
+"detail": "β-胡萝卜素（维生素A原）名列前茅，抗氧化；耐储存，备餐常备。"
+},
+"西芹": {
+"brand": "多多买菜",
+"product": "新鲜西芹（不带叶·可榨汁）",
+"spec": "600g~750g/份（约675g）",
+"price": 3.79,
+"perPrice": 2.81,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 17,
+"protein": 0.8,
+"carbs": 3.3,
+"fat": 0.2,
+"fiber": 1.4
+},
+"detail": "热量极低、纤维丰富，带独特芹菜香气；炒肉/凉拌皆宜。"
+},
+"小水白菜": {
+"brand": "多多买菜",
+"product": "精选新鲜小水白菜",
+"spec": "2斤±0.1斤/袋（约1000g）",
+"price": 3.99,
+"perPrice": 2.0,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜·秒杀",
+"nutritionPer100": {
+"calories": 15,
+"protein": 1.3,
+"carbs": 2.5,
+"fat": 0.3,
+"fiber": 1.0
+},
+"detail": "小白菜类，菜叶翠绿菜梗洁白；清炒/煮汤，廉价绿叶菜补充。"
+},
+"大青椒": {
+"brand": "多多买菜",
+"product": "大青椒（果形饱满）",
+"spec": "900g~1000g/袋（约950g）",
+"price": 3.89,
+"perPrice": 2.05,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 22,
+"protein": 1.1,
+"carbs": 4.9,
+"fat": 0.3,
+"fiber": 1.5
+},
+"detail": "维生素C含量高（约62mg/100g），果肉厚适合炒菜；虎皮青椒/配菜皆可。"
+},
+"螺丝椒": {
+"brand": "多多买菜",
+"product": "螺丝椒（本地专享·炒菜很香）",
+"spec": "2斤±0.1斤/份（约1000g）",
+"price": 3.99,
+"perPrice": 2.0,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 22,
+"protein": 1.1,
+"carbs": 4.9,
+"fat": 0.3,
+"fiber": 1.5
+},
+"detail": "皱皮辣椒，辣味适中香气足；青椒炒肉灵魂配菜。"
+},
+"青椒": {
+"brand": "多多买菜",
+"product": "新鲜青椒（青翠饱满）",
+"spec": "5斤±50g/袋（约2500g）",
+"price": 8.29,
+"perPrice": 1.66,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 22,
+"protein": 1.1,
+"carbs": 4.9,
+"fat": 0.3,
+"fiber": 1.5
+},
+"detail": "大包装高性价比；维生素C丰富，适合批量备餐切配。"
+},
+"莲花白": {
+"brand": "多多买菜",
+"product": "莲花白（圆白菜·净菜不带保护叶）",
+"spec": "1500g~2000g/份（约1750g）",
+"price": 3.39,
+"perPrice": 0.97,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 24,
+"protein": 1.3,
+"carbs": 4.6,
+"fat": 0.2,
+"fiber": 0.9
+},
+"detail": "圆白菜，耐储存、维C丰富；手撕包菜/沙拉/炒饭配菜。"
+},
+"鸡心白": {
+"brand": "多多买菜",
+"product": "鸡心白（清炒脆爽）",
+"spec": "1000g±100g/份",
+"price": 3.59,
+"perPrice": 1.8,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 24,
+"protein": 1.3,
+"carbs": 4.6,
+"fat": 0.2,
+"fiber": 0.9
+},
+"detail": "小圆白菜类，口感脆嫩；清炒/醋溜皆宜。"
+},
+"尖红椒": {
+"brand": "多多买菜",
+"product": "新鲜尖红椒（略带酱色）",
+"spec": "500g±50g/份",
+"price": 4.99,
+"perPrice": 4.99,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 32,
+"protein": 1.3,
+"carbs": 6.4,
+"fat": 0.4,
+"fiber": 2.1
+},
+"detail": "红辣椒，β-胡萝卜素与维C高；增色增味，辣度适中。"
+},
+"紫皮洋葱": {
+"brand": "多多买菜",
+"product": "紫皮洋葱（产地直供）",
+"spec": "1kg±0.1kg/袋",
+"price": 3.49,
+"perPrice": 1.75,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "常温",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 39,
+"protein": 1.1,
+"carbs": 9.0,
+"fat": 0.2,
+"fiber": 0.9
+},
+"detail": "槲皮素与硫化丙烯（抗氧化）；提味增香，肉菜绝配，耐储存。"
+},
+"西瓜红蜜薯": {
+"brand": "多多买菜",
+"product": "河南西瓜红蜜薯（中大果）",
+"spec": "5斤±0.5斤/袋（约2500g）",
+"price": 7.98,
+"perPrice": 1.6,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "阴凉",
+"source": "多多买菜·秒杀",
+"nutritionPer100": {
+"calories": 99,
+"protein": 1.4,
+"carbs": 24.7,
+"fat": 0.2,
+"fiber": 1.6
+},
+"detail": "蜜薯类，果肉橙黄绵密甜度高；优质缓释碳水+β-胡萝卜素，蒸烤皆宜。"
+},
+"贝贝南瓜": {
+"brand": "多多买菜",
+"product": "贝贝南瓜（粉糯栗香）",
+"spec": "2.8斤~3斤/份（约1450g）",
+"price": 4.99,
+"perPrice": 1.72,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "阴凉",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 93,
+"protein": 1.8,
+"carbs": 21,
+"fat": 0.2,
+"fiber": 2.5
+},
+"detail": "栗面南瓜，粉糯香甜；碳水高于普通南瓜（约21g/100g），减脂期当主食吃，蒸烤皆宜。"
+},
+"贝贝南瓜大果": {
+"brand": "多多买菜",
+"product": "贝贝南瓜（中大果·果肉金黄）",
+"spec": "4.5斤~5斤/份（约2375g）",
+"price": 7.69,
+"perPrice": 1.62,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "阴凉",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 93,
+"protein": 1.8,
+"carbs": 21,
+"fat": 0.2,
+"fiber": 2.5
+},
+"detail": "同贝贝南瓜，大果规格性价比更高；粉糯栗香。"
+},
+"土豆": {
+"brand": "多多买菜",
+"product": "红皮黄心新土豆（中大果）",
+"spec": "5斤±0.25斤/份（约2500g）",
+"price": 5.29,
+"perPrice": 1.06,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "阴凉",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 77,
+"protein": 2.0,
+"carbs": 17.2,
+"fat": 0.1,
+"fiber": 0.8
+},
+"detail": "抗性淀粉饱腹感强，钾含量高；蒸煮当主食或配菜。"
+},
+"大土豆": {
+"brand": "多多买菜",
+"product": "沙地黄皮黄心大土豆（大号）",
+"spec": "10斤±0.5斤/份（约5000g）",
+"price": 9.99,
+"perPrice": 1.0,
+"unit": "500g",
+"category": "碳水主食",
+"storage": "阴凉",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 77,
+"protein": 2.0,
+"carbs": 17.2,
+"fat": 0.1,
+"fiber": 0.8
+},
+"detail": "沙地黄心土豆，大包装超低价；淀粉含量高，适合整周备餐主食。"
+},
+"佛手瓜": {
+"brand": "多多买菜",
+"product": "新鲜佛手瓜（现摘·脆嫩）",
+"spec": "1500g±100g/份",
+"price": 3.09,
+"perPrice": 1.03,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 19,
+"protein": 1.2,
+"carbs": 4.9,
+"fat": 0.1,
+"fiber": 1.2
+},
+"detail": "低热量高水分，口感脆嫩像西葫芦+黄瓜；清炒/凉拌。"
+},
+"茭白": {
+"brand": "多多买菜",
+"product": "茭白（高笋·水八仙·带壳）",
+"spec": "450g~550g/袋（约500g）",
+"price": 3.09,
+"perPrice": 3.09,
+"unit": "500g",
+"category": "蔬菜",
+"storage": "冷藏",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 26,
+"protein": 1.2,
+"carbs": 5.9,
+"fat": 0.2,
+"fiber": 1.9
+},
+"detail": "江南水八仙之一，肉质鲜嫩；油焖/清炒，带壳称重需去壳。"
+},
+"21金维他": {
+"brand": "21金维他",
+"product": "男士款牛磺酸多种维生素矿物质片",
+"spec": "100g（1g×100片）",
+"price": 25.1,
+"perPrice": 25.1,
+"unit": "100g",
+"category": "补剂",
+"storage": "常温",
+"source": "电商",
+"detail": "运动营养食品-耐力类；9种维生素+4大矿物质+牛磺酸；适合高强运动人群。每日按说明服用，不计入餐食热量。"
+},
+"三金维生素": {
+"brand": "桂林三金",
+"product": "多种维生素矿物质片（无糖配方）",
+"spec": "144g（0.8g×180片）",
+"price": 29.84,
+"perPrice": 29.84,
+"unit": "144g",
+"category": "补剂",
+"storage": "常温",
+"source": "电商",
+"detail": "上市药企出品；21种核心营养+牛磺酸+矿物质，无糖配方；运动营养食品-耐力类。每日按说明服用，不计入餐食热量。"
+}
+};
 
     let currentContext = { type: null, content: null, searchResult: null };
     
@@ -1598,11 +2168,13 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       Object.entries(PRODUCT_LIBRARY || {}).forEach(([name, p]) => {
         const np = (p && p.nutritionPer100) || {};
         if (!np.calories && !np.protein) return;
-        let cat = "蔬菜";
-        if ((np.carbs || 0) > 20) cat = "碳水主食";
-        else if ((np.protein || 0) >= 6 && (np.protein || 0) >= (np.fat || 0)) cat = "蛋白";
-        else if ((np.fat || 0) > 10) cat = "脂肪";
-        else if ((np.carbs || 0) >= 10) cat = "水果";
+        let cat = p.category || "蔬菜";
+        if (!p.category) {
+          if ((np.carbs || 0) > 20) cat = "碳水主食";
+          else if ((np.protein || 0) >= 6 && (np.protein || 0) >= (np.fat || 0)) cat = "蛋白";
+          else if ((np.fat || 0) > 10) cat = "脂肪";
+          else if ((np.carbs || 0) >= 10) cat = "水果";
+        }
         lib[name] = {
           category: cat,
           kcalPer100: np.calories || 0, proteinPer100: np.protein || 0,
