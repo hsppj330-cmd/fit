@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.2";
+    const VERSION = "2.1.3";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2300,10 +2300,12 @@ let PRODUCT_LIBRARY = {
       const out = [];
       (items || []).forEach((pair) => {
         const name = pair[0], grams = pair[1] || 0;
-        const info = lib[name];
-        if (!info) { out.push({ name, grams, kcal: 0, protein: 0, carbs: 0, fat: 0, category: "缺失", missing: true }); return; }
+        // 实时食材替换：用户在对话里说「上海青换成小水白菜」后，全局生效（配餐/采购/成本联动）
+        const realName = (appData.ingredientSwaps && appData.ingredientSwaps[name]) || name;
+        const info = lib[realName];
+        if (!info) { out.push({ name: realName, grams, kcal: 0, protein: 0, carbs: 0, fat: 0, category: "缺失", missing: true }); return; }
         out.push({
-          name, grams, category: info.category,
+          name: realName, grams, category: info.category,
           kcal: Math.round(info.kcalPer100 * grams / 100),
           protein: Math.round(info.proteinPer100 * grams / 100 * 10) / 10,
           carbs: Math.round(info.carbsPer100 * grams / 100 * 10) / 10,
@@ -2868,6 +2870,8 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "query_finance", description: "查询财务开销与每份备餐成本：本周/本月采购花费、各餐每份成本。用户问花了多少钱/开销/预算/每份餐多少钱/周开销时调用", parameters: { type: "object", properties: { period: { type: "string", description: "week或month，默认week" } } } } },
       { type: "function", function: { name: "set_stock_target", description: "设置长耗材目标库存（如糙米目标库存30kg、囤货），库存低于30%时采购清单自动补货。用户说目标库存/囤/长期备货/一次买多少时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, targetStock: { type: "number", description: "目标库存克数（1kg=1000g，如30kg填30000）" } }, required: ["name", "targetStock"] } } },
       { type: "function", function: { name: "set_procurement", description: "设置食材采购渠道：线下（菜市场/超市自购）或线上（电商下单）。用户说XX线下买/去菜市场买/超市买/改为线下采购/在哪里买/线下采购时调用；设置后采购清单按渠道分组并自动联动成本", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, channel: { type: "string", enum: ["线下", "线上"], description: "采购渠道" } }, required: ["name", "channel"] } } },
+      { type: "function", function: { name: "replace_ingredient", description: "实时替换本周配餐中的食材：用户说没买到/换成/没有XX用YY/上海青换成小水白菜/买不到XX替代时调用；替换后全周配餐、采购、成本自动联动重算", parameters: { type: "object", properties: { oldName: { type: "string", description: "被替换的食材名（如：上海青）" }, newName: { type: "string", description: "替换后的食材名（必须在食材库/商品库中，如：小水白菜）" } }, required: ["oldName", "newName"] } } },
+      { type: "function", function: { name: "scale_recipe", description: "备餐调料比例实时计算：用户问腌制/卤水配方、XX克XX加多少调料/500克鸡胸要多少盐/卤料怎么配时调用，按内置配方按克数缩放返回精确调料克数与含盐量", parameters: { type: "object", properties: { ingredient: { type: "string", description: "食材名：鸡胸肉（腌制）或琵琶腿（卤水）" }, grams: { type: "number", description: "准备烹饪的克数" } }, required: ["ingredient", "grams"] } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan_v2", description: "生成/重新生成v2周循环配餐计划：按谭师系数（周运动时长档位）+训练日/休息日，从食材库自动搭配一周三餐。仅在用户要求生成、重算、安排一周餐时调用；若只是问缺口/目标/碳水倍率等数据查询，用 query_plan_summary", parameters: { type: "object", properties: {} } } },
@@ -2940,6 +2944,38 @@ let PRODUCT_LIBRARY = {
           saveData();
           const lib = getIngredientLib()[name] || {};
           return { success: true, message: "✅ " + name + " 已设为" + channel + "采购（" + (lib.perPrice || lib.price ? '参考价 ' + (lib.perPrice || lib.price) + '元/' + (lib.unit || '500g') : '按商品库价格') + "）。采购清单已按渠道分组，重新配餐或刷新采购清单即可看到。" };
+        }
+        case "replace_ingredient": {
+          const oldName = String(args.oldName || '').trim();
+          const newName = String(args.newName || '').trim();
+          const rlib = getIngredientLib();
+          if (!oldName || !newName || oldName === newName) return { success: false, message: "请提供要替换的食材名和替换成什么食材（如：上海青换成小水白菜）" };
+          if (!rlib[oldName]) return { success: false, message: "食材库没有「" + oldName + "」" };
+          if (!rlib[newName]) return { success: false, message: "食材库没有「" + newName + "」，可先上传商品截图或告诉我价格营养" };
+          appData.ingredientSwaps = appData.ingredientSwaps || {};
+          appData.ingredientSwaps[oldName] = newName;
+          const keepStart = appData.weeklyPlan && appData.weeklyPlan.startDate;
+          generateWeeklyPlanV2();
+          if (keepStart) appData.weeklyPlan.startDate = keepStart;
+          saveData();
+          const rfmt = m => m ? m.items.map(i => i.name + i.grams + 'g').join('+') + '（' + m.sum.calories + 'kcal/' + m.sum.protein + 'g蛋白）' : '无';
+          const mon = appData.weeklyPlan.days["周一"].meals;
+          return { success: true, message: "✅ 已用「" + newName + "」替换「" + oldName + "」，全周配餐、采购、成本已联动重算\n\n周一餐单：\n早餐：" + rfmt(mon.breakfast) + "\n午餐：" + rfmt(mon.lunch) + "\n晚餐：" + rfmt(mon.dinner) + "\n练后：" + rfmt(mon.postWorkout) };
+        }
+        case "scale_recipe": {
+          const RECIPE_RATIOS = {
+            "鸡胸肉": { base: 500, note: "抓匀冷藏30分钟以上再煎炒", items: [["生抽", 10], ["蚝油", 5], ["料酒", 5], ["盐", 3], ["玉米淀粉", 10], ["黑胡椒", 2]], salt: 5.25, perMeal: 130 },
+            "琵琶腿": { base: 1000, note: "卤料包1袋 + 姜片10g + 葱段（料包含八角/桂皮/香叶/花椒，无需另加）", items: [["生抽", 20], ["老抽", 10], ["料酒", 10]], salt: 5.3, perMeal: 180 }
+          };
+          const sname = String(args.ingredient || '').trim();
+          const sgrams = parseFloat(args.grams);
+          const ratio = RECIPE_RATIOS[sname];
+          if (!ratio || isNaN(sgrams) || sgrams <= 0) return { success: false, message: "请提供食材名和克数（支持：鸡胸肉=腌制 / 琵琶腿=卤水）" };
+          const k = sgrams / ratio.base;
+          const lines = ratio.items.map(function (it) { return it[0] + ' ' + Math.round(it[1] * k * 10) / 10 + 'g'; });
+          const saltG = Math.round(ratio.salt * k * 10) / 10;
+          const meals = Math.max(1, Math.round(sgrams / ratio.perMeal));
+          return { success: true, message: "🧂 " + sname + " " + sgrams + "g → " + lines.join(' + ') + (ratio.note ? "\n" + ratio.note : "") + "\n本批调料含盐约" + saltG + "g（分约" + meals + "餐，每餐约" + Math.round(saltG / meals * 10) / 10 + "g，计入每日≤5g）" };
         }
         case "query_finance": {
           const period = args.period === 'month' ? 'month' : 'week';
@@ -3136,8 +3172,11 @@ let PRODUCT_LIBRARY = {
           systemPrompt += "请结合以上参考资料整理回答，确保准确。回答后询问用户是否将有用内容存入个人知识库。";
         }
 
+        // 对话记忆：带上最近历史（最近16条），AI 能记住之前的对话；chatHistory 已持久化到本地
+        const history = (appData.chatHistory || []).slice(-16);
         const messages = [
           { role: "system", content: systemPrompt },
+          ...history.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
           { role: "user", content: prompt }
         ];
         
@@ -4085,12 +4124,20 @@ let PRODUCT_LIBRARY = {
       
       addMessage('user', text);
       input.value = '';
+      (appData.chatHistory = appData.chatHistory || []).push({ role: "user", content: text });
+      if (appData.chatHistory.length > 100) appData.chatHistory = appData.chatHistory.slice(-100);
+      saveData();
       
       const cmd = parseCommand(text);
       if (cmd) {
         const result = await executeCommand(cmd);
         if (result && result.success) {
-          setTimeout(() => { addMessage('assistant', result.message); renderDashboard(); renderTrainingView(); renderDietView(); }, 300);
+          setTimeout(() => {
+            addMessage('assistant', result.message);
+            (appData.chatHistory = appData.chatHistory || []).push({ role: "assistant", content: result.message });
+            saveData();
+            renderDashboard(); renderTrainingView(); renderDietView();
+          }, 300);
           return;
         }
       }
@@ -4109,9 +4156,15 @@ let PRODUCT_LIBRARY = {
           currentContext = { type: "meal", content: aiReply, searchResult: searchResults };
         }
         addMessage('assistant', aiReply);
+        (appData.chatHistory = appData.chatHistory || []).push({ role: "assistant", content: aiReply });
+        if (appData.chatHistory.length > 100) appData.chatHistory = appData.chatHistory.slice(-100);
+        saveData();
       } else {
         setTimeout(() => {
-          addMessage('assistant', "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～");
+          const fallbackMsg = "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～";
+          addMessage('assistant', fallbackMsg);
+          (appData.chatHistory = appData.chatHistory || []).push({ role: "assistant", content: fallbackMsg });
+          saveData();
         }, 500);
       }
     }
@@ -4122,6 +4175,9 @@ let PRODUCT_LIBRARY = {
       const reader = new FileReader();
       reader.onload = async function(e) {
         addMessage('user', "[图片]");
+        (appData.chatHistory = appData.chatHistory || []).push({ role: "user", content: "[图片]（商品/体测/训练/餐食截图）" });
+        if (appData.chatHistory.length > 100) appData.chatHistory = appData.chatHistory.slice(-100);
+        saveData();
         if (!appData.settings.apiKey) {
           addMessage('assistant', "📸 图片识别功能需要配置API密钥后启用。\n\n你可以直接对话记录：体重体脂说「体重66kg体脂20.2%」，买菜说「买了西红柿500g3块5」。");
           return;
@@ -4336,8 +4392,16 @@ let PRODUCT_LIBRARY = {
     }
     
     // ========== 初始化 ==========
+    function renderChatHistory() {
+      const hist = appData.chatHistory || [];
+      if (!hist.length) return;
+      hist.forEach(m => { try { addMessage(m.role, m.content); } catch (e) {} });
+    }
+
     function init() {
       loadData();
+      // 回显历史对话（对话记忆持久化）
+      renderChatHistory();
       // v2：首次打开自动生成周配餐计划（按当前体重+运动档位）
       if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
         try { generateWeeklyPlanV2(); } catch (e) { console.error("自动生成周计划失败", e); }
@@ -4356,7 +4420,7 @@ let PRODUCT_LIBRARY = {
         syncFromCloud().catch(() => {});
       }
       
-      if (appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
+      if ((appData.chatHistory || []).length === 0 && appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
         setTimeout(() => {
           addMessage('assistant', `欢迎使用健身减脂智能体 v${VERSION} · 薄肌计划
 
