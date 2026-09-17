@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.7";
+    const VERSION = "2.1.0";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1106,10 +1106,10 @@ let PRODUCT_LIBRARY = {
 "storage": "冷冻",
 "source": "电商·拼单",
 "nutritionPer100": {
-"calories": 181,
-"protein": 16,
+"calories": 146,
+"protein": 20.8,
 "carbs": 0,
-"fat": 13
+"fat": 7.2
 },
 "detail": "鸡腿上鸡爪与大腿之间部位，形似琵琶；带皮带骨，食部约69%（每500g毛重约345g可食）。脂肪较高，减脂期适量吃或去皮。"
 },
@@ -2256,7 +2256,10 @@ let PRODUCT_LIBRARY = {
       "玉米": { cooked: 1.0, note: "熟玉米粒" },
       "全麦面包": { cooked: 1.0, note: "即食" },
       "花生酱": { cooked: 1.0, note: "即食" },
-      "乳清蛋白粉": { cooked: 1.0, note: "冲泡即饮" }
+      "乳清蛋白粉": { cooked: 1.0, note: "冲泡即饮" },
+      "琵琶腿": { cooked: 0.6, note: "带骨卤制→去皮可食" },
+      "纯牛奶": { cooked: 1.0, note: "直接饮用" },
+      "巴西莓粉": { cooked: 1.0, note: "直接拌食" }
     };
     function cookedWeightGrams(name, rawGrams) {
       const y = COOKING_YIELD[name];
@@ -2298,23 +2301,14 @@ let PRODUCT_LIBRARY = {
     // 谭师三餐拆分：早餐模板固定；午餐=生米+肉+蔬菜200g+油；晚餐=薯类+肉+蔬菜
     function splitDayIntoMeals(macros, dayType) {
       const lib = getIngredientLib();
-      const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 100], ["南瓜子仁", 15], ["蓝莓", 80]], lib);
-      const remainC = Math.max(0, macros.carbs - breakfast.sum.carbs);
-      const remainP = Math.max(0, macros.protein - breakfast.sum.protein);
-      const remainF = Math.max(0, macros.fat - breakfast.sum.fat);
-      const lunchC = Math.round(remainC * 0.45);
-      const dinnerC = remainC - lunchC;
-      const lunchMeat = Math.min(200, Math.max(120, Math.round(remainP * 0.5)));
-      const dinnerMeat = Math.min(200, Math.max(120, Math.round(remainP * 0.5)));
-      const lunchOil = Math.max(0, Math.round(remainF * 0.6));
-      const dinnerOil = Math.max(0, remainF - lunchOil);
-      // 主食克数按「目标碳水 - 蔬菜自带碳水」换算，更贴合目标
-      const lunchVegC = 200 * (lib["西兰花"].carbsPer100 / 100);
-      const dinnerVegC = 250 * (lib["上海青"].carbsPer100 / 100);
-      const riceGrams = Math.max(40, Math.round((lunchC - lunchVegC) / (lib["三色糙米"].carbsPer100 / 100)));
-      const potatoGrams = Math.max(120, Math.round((dinnerC - dinnerVegC) / (lib["西瓜红蜜薯"].carbsPer100 / 100)));
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", lunchMeat], ["西兰花", 200], ["牛油果油", lunchOil]], lib);
-      const dinner = buildMeal([["西瓜红蜜薯", potatoGrams], ["瘦牛肉", dinnerMeat], ["上海青", 250], ["牛油果油", dinnerOil]], lib);
+      // 固定三餐体系（用户定制）：
+      // 早餐=微波燕麦蛋杯+南瓜子仁+巴西莓粉+牛奶；午餐=糙米饭+炒鸡胸+炒蔬菜（牛油果油，油脂集中在早/午）；
+      // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
+      const isRest = dayType === 'rest';
+      const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 50], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);
+      const riceGrams = isRest ? 70 : 90;   // 休息日低碳
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", 130], ["西兰花", 150], ["上海青", 100], ["牛油果油", 15]], lib);
+      const dinner = buildMeal([["土豆", isRest ? 220 : 280], ["琵琶腿", 180], ["西兰花", 200]], lib);
       // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 30]], lib)
@@ -3471,14 +3465,14 @@ let PRODUCT_LIBRARY = {
       const html = `
         <div class="mb-4">
           <div class="flex bg-gray-100 rounded-lg p-1">
-            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="week" onclick="switchDietTab('week')">本周配餐</button>
-            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="week" onclick="switchDietTab('week')">本周配餐</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="products" onclick="switchDietTab('products')">商品库</button>
           </div>
         </div>
-        <div id="diet-week" class="diet-panel">${renderWeeklyDiet()}</div>
-        <div id="diet-daily" class="diet-panel hidden">${renderDailyDiet()}</div>
+        <div id="diet-daily" class="diet-panel">${renderDailyDiet()}</div>
+        <div id="diet-week" class="diet-panel hidden">${renderWeeklyDiet()}</div>
         <div id="diet-purchase" class="diet-panel hidden">${renderPurchaseList()}</div>
         <div id="diet-products" class="diet-panel hidden">${renderProductLibrary()}</div>
       `;
@@ -3555,7 +3549,34 @@ let PRODUCT_LIBRARY = {
             </div>
           </div>`;
       });
-      html += `</div>`;
+      html += `</div>
+        <div class="bg-amber-50 rounded-2xl p-4 mt-4">
+          <h3 class="font-bold text-lg mb-2">📋 本周备餐指南（周日集中制作午晚餐）</h3>
+          <div class="space-y-3 text-sm leading-relaxed text-gray-700">
+            <div class="bg-white rounded-xl p-3">
+              <div class="font-medium text-amber-700 mb-1">🍳 早餐 · 每天现做（微波炉3分钟）</div>
+              <div>燕麦片60g + 清水约150ml + 生鸡蛋1个打散 → 微波炉中高火3分钟</div>
+              <div class="text-xs text-gray-500 mt-1">取出后加南瓜子仁10g + 巴西莓粉5g，配纯牛奶250ml喝</div>
+            </div>
+            <div class="bg-white rounded-xl p-3">
+              <div class="font-medium text-blue-700 mb-1">🥩 午餐 · 批量7份 · 炒鸡胸糙米饭</div>
+              <div>腌制（每500g鸡胸）：生抽10g + 蚝油5g + 料酒5g + 盐3g + 玉米淀粉10g + 黑胡椒2g，抓匀冷藏30分钟以上</div>
+              <div>鸡胸910g（130g×7）煎熟切条；三色糙米630g（90g×7）泡30分钟煮熟；西兰花1050g + 上海青700g 焯水快炒</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约200g + 炒鸡胸约95g + 炒蔬菜约175g，淋牛油果油15g</div>
+            </div>
+            <div class="bg-white rounded-xl p-3">
+              <div class="font-medium text-purple-700 mb-1">🍗 晚餐 · 批量7份 · 卤鸡腿土豆餐（无油）</div>
+              <div>卤水（每1kg琵琶腿）：生抽20g + 老抽10g + 料酒10g + 姜片10g + 八角2个，卤25分钟关火焖10分钟</div>
+              <div>琵琶腿1260g（180g×7）卤好去皮食用；土豆1960g（280g×7）烤/水煮；西兰花1400g（200g×7）水煮</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约250g + 卤鸡腿去皮约110g + 水煮西兰花180g</div>
+            </div>
+            <div class="bg-white rounded-xl p-3">
+              <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
+              <div>乳清蛋白粉30g冲泡（约1勺，22g蛋白）</div>
+            </div>
+            <div class="text-xs text-gray-500">冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
+          </div>
+        </div>`;
       if (appData.weekReview && appData.weekReview.history && appData.weekReview.history.length) {
         const last = appData.weekReview.history[appData.weekReview.history.length - 1];
         html += `<div class="mt-4 bg-green-50 rounded-xl p-4 text-sm text-green-800">
@@ -3677,6 +3698,7 @@ let PRODUCT_LIBRARY = {
         </div>
         <div class="space-y-3">
           ${mealTitle('breakfast', '早餐')}
+          ${dayPlan && dayPlan.meals.postWorkout ? mealTitle('postWorkout', '练后餐 · 力量训练后30分钟内喝') : ''}
           ${mealTitle('lunch', '午餐')}
           ${mealTitle('dinner', '晚餐')}
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
