@@ -3445,6 +3445,18 @@ let PRODUCT_LIBRARY = {
       document.getElementById('view-diet').innerHTML = html;
     }
 
+    function switchDietTab(tab) {
+      document.querySelectorAll('.diet-tab').forEach(t => {
+        t.classList.remove('bg-white', 'shadow-sm', 'text-blue-600');
+        t.classList.add('text-gray-500');
+      });
+      const btn = document.querySelector('.diet-tab[data-tab="' + tab + '"]');
+      if (btn) { btn.classList.add('bg-white', 'shadow-sm'); btn.classList.remove('text-gray-500'); }
+      document.querySelectorAll('.diet-panel').forEach(p => p.classList.add('hidden'));
+      const panel = document.getElementById('diet-' + tab);
+      if (panel) panel.classList.remove('hidden');
+    }
+
     // ===== 本周配餐计划（v2 核心） =====
     function renderWeeklyDiet() {
       const plan = appData.weeklyPlan;
