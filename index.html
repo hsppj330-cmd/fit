@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.5";
+    const VERSION = "2.1.6";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2674,6 +2674,8 @@ let PRODUCT_LIBRARY = {
     
     // ========== 对话指令引擎 ==========
     function parseCommand(text) {
+      // 疑问句放行：含疑问词的问题（有没有/是否/包含/吗/？/什么/多少等）一律交给 AI 对话回答，不被关键词拦截成"生成/执行"命令
+      const isQuestion = /有没有|是否|包含|吗|？|\?|为什么|怎么|怎么样|能不能|可以吗|对吗|合理|什么|多少|哪些|哪个|几倍|是几/.test(text);
       if (text.includes("存入") || text.includes("存起来") || text.includes("保存")) {
         if (currentContext.content) {
           return { type: "save_knowledge", context: currentContext };
@@ -2722,15 +2724,15 @@ let PRODUCT_LIBRARY = {
         return { type: "record_training", trainingType: type };
       }
       
-      if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
+      if (!isQuestion && (text.includes("采购清单") || text.includes("买什么"))) return { type: "generate_purchase" };
       if (text.includes("复盘") || text.includes("周总结") || text.includes("本周效果")) return { type: "weekly_review" };
       // 查询类（必须先于"配餐"生成命令，避免问"缺口/碳水倍率"被拦截成生成周餐）
       if (!/改|调|设/.test(text) && (/(热量缺口|缺口).{0,10}(多少|是几|几大卡|什么|多少大卡)/.test(text) || /几倍碳水|碳水.{0,4}(几倍|倍率|多少)/.test(text) || /配餐.{0,6}(热量缺口|碳水倍率|多少热量)/.test(text))) {
         return { type: "query_plan_summary" };
       }
       if (text.includes("重新配餐") || text.includes("重配餐") || text.includes("重新生成周餐") || text.includes("按新体重")) return { type: "generate_week_plan_v2" };
-      if (text.includes("配餐") || text.includes("生成周餐") || text.includes("下周吃什么") || text.includes("本周吃什么")) return { type: "generate_week_plan_v2" };
-      if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
+      if (!isQuestion && (text.includes("配餐") || text.includes("生成周餐") || text.includes("下周吃什么") || text.includes("本周吃什么"))) return { type: "generate_week_plan_v2" };
+      if (!isQuestion && (text.includes("周计划") || text.includes("下周计划"))) return { type: "generate_week_plan" };
       // 长耗材目标库存（先于"库存"判断，避免被拦截）
       const targetMatch = text.match(/([\u4e00-\u9fa5A-Za-z]+?)\s*(?:目标库存|囤货|长期备货)[设为到]?\s*(\d+\.?\d*)\s*(kg|公斤|克|g)?/i);
       if (targetMatch) {
@@ -3204,11 +3206,12 @@ let PRODUCT_LIBRARY = {
 3. 训练日碳水=档位系数（高碳），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
-4. 每周配餐从食材库（DEFAULT_INGREDIENT_LIBRARY + 用户上传商品库 PRODUCT_LIBRARY 自动并入）自动搭配三餐，不是固定菜谱：
-   - 早餐模板：燕麦60g+全蛋2+南瓜籽15g+蓝莓80g
-   - 午餐：生米（按碳水余量换算克数）+肉类150-200g+蔬菜200g+烹调油
-   - 晚餐：薯类（红薯/紫薯/贝贝南瓜，按碳水余量换算克数）+肉类150-200g+蔬菜200-250g+优质脂肪
-   - 肉蛋白可互换：鸡胸/去皮鸡腿/鱼/虾/瘦牛肉/蛋/豆腐；蔬菜不限种类（西兰花没有可用其他绿叶菜代替）
+4. 当前固定三餐体系（v2.1+，用户定制；配餐营养=熟后口径，采购清单和商品库=生重口径）：
+   - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
+   - 午餐（周备餐冷冻）：三色糙米（训练日90g/休息日70g 生干重）+鸡胸肉130g+上海青100g+大青椒100g+牛油果油15g（炒菜用，油脂集中在早/午）
+   - 晚餐（清淡无油）：土豆（训练日280g/休息日220g）+琵琶腿180g（去皮食用）+西兰花250g
+   - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
+   - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
 5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
 
