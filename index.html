@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.3";
+    const VERSION = "2.0.4";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1390,7 +1390,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       const plan = appData.weeklyPlan;
       if (plan && plan.days && plan.days[dayName]) return plan.days[dayName].macros.calories;
       const dow = new Date().getDay();
-      const dayType = dow === 4 ? 'rest' : (dow === 0 ? 'abs' : 'push');
+      const dayType = dow === 4 ? 'rest' : 'push';
       return computeDayMacros(dayType).calories;
     }
 
@@ -1713,7 +1713,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
 
     // 周配餐计划：推/拉/腿/休/推/拉/腹
     function generateWeeklyPlanV2() {
-      const dayTypes = { "周一": "push", "周二": "pull", "周三": "legs", "周四": "rest", "周五": "push", "周六": "pull", "周日": "abs" };
+      const dayTypes = { "周一": "push", "周二": "pull", "周三": "legs", "周四": "rest", "周五": "push", "周六": "pull", "周日": "legs" };
       const plan = {
         weekStart: getMonday(),
         generatedAt: new Date().toISOString().split('T')[0],
@@ -2300,20 +2300,18 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       const p = appData.profile;
       const t = getTanshiMacrosV2();
       const rest = computeDayMacros('rest');
-      const abs = computeDayMacros('abs');
       const dow = new Date().getDay();
-      const todayType = dow === 4 ? '休息日' : (dow === 0 ? '腹肌日' : '训练日');
+      const todayType = dow === 4 ? '休息日' : '训练日';
       const target = getTodayTargetCalories();
       const tdee = Math.round(p.bmr * 1.45);
-      const weekAvg = Math.round((t.calories * 5 + rest.calories + abs.calories) / 7);
+      const weekAvg = Math.round((t.calories * 6 + rest.calories) / 7);
       const weekPlan = appData.weeklyPlan;
       let msg = "📊 本周配餐热量概览（按最新身体数据）\n";
       msg += "· 身体：体重 " + p.weight + "kg / 体脂 " + p.bodyFat + "% / 基础代谢 " + p.bmr + " 大卡\n";
       msg += "· 每周运动时长 " + p.weekHours + " 小时（谭师档位）\n\n";
       msg += "【碳水倍率】\n";
-      msg += "· 训练日：碳水 " + t.carbsK + "g/kg → " + t.carbs + "g\n";
-      msg += "· 休息日：2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
-      msg += "· 腹肌日：2.5g/kg → " + abs.carbs + "g\n";
+      msg += "· 训练日（推/拉/腿）：碳水 " + t.carbsK + "g/kg → " + t.carbs + "g\n";
+      msg += "· 休息日（周四）：2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
       msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 1.0g/kg → " + t.fat + "g（全天固定）\n\n";
       msg += "【热量缺口】\n";
       msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.45，含训练）\n";
@@ -2737,7 +2735,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     
     function renderTrainingView() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "abs" };
+      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "legs" };
       const todayType = trainingMap[dayIndex];
       
       let html = '';
@@ -2746,16 +2744,17 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
         html = `
           <div class="mb-6">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-xl font-bold">今日训练 · ${training.name}</h2>
+              <h2 class="text-xl font-bold">今日训练 · ${training.name}${dayIndex === 0 ? '（轻量·后链优先）' : ''}</h2>
               <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
             </div>
             <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 400} 大卡，Keep 跟练后按实际消耗打卡更准</p>
+            ${[2, 6].includes(dayIndex) ? `
             <div class="bg-orange-50 rounded-xl p-4 mb-4 text-sm text-orange-800 leading-relaxed">
-              <b>🌅 今日空腹有氧（跳绳）约 20 分钟</b><br>
-              晨起空腹（先喝 200ml 水）跳绳 20 分钟，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130）。
-              空腹状态脂肪供能比例更高，且不影响晚上力量训练。跳完对我说「跳绳了」自动打卡。<br>
-              <span class="text-orange-600">计入周运动时长 → 建议每周运动时长档位用 8-9 小时</span>
-            </div>
+              <b>🌅 本周有氧日（每周3-4次）：跳绳 20-30 分钟</b><br>
+              今天力量后或傍晚跳绳 20-30 分钟，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130），
+              以不影响力量状态为准（谭师建议：有氧每周 3-4 次、每次 30-40min）。跳完对我说「跳绳了」自动打卡。<br>
+              <span class="text-orange-600">本周有氧安排：周二 / 周四（40min）/ 周六，共 3 次</span>
+            </div>` : ''}
             <div class="bg-indigo-50 rounded-xl p-4 mb-4 text-sm text-indigo-800 leading-relaxed">
               <b>📱 如何用 Keep 跟练：</b><br>
               1. 打开 Keep → 训练 → 自定义训练 → 新建课程<br>
@@ -2764,6 +2763,13 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
             </div>
             <div class="space-y-3">
         `;
+        if ([3, 0].includes(dayIndex)) {
+          html += `
+          <div class="bg-green-50 rounded-xl p-3 text-sm text-green-800 leading-relaxed">
+            🔸 <b>腹肌碎片 10 分钟</b>（每周 2 次，周三/周日腿日末尾）：平板支撑 3×45秒 + 卷腹 3×15 + 俄罗斯转体 3×12，
+            腹部恢复快可高频，放在大肌群后不冲突。
+          </div>`;
+        }
         (training.exercises || []).forEach((ex, idx) => {
           const meta = EXERCISE_META[ex.id] || {};
           html += `
@@ -2817,9 +2823,9 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
             <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日 · 力量停</h3>
             <p class="text-gray-500 text-sm mb-4">肌肉恢复日，但空腹有氧不停，保持消耗</p>
             <div class="bg-orange-50 rounded-xl p-4 mx-2 mb-4 text-sm text-orange-800 leading-relaxed text-left">
-              <b>🌅 空腹有氧（跳绳）加量 35-40 分钟</b><br>
-              今天不练力量，跳绳可以加量到 35-40 分钟（可分 10 分钟×4 组，组间喝水休息）。
-              配合休息日低碳（碳水 2.2g/kg），糖原储备低时更能调动脂肪供能。<br>
+              <b>🌅 有氧日（跳绳/爬坡）35-40 分钟</b><br>
+              休息日做 40 分钟中低强度有氧（跳绳可分 10 分钟×4 组，组间喝水），
+              谭师建议有氧每周 3-4 次、每次 30-40min，放在休息日或力量后均可。<br>
               <span class="text-orange-600">跳完对我说「跳绳了」自动打卡记录消耗</span>
             </div>
             <p class="text-sm text-gray-400">今日热量目标已按休息日计算（碳水 2.2g/kg 低碳）</p>
@@ -2836,7 +2842,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     
     function completeTraining() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "abs" };
+      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "legs" };
       const type = trainingMap[dayIndex];
       if (!type || type === 'rest') { alert("今天是休息日哦"); return; }
       const result = quickRecordTraining(type);
@@ -2991,7 +2997,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       const dow = new Date().getDay();
-      const dayType = dayPlan ? dayPlan.dayType : (dow === 4 ? 'rest' : (dow === 0 ? 'abs' : 'push'));
+      const dayType = dayPlan ? dayPlan.dayType : (dow === 4 ? 'rest' : 'push');
       const target = dayPlan ? dayPlan.macros : computeDayMacros(dayType);
       const daily = calculateDailyIntake(today);
       const typeNames = { push: '推日', pull: '拉日', legs: '腿日', rest: '休息日', abs: '腹肌日' };
