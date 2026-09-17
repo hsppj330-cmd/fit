@@ -1886,7 +1886,12 @@ let PRODUCT_LIBRARY = {
         if (data["动作库.json"]) TRAINING_LIBRARY = mergeTrainingFromCloud(data["动作库.json"]);
         if (data["餐谱库.json"]) MEAL_LIBRARY = mergeMealFromCloud(data["餐谱库.json"]);
         if (data["食材价格库.json"]) INGREDIENT_PRICES = mergePricesFromCloud(data["食材价格库.json"]);
-        if (data["商品库.json"]) PRODUCT_LIBRARY = data["商品库.json"];
+        if (data["商品库.json"]) {
+          const cloud = data["商品库.json"];
+          if (typeof cloud === "object" && Object.keys(cloud).length > 0) {
+            PRODUCT_LIBRARY = Object.assign({}, PRODUCT_LIBRARY, cloud);
+          }
+        }
         if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
         if (data["规则.json"]) PERSONAL_RULES = data["规则.json"];
         
