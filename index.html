@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.0.6";
+    const VERSION = "2.0.7";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2255,7 +2255,8 @@ let PRODUCT_LIBRARY = {
       "番茄": { cooked: 0.95, note: "炖煮" },
       "玉米": { cooked: 1.0, note: "熟玉米粒" },
       "全麦面包": { cooked: 1.0, note: "即食" },
-      "花生酱": { cooked: 1.0, note: "即食" }
+      "花生酱": { cooked: 1.0, note: "即食" },
+      "乳清蛋白粉": { cooked: 1.0, note: "冲泡即饮" }
     };
     function cookedWeightGrams(name, rawGrams) {
       const y = COOKING_YIELD[name];
@@ -2295,7 +2296,7 @@ let PRODUCT_LIBRARY = {
     }
 
     // 谭师三餐拆分：早餐模板固定；午餐=生米+肉+蔬菜200g+油；晚餐=薯类+肉+蔬菜
-    function splitDayIntoMeals(macros) {
+    function splitDayIntoMeals(macros, dayType) {
       const lib = getIngredientLib();
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 100], ["南瓜子仁", 15], ["蓝莓", 80]], lib);
       const remainC = Math.max(0, macros.carbs - breakfast.sum.carbs);
@@ -2314,7 +2315,11 @@ let PRODUCT_LIBRARY = {
       const potatoGrams = Math.max(120, Math.round((dinnerC - dinnerVegC) / (lib["西瓜红蜜薯"].carbsPer100 / 100)));
       const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", lunchMeat], ["西兰花", 200], ["牛油果油", lunchOil]], lib);
       const dinner = buildMeal([["西瓜红蜜薯", potatoGrams], ["瘦牛肉", dinnerMeat], ["上海青", 250], ["牛油果油", dinnerOil]], lib);
-      return { breakfast, lunch, dinner };
+      // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
+      const postWorkout = (dayType && dayType !== 'rest')
+        ? buildMeal([["乳清蛋白粉", 30]], lib)
+        : null;
+      return { breakfast, lunch, dinner, postWorkout };
     }
 
     // 兼容旧调用（看板等处）
@@ -2336,7 +2341,7 @@ let PRODUCT_LIBRARY = {
       Object.keys(dayTypes).forEach(day => {
         const dayType = dayTypes[day];
         const macros = computeDayMacros(dayType);
-        const meals = splitDayIntoMeals(macros);
+        const meals = splitDayIntoMeals(macros, dayType);
         plan.days[day] = { dayType, macros, meals };
       });
       appData.weeklyPlan = plan;
@@ -3531,7 +3536,7 @@ let PRODUCT_LIBRARY = {
         if (!dayPlan) return;
         const t = dayPlan.dayType;
         const m = dayPlan.macros;
-        const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner;
+        const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner, po = dayPlan.meals.postWorkout;
         const fmtItems = (meal) => meal.items.map(it => {
           const cooked = cookedWeightGrams(it.name, it.grams);
           return it.name + " " + it.grams + "g" + (cooked ? "→熟" + cooked + "g" : "");
@@ -3544,6 +3549,7 @@ let PRODUCT_LIBRARY = {
             </div>
             <div class="space-y-1.5 text-sm text-gray-600">
               <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf)} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
+              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po) + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
               <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu)} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
               <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di)} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
             </div>
@@ -3825,8 +3831,9 @@ let PRODUCT_LIBRARY = {
       dayOrder.forEach(day => {
         const d = plan.days[day];
         if (!d || !d.meals) return;
-        ["breakfast", "lunch", "dinner"].forEach(mk => {
+        ["breakfast", "lunch", "dinner", "postWorkout"].forEach(mk => {
           const meal = d.meals[mk];
+          if (!meal) return;
           (meal.items || []).forEach(it => {
             if (it.missing || !it.grams || it.grams <= 0) return;
             req[it.name] = (req[it.name] || 0) + it.grams;
