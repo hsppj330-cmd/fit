@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v1.15.1</title>
+  <title>健身减脂智能体 v2.0 薄肌计划</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v1.15.1 · 云端知识库</p>
+            <p class="text-xs text-gray-400">v2.0 薄肌计划 · 周循环配餐</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -154,6 +154,24 @@
             <canvas id="weightChart" height="120"></canvas>
           </div>
           
+          <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-indigo-400">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-medium">周循环配餐</h3>
+              <button class="text-xs bg-indigo-500 text-white px-3 py-1.5 rounded-lg" onclick="switchView('diet')">查看计划</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center text-sm">
+              <div>
+                <p class="text-lg font-bold text-indigo-600" id="dash-week-plan-status">未生成</p>
+                <p class="text-xs text-gray-500">周配餐</p>
+              </div>
+              <div>
+                <p class="text-lg font-bold text-indigo-600" id="dash-week-daytype">-</p>
+                <p class="text-xs text-gray-500">今日类型</p>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2" id="dash-week-note">周初生成计划 → 每日按餐吃 → 周末复盘调整下周</p>
+          </div>
+          
           <div class="bg-white rounded-2xl p-4 shadow-sm">
             <h3 class="font-medium mb-3">本周统计</h3>
             <div class="grid grid-cols-2 gap-3 text-center">
@@ -209,6 +227,15 @@
               <div>
                 <label class="text-sm text-gray-600">每日热量缺口 (大卡)</label>
                 <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">每周运动时长（决定碳水量，谭师系数）</label>
+                <select id="setting-week-hours" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                  <option value="2-3">2-3 小时：碳水 2.2g/kg · 蛋白 1.4 · 脂肪 0.8</option>
+                  <option value="4-5">4-5 小时：碳水 2.5g/kg · 蛋白 1.6 · 脂肪 0.9</option>
+                  <option value="6-7">6-7 小时：碳水 3.0g/kg · 蛋白 1.7 · 脂肪 1.0</option>
+                  <option value="8-9">8-9 小时：碳水 3.5g/kg · 蛋白 1.8 · 脂肪 1.0</option>
+                </select>
               </div>
               <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
             </div>
@@ -313,340 +340,450 @@
   </div>
 
   <script>
-    const VERSION = "1.15.1";
-    const DATA_VERSION = 6;
-    const STORAGE_KEY = "fitness_ai_data_v150";
+    const VERSION = "2.0.0";
+    const DATA_VERSION = 7;
+    const STORAGE_KEY = "fitness_ai_data_v200";
+    const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
     
     // ========== 完整知识库 ==========
     const DEFAULT_TRAINING_LIBRARY = {
-      push: {
-        name: "推日",
-        muscles: "胸、肩、三头肌",
-        calories: 400,
-        exercises: [
-          {
-            id: "bench_press",
-            name: "哑铃平地卧推",
-            target: "胸大肌",
-            sets: 4,
-            reps: "8-12",
-            rest: "90秒",
-            beginnerWeight: "8kg/只",
-            advancedWeight: "16kg/只",
-            steps: [
-              { name: "起始姿势", desc: "平躺瑜伽垫上，屈膝双脚踩实，肩胛骨后缩下沉，双手持哑铃于胸上方，掌心朝前。", key: "肩胛骨下沉、双脚踩实" },
-              { name: "顶峰收缩", desc: "呼气发力将哑铃向上推起，轨迹略向内收，手臂接近伸直时感受胸肌收缩，停顿1秒。", key: "向内收推、胸肌主导" },
-              { name: "还原位置", desc: "吸气控制下放，手肘呈90度左右，大臂与地面平行即可，感受胸肌拉伸。", key: "控制下放、不砸地" }
-            ],
-            mistakes: ["错误：耸肩 → 斜方肌代偿", "错误：腰部过度弓起 → 腰椎压力大"],
-            tips: "想象用手肘去夹胸，全程肩胛骨贴地。Keep搜索：哑铃平地卧推。"
-          },
-          {
-            id: "incline_dumbbell_press",
-            name: "哑铃上斜卧推",
-            target: "胸大肌上束",
-            sets: 4,
-            reps: "8-12",
-            rest: "90秒",
-            beginnerWeight: "8kg/只",
-            advancedWeight: "16kg/只",
-            steps: [
-              { name: "起始姿势", desc: "哑铃凳调至30-45度上斜，肩胛骨后缩下沉贴紧靠背，双手持哑铃于胸上方，掌心朝前。", key: "凳30-45度、肩胛贴背" },
-              { name: "顶峰收缩", desc: "呼气发力将哑铃推向上胸上方，轨迹略向内收，手臂接近伸直时感受上胸收缩，停顿1秒。", key: "推向上胸、向内收" },
-              { name: "还原位置", desc: "吸气控制下放，手肘呈90度左右，感受上胸拉伸，不要砸胸。", key: "控制下放、肩胛固定" }
-            ],
-            mistakes: ["错误：凳角太大 → 变成推举，上胸失位", "错误：腰部悬空弓起 → 腰椎压力大"],
-            tips: "凳角30-45度，想象上胸在推天花板。谭师本人也做此动作。Keep搜索：哑铃上斜卧推。"
-          },
-          {
-            id: "fly_dumbbell",
-            name: "哑铃平地飞鸟",
-            target: "胸大肌（中缝）",
-            sets: 3,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "12kg/只",
-            steps: [
-              { name: "起始姿势", desc: "平躺瑜伽垫，双手持哑铃于胸部上方，掌心相对，手肘微屈固定。", key: "手肘微屈锁死" },
-              { name: "顶峰收缩", desc: "呼气发力沿弧线向中间夹拢，感受胸肌中缝收缩，哑铃接近但不碰撞。", key: "环抱式夹胸" },
-              { name: "还原位置", desc: "吸气沿弧线缓慢打开，感受胸肌拉伸，到胸部有牵拉感即可，不要过低。", key: "控制下放、不过低" }
-            ],
-            mistakes: ["错误：手肘弯曲变化 → 变成卧推", "错误：下放过低 → 肩关节拉伤"],
-            tips: "想象环抱一棵大树，全程手肘角度不变。Keep搜索：哑铃平地飞鸟。"
-          },
-          {
-            id: "shoulder_press",
-            name: "坐姿哑铃推举",
-            target: "三角肌前中束",
-            sets: 4,
-            reps: "8-12",
-            rest: "90秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "14kg/只",
-            steps: [
-              { name: "起始姿势", desc: "哑铃凳调至90度直立，背部完全贴紧靠背，双脚踩实地面，双手持哑铃于肩部两侧，掌心朝前。", key: "背部贴靠背、核心收紧" },
-              { name: "顶峰收缩", desc: "呼气发力向上推举，哑铃在头顶上方接近靠拢，手臂接近伸直，感受肩部收缩，停顿1秒。", key: "向上推、不挺腰" },
-              { name: "还原位置", desc: "吸气控制下放回到肩部两侧，感受三角肌拉伸。", key: "控制下放、不砸肩" }
-            ],
-            mistakes: ["错误：背部离开靠背挺腰 → 腰椎压力大", "错误：耸肩 → 斜方肌代偿"],
-            tips: "坐姿更稳、更能上重量，背部贴死靠背。Keep搜索：坐姿哑铃推举。"
-          },
-          {
-            id: "lateral_raise",
-            name: "哑铃侧平举",
-            target: "三角肌中束",
-            sets: 4,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "4kg/只",
-            advancedWeight: "8kg/只",
-            steps: [
-              { name: "起始姿势", desc: "站立双手持哑铃自然下垂，手肘微屈，核心收紧，身体稳定不晃动。", key: "核心收紧、微屈肘" },
-              { name: "顶峰收缩", desc: "呼气发力向两侧平举至与肩同高，手肘略高于手腕，感受中束收缩，顶峰停顿1秒。", key: "手肘带动、不耸肩" },
-              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受中束拉伸，控制节奏不要甩动。", key: "离心控制、慢放" }
-            ],
-            mistakes: ["错误：耸肩 → 斜方肌代偿", "错误：甩动借力 → 练不到中束"],
-            tips: "想象倒水手势，小指略高于拇指，重量宁轻勿重。Keep搜索：哑铃侧平举。"
-          },
-          {
-            id: "tricep_pushdown",
-            name: "俯身哑铃臂屈伸",
-            target: "肱三头肌",
-            sets: 3,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "4kg/只",
-            advancedWeight: "8kg/只",
-            steps: [
-              { name: "起始姿势", desc: "俯身单臂支撑在凳面/床沿，另一手持哑铃，大臂贴紧身体与地面平行，小臂自然下垂。", key: "大臂固定、腰背挺直" },
-              { name: "顶峰收缩", desc: "呼气发力向后伸直手臂，感受三头肌收缩，顶峰停顿1秒。", key: "伸到顶、顶峰挤压" },
-              { name: "还原位置", desc: "吸气缓慢还原，回到小臂下垂位置，大臂全程保持不动。", key: "大臂焊死、控制还原" }
-            ],
-            mistakes: ["错误：大臂晃动 → 借力肩部", "错误：身体晃动 → 腰部代偿"],
-            tips: "大臂像焊死在身上，只动小臂。Keep搜索：俯身哑铃臂屈伸。"
-          }
-        ]
+  push: {
+    name: "推日",
+    muscles: "胸、肩中束、三头",
+    calories: 420,
+    exercises: [
+      {
+        id: "bench_press",
+        name: "哑铃平地卧推",
+        target: "胸大肌",
+        sets: 4,
+        reps: "12",
+        rest: "75秒",
+        beginnerWeight: "8kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "平躺瑜伽垫上，屈膝双脚踩实，肩胛骨后缩下沉，双手持哑铃于胸上方，掌心朝前。", key: "肩胛骨下沉、双脚踩实" },
+          { name: "顶峰收缩", desc: "呼气发力将哑铃向上推起，轨迹略向内收，手臂接近伸直时感受胸肌收缩，停顿1秒。", key: "向内收推、胸肌主导" },
+          { name: "还原位置", desc: "吸气控制下放，手肘呈90度左右，大臂与地面平行即可，感受胸肌拉伸。", key: "控制下放、不砸地" }
+        ],
+        mistakes: ["错误：耸肩 → 斜方肌代偿", "错误：腰部过度弓起 → 腰椎压力大"],
+        tips: "想象用手肘去夹胸，全程肩胛骨贴地。Keep搜索：哑铃平地卧推。"
       },
-      pull: {
-        name: "拉日",
-        muscles: "背、二头肌、后束",
-        calories: 400,
-        exercises: [
-          {
-            id: "pull_up",
-            name: "弓步单臂划船",
-            target: "背阔肌",
-            sets: 4,
-            reps: "10-12/侧",
-            rest: "75秒",
-            beginnerWeight: "10kg",
-            advancedWeight: "20kg",
-            steps: [
-              { name: "起始姿势", desc: "同侧手扶凳面，同侧脚踩凳，身体与地面平行，另一手持哑铃自然下垂，腰背挺直。", key: "腰背挺直、身体稳定" },
-              { name: "顶峰收缩", desc: "呼气发力将哑铃拉向髋部，手肘贴紧身体，感受背阔肌收缩，顶峰停顿1秒。", key: "拉向髋部、夹肩胛" },
-              { name: "还原位置", desc: "吸气缓慢下放，感受背部充分拉伸，控制节奏。", key: "离心控制、充分拉伸" }
-            ],
-            mistakes: ["错误：弓背 → 腰椎压力大", "错误：手肘外展 → 练不到背阔肌"],
-            tips: "拉的时候想象手肘去插裤兜。Keep搜索：弓步单臂划船。"
-          },
-          {
-            id: "bent_over_row",
-            name: "俯身哑铃划船",
-            target: "背阔肌中上部",
-            sets: 3,
-            reps: "10-12",
-            rest: "75秒",
-            beginnerWeight: "10kg/只",
-            advancedWeight: "20kg/只",
-            steps: [
-              { name: "起始姿势", desc: "双脚与肩同宽，膝盖微屈，臀部向后坐，上半身前倾45度，背部挺直，双手持哑铃自然下垂，掌心相对。", key: "腰背挺直、核心收紧" },
-              { name: "顶峰收缩", desc: "呼气发力将哑铃向腰部拉起，手肘贴紧身体两侧，感受背部收缩，顶峰停顿1秒。", key: "向后划、夹肩胛" },
-              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受背部拉伸，全程保持背部挺直。", key: "控制下放、不要甩动" }
-            ],
-            mistakes: ["错误：弯腰驼背 → 腰椎受伤风险", "错误：手肘外展 → 练不到背阔肌"],
-            tips: "想象把哑铃拉向裤腰带位置。Keep搜索：俯身哑铃划船。"
-          },
-          {
-            id: "lat_pulldown",
-            name: "俯身哑铃宽距划船",
-            target: "背阔肌（宽度）",
-            sets: 3,
-            reps: "12-15",
-            rest: "75秒",
-            beginnerWeight: "8kg/只",
-            advancedWeight: "16kg/只",
-            steps: [
-              { name: "起始姿势", desc: "同俯身划船姿势，握距加宽（哑铃距离略宽于肩），背部挺直。", key: "宽握、背挺直" },
-              { name: "顶峰收缩", desc: "呼气发力宽幅向后划，手肘向两侧打开，感受背阔肌宽度收缩，停顿1秒。", key: "肘向两侧、夹肩胛" },
-              { name: "还原位置", desc: "吸气缓慢还原，感受背部拉伸。", key: "离心控制" }
-            ],
-            mistakes: ["错误：耸肩 → 斜方肌代偿", "错误：弓背 → 腰受伤"],
-            tips: "宽距划船侧重背部宽度，重量略轻。Keep搜索：俯身哑铃宽距划船。"
-          },
-          {
-            id: "face_pull",
-            name: "俯身哑铃反向飞鸟",
-            target: "三角肌后束",
-            sets: 3,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "4kg/只",
-            advancedWeight: "8kg/只",
-            steps: [
-              { name: "起始姿势", desc: "俯身与地面约45度，背部挺直，双手持哑铃自然下垂，掌心相对。", key: "俯身45度、背挺直" },
-              { name: "顶峰收缩", desc: "呼气发力向两侧展开手臂至与肩同高，感受后束收缩，顶峰停顿1秒。", key: "展开、后束发力" },
-              { name: "还原位置", desc: "吸气缓慢下放，感受后束拉伸，控制节奏。", key: "离心控制" }
-            ],
-            mistakes: ["错误：耸肩 → 斜方肌上束代偿", "错误：甩动借力 → 练不到后束"],
-            tips: "想象展开翅膀，重量宁轻勿重。Keep搜索：俯身哑铃反向飞鸟。"
-          },
-          {
-            id: "bicep_curl",
-            name: "哑铃弯举",
-            target: "肱二头肌",
-            sets: 3,
-            reps: "10-12",
-            rest: "60秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "12kg/只",
-            steps: [
-              { name: "起始姿势", desc: "双脚与肩同宽站立，双手持哑铃自然下垂，掌心向前，大臂贴紧身体两侧，核心收紧。", key: "大臂固定、身体稳定" },
-              { name: "顶峰收缩", desc: "呼气发力向上弯举，感受二头肌收缩，举到最高点停顿1秒，充分挤压。", key: "顶峰挤压、不要借力" },
-              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受二头肌拉伸，全程大臂保持不动。", key: "离心控制、放到底" }
-            ],
-            mistakes: ["错误：身体前后晃动借力 → 训练效果差", "错误：下放不充分 → 肌肉拉伸不足"],
-            tips: "全程大臂夹紧身体，想象只有小臂在动。Keep搜索：哑铃弯举。"
-          },
-          {
-            id: "hammer_curl",
-            name: "哑铃锤式弯举",
-            target: "肱肌+肱桡肌",
-            sets: 3,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "12kg/只",
-            steps: [
-              { name: "起始姿势", desc: "站立双手持哑铃自然下垂，掌心相对（锤式握法），大臂贴紧身体，核心收紧。", key: "掌心相对、大臂固定" },
-              { name: "顶峰收缩", desc: "呼气发力向上弯举，感受肱肌和前臂收缩，举到最高点停顿1秒。", key: "顶峰挤压、不借力" },
-              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，全程大臂保持不动。", key: "离心控制、放到底" }
-            ],
-            mistakes: ["错误：身体晃动借力 → 效果差", "错误：手腕翻转 → 变成普通弯举"],
-            tips: "保持掌心相对像握锤子。Keep搜索：哑铃锤式弯举。"
-          }
-        ]
+      {
+        id: "incline_dumbbell_press",
+        name: "哑铃上斜卧推",
+        target: "胸大肌上束",
+        sets: 4,
+        reps: "12",
+        rest: "75秒",
+        beginnerWeight: "8kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "哑铃凳调至30-45度上斜，肩胛骨后缩下沉贴紧靠背，双手持哑铃于胸上方，掌心朝前。", key: "凳30-45度、肩胛贴背" },
+          { name: "顶峰收缩", desc: "呼气发力将哑铃推向上胸上方，轨迹略向内收，停顿1秒。", key: "推向上胸、向内收" },
+          { name: "还原位置", desc: "吸气控制下放，手肘呈90度，感受上胸拉伸。", key: "控制下放、肩胛固定" }
+        ],
+        mistakes: ["错误：凳角太大 → 变成推举", "错误：腰部悬空弓起 → 腰椎压力大"],
+        tips: "凳角30-45度，想象上胸推天花板。谭师本人也做此动作。Keep搜索：哑铃上斜卧推。"
       },
-      legs: {
-        name: "腿日",
-        muscles: "股四头肌、臀腿、腘绳肌",
-        calories: 450,
-        exercises: [
-          {
-            id: "back_squat",
-            name: "哑铃深蹲",
-            target: "股四头肌+臀大肌",
-            sets: 4,
-            reps: "10-15",
-            rest: "120秒",
-            beginnerWeight: "10kg/只",
-            advancedWeight: "20kg/只",
-            steps: [
-              { name: "起始姿势", desc: "双脚与肩同宽，脚尖微外展，双手持哑铃垂于体侧（或高脚杯抱于胸前），核心收紧，腰背挺直。", key: "核心收紧、腰背挺直" },
-              { name: "下蹲位置", desc: "吸气屈膝屈髋下蹲，膝盖跟随脚尖方向，蹲至大腿平行地面，重心保持在足中。", key: "膝盖追脚尖、蹲到平行" },
-              { name: "站起还原", desc: "呼气发力蹬地站起，感受腿部和臀部发力，回到起始位置。", key: "蹬地发力、核心稳住" }
-            ],
-            mistakes: ["错误：膝盖内扣 → 膝关节受伤风险", "错误：弯腰驼背 → 腰椎压力大"],
-            tips: "下蹲想象坐椅子，站起想象蹬穿地面。Keep搜索：哑铃深蹲。"
-          },
-          {
-            id: "romanian_deadlift",
-            name: "哑铃罗马尼亚硬拉",
-            target: "腘绳肌+臀大肌",
-            sets: 3,
-            reps: "10-12",
-            rest: "90秒",
-            beginnerWeight: "10kg/只",
-            advancedWeight: "20kg/只",
-            steps: [
-              { name: "起始姿势", desc: "双脚与肩同宽，双手持哑铃于大腿前侧，核心收紧，腰背挺直，膝盖微屈。", key: "腰背挺直、膝盖微屈固定" },
-              { name: "下放位置", desc: "吸气髋部向后移，哑铃沿大腿前侧缓慢下放，感受腘绳肌拉伸，下放到小腿中部即可。", key: "屈髋不屈膝、背挺直" },
-              { name: "站起还原", desc: "呼气发力伸髋拉起，感受臀部和腘绳肌收缩，回到起始位置，顶峰夹臀。", key: "伸髋发力、顶峰夹臀" }
-            ],
-            mistakes: ["错误：弯腰 → 腰椎受伤风险", "错误：膝盖弯曲过多 → 变成深蹲"],
-            tips: "想象身后有墙，用屁股去碰墙。Keep搜索：哑铃罗马尼亚硬拉。"
-          },
-          {
-            id: "leg_press",
-            name: "哑铃保加利亚分腿蹲",
-            target: "股四头肌+臀大肌",
-            sets: 3,
-            reps: "10-12/侧",
-            rest: "90秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "14kg/只",
-            steps: [
-              { name: "起始姿势", desc: "背对哑铃凳，前脚距凳约一步，后脚脚背搭在凳面上，双手持哑铃垂于体侧，核心收紧。", key: "后脚搭凳、身体直立" },
-              { name: "下蹲位置", desc: "吸气垂直下蹲，前腿下蹲至大腿与地面平行或略低，前膝不超过脚尖，躯干保持直立。", key: "垂直下蹲、前膝不过脚尖" },
-              { name: "蹬起还原", desc: "呼气前脚蹬地站起，回到起始位置，完成一侧再换边。", key: "前脚发力、控制平衡" }
-            ],
-            mistakes: ["错误：前膝内扣 → 膝关节压力大", "错误：身体前倾弯腰 → 腰部代偿"],
-            tips: "单腿稳定性要求高，重心放前脚中后部，可扶墙保持平衡。Keep搜索：保加利亚分腿蹲。"
-          },
-          {
-            id: "leg_extension",
-            name: "哑铃相扑深蹲",
-            target: "大腿内侧+臀大肌",
-            sets: 3,
-            reps: "12-15",
-            rest: "75秒",
-            beginnerWeight: "8kg/只",
-            advancedWeight: "16kg/只",
-            steps: [
-              { name: "起始姿势", desc: "双脚宽于肩（约1.5倍），脚尖外展45度，双手持一只哑铃垂于体前（或抱于胸前）。", key: "宽站距、脚尖外展" },
-              { name: "下蹲位置", desc: "吸气沿脚尖方向下蹲，大腿与地面平行，感受大腿内侧拉伸，背部挺直。", key: "膝盖跟脚尖、背挺直" },
-              { name: "站起还原", desc: "呼气发力站起，感受大腿内侧和臀部收缩。", key: "内侧发力、夹臀" }
-            ],
-            mistakes: ["错误：膝盖内扣 → 膝关节压力大", "错误：脚后跟离地 → 重心前移"],
-            tips: "宽站距刺激大腿内侧，保持全脚掌着地。Keep搜索：哑铃相扑深蹲。"
-          },
-          {
-            id: "hip_thrust",
-            name: "哑铃臀桥",
-            target: "臀大肌",
-            sets: 3,
-            reps: "12-15",
-            rest: "60秒",
-            beginnerWeight: "自重",
-            advancedWeight: "哑铃20kg",
-            steps: [
-              { name: "起始姿势", desc: "仰卧，肩胛骨靠在凳沿/床沿，哑铃置于髋部，双脚踩地与肩同宽，下巴微收。", key: "肩胛靠凳、核心收紧" },
-              { name: "顶峰收缩", desc: "呼气发力顶起髋部，直到躯干与大腿成一条直线，顶峰夹臀停顿2秒。", key: "顶峰夹臀、不塌腰" },
-              { name: "还原位置", desc: "吸气缓慢下放，回到起始位置，感受臀部拉伸。", key: "离心控制、臀部主导" }
-            ],
-            mistakes: ["错误：腰部代偿塌腰 → 腰椎压力大", "错误：顶得不够高 → 臀部刺激不足"],
-            tips: "想象用臀部夹一张纸，顶峰停顿2秒。Keep搜索：臀桥（可加哑铃负重）。"
-          },
-          {
-            id: "calf_raise",
-            name: "站姿小哑铃提踵",
-            target: "小腿三头肌",
-            sets: 3,
-            reps: "15-20",
-            rest: "45秒",
-            beginnerWeight: "6kg/只",
-            advancedWeight: "14kg/只",
-            steps: [
-              { name: "起始姿势", desc: "自然站立，挺胸收腹，双手持哑铃垂于体侧，前脚掌踩在台阶/书本边缘，脚跟悬空。", key: "身体直立、核心稳定" },
-              { name: "顶峰收缩", desc: "呼气发力踮起脚尖至最高处，感受小腿收缩，停顿1秒。", key: "踮到最高、顶峰挤压" },
-              { name: "还原位置", desc: "吸气缓慢下放脚跟，低于台阶平面，感受小腿拉伸。", key: "下放到底、充分拉伸" }
-            ],
-            mistakes: ["错误：身体晃动借力 → 训练效果差", "错误：幅度太小 → 刺激不充分"],
-            tips: "下放慢、踮起快。Keep搜索：站姿小哑铃提踵。"
-          }
-        ]
+      {
+        id: "fly_dumbbell",
+        name: "哑铃平地飞鸟",
+        target: "胸大肌（中缝）",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "12kg/只",
+        steps: [
+          { name: "起始姿势", desc: "平躺瑜伽垫，双手持哑铃于胸部上方，掌心相对，手肘微屈固定。", key: "手肘微屈锁死" },
+          { name: "顶峰收缩", desc: "呼气发力沿弧线向中间夹拢，感受胸肌中缝收缩。", key: "环抱式夹胸" },
+          { name: "还原位置", desc: "吸气沿弧线缓慢打开，感受胸肌拉伸。", key: "控制下放、不过低" }
+        ],
+        mistakes: ["错误：手肘弯曲变化 → 变成卧推", "错误：下放过低 → 肩关节拉伤"],
+        tips: "想象环抱大树，全程手肘角度不变。Keep搜索：哑铃平地飞鸟。"
+      },
+      {
+        id: "shoulder_press",
+        name: "坐姿哑铃推举",
+        target: "三角肌前中束",
+        sets: 4,
+        reps: "12",
+        rest: "75秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "14kg/只",
+        steps: [
+          { name: "起始姿势", desc: "哑铃凳调至90度直立，背部完全贴紧靠背，双手持哑铃于肩部两侧，掌心朝前。", key: "背部贴靠背、核心收紧" },
+          { name: "顶峰收缩", desc: "呼气发力向上推举，哑铃在头顶上方接近靠拢，停顿1秒。", key: "向上推、不挺腰" },
+          { name: "还原位置", desc: "吸气控制下放回到肩部两侧。", key: "控制下放、不砸肩" }
+        ],
+        mistakes: ["错误：挺腰 → 腰椎压力大", "错误：耸肩 → 斜方肌代偿"],
+        tips: "坐姿更稳、背部贴死靠背。Keep搜索：坐姿哑铃推举。"
+      },
+      {
+        id: "lateral_raise",
+        name: "哑铃侧平举",
+        target: "三角肌中束",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "4kg/只",
+        advancedWeight: "10kg/只",
+        steps: [
+          { name: "起始姿势", desc: "站立双脚与肩同宽，双手持哑铃于体侧，肘微屈。", key: "沉肩、核心收紧" },
+          { name: "顶峰收缩", desc: "呼气抬肘向两侧平举至大臂与地面平行，停顿1秒。", key: "抬肘不抬手" },
+          { name: "还原位置", desc: "吸气缓慢下放，不完全卸力。", key: "控制下放" }
+        ],
+        mistakes: ["错误：耸肩 → 斜方肌代偿", "错误：用惯性甩起"],
+        tips: "重量宁轻勿重，抬肘不抬手。Keep搜索：哑铃侧平举。"
+      },
+      {
+        id: "triceps_extension",
+        name: "俯身哑铃臂屈伸",
+        target: "肱三头肌",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "5kg",
+        advancedWeight: "12kg",
+        steps: [
+          { name: "起始姿势", desc: "俯身单膝跪凳，背部挺直，大臂贴紧体侧，小臂自然下垂持哑铃。", key: "大臂固定不动" },
+          { name: "顶峰收缩", desc: "呼气向后伸直手臂，三头收缩，停顿1秒。", key: "只动小臂" },
+          { name: "还原位置", desc: "吸气缓慢还原，大臂始终贴紧。", key: "控制还原" }
+        ],
+        mistakes: ["错误：大臂晃动 → 借力", "错误：弓背"],
+        tips: "动作幅度小，专注三头收缩。Keep搜索：俯身哑铃臂屈伸。"
       }
-    };
+    ]
+  },
+  pull: {
+    name: "拉日",
+    muscles: "背、肩后束、二头",
+    calories: 400,
+    exercises: [
+      {
+        id: "lunge_row",
+        name: "弓步单臂划船",
+        target: "背阔肌",
+        sets: 4,
+        reps: "12/边",
+        rest: "75秒",
+        beginnerWeight: "8kg",
+        advancedWeight: "16kg",
+        steps: [
+          { name: "起始姿势", desc: "弓步站立，同侧手扶凳，背部挺直，另一手持哑铃自然下垂。", key: "背部平直、核心收紧" },
+          { name: "顶峰收缩", desc: "呼气将哑铃拉向髋部，感受背阔肌收缩，停顿1秒。", key: "拉向髋部" },
+          { name: "还原位置", desc: "吸气控制下放，充分拉伸背部。", key: "控制下放" }
+        ],
+        mistakes: ["错误：身体晃动 → 借力", "错误：耸肩"],
+        tips: "拉向髋部而非胸口，专注背部。Keep搜索：弓步单臂划船。"
+      },
+      {
+        id: "bent_row",
+        name: "俯身哑铃划船",
+        target: "背阔肌、菱形肌",
+        sets: 4,
+        reps: "12",
+        rest: "75秒",
+        beginnerWeight: "10kg/只",
+        advancedWeight: "20kg/只",
+        steps: [
+          { name: "起始姿势", desc: "双脚与肩同宽，屈髋俯身至躯干接近平行地面，双手持哑铃下垂。", key: "髋铰链、背部平直" },
+          { name: "顶峰收缩", desc: "呼气将哑铃拉向腹部两侧，肩胛骨后缩，停顿1秒。", key: "拉向腹部、夹背" },
+          { name: "还原位置", desc: "吸气控制下放，感受背部拉伸。", key: "控制下放" }
+        ],
+        mistakes: ["错误：弓背 → 腰部受伤", "错误：用惯性甩起"],
+        tips: "俯身角度约45度，拉向腹部两侧。Keep搜索：俯身哑铃划船。"
+      },
+      {
+        id: "wide_row",
+        name: "俯身哑铃宽距划船",
+        target: "上背、三角肌后束",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "8kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "俯身45度，双手持哑铃，握距较宽（大于肩宽）。", key: "宽握距" },
+          { name: "顶峰收缩", desc: "呼气将哑铃向两侧肋骨方向拉起，肘部向外打开，感受上背收缩。", key: "肘向外打开" },
+          { name: "还原位置", desc: "吸气控制下放。", key: "控制下放" }
+        ],
+        mistakes: ["错误：耸肩", "错误：用手臂发力"],
+        tips: "肘部向外打开拉向两侧，练上背厚度。Keep搜索：俯身哑铃宽距划船。"
+      },
+      {
+        id: "reverse_fly",
+        name: "俯身哑铃反向飞鸟",
+        target: "三角肌后束、上背",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "4kg/只",
+        advancedWeight: "10kg/只",
+        steps: [
+          { name: "起始姿势", desc: "俯身接近平行地面，双手持哑铃下垂，掌心相对。", key: "背部平直" },
+          { name: "顶峰收缩", desc: "呼气向两侧打开手臂至与地面平行，感受后束收缩，停顿1秒。", key: "向后打开" },
+          { name: "还原位置", desc: "吸气缓慢还原。", key: "控制还原" }
+        ],
+        mistakes: ["错误：耸肩", "错误：用背部猛甩"],
+        tips: "重量轻，动作慢，专注后束。Keep搜索：俯身哑铃反向飞鸟。"
+      },
+      {
+        id: "bicep_curl",
+        name: "哑铃弯举",
+        target: "肱二头肌",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "14kg/只",
+        steps: [
+          { name: "起始姿势", desc: "站立双手持哑铃于体侧，掌心朝前，大臂贴紧体侧。", key: "大臂固定" },
+          { name: "顶峰收缩", desc: "呼气弯举哑铃至肩前，二头收缩，停顿1秒。", key: "顶峰挤压" },
+          { name: "还原位置", desc: "吸气缓慢下放至手臂接近伸直。", key: "控制下放" }
+        ],
+        mistakes: ["错误：身体后仰借力", "错误：大臂离开体侧"],
+        tips: "可以交替做，专注收缩。Keep搜索：哑铃弯举。"
+      },
+      {
+        id: "hammer_curl",
+        name: "哑铃锤式弯举",
+        target: "肱肌、肱桡肌",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "14kg/只",
+        steps: [
+          { name: "起始姿势", desc: "站立双手持哑铃于体侧，掌心相对（锤式握法）。", key: "掌心相对" },
+          { name: "顶峰收缩", desc: "呼气弯举哑铃，感受前臂与二头外侧收缩，停顿1秒。", key: "锤式弯举" },
+          { name: "还原位置", desc: "吸气缓慢下放。", key: "控制下放" }
+        ],
+        mistakes: ["错误：身体晃动借力"],
+        tips: "练手臂围度与握力。Keep搜索：哑铃锤式弯举。"
+      }
+    ]
+  },
+  legs: {
+    name: "腿日",
+    muscles: "股四头、腘绳、臀",
+    calories: 450,
+    exercises: [
+      {
+        id: "dumbbell_squat",
+        name: "哑铃深蹲",
+        target: "股四头肌、臀大肌",
+        sets: 4,
+        reps: "15",
+        rest: "90秒",
+        beginnerWeight: "10kg/只",
+        advancedWeight: "24kg/只",
+        steps: [
+          { name: "起始姿势", desc: "双脚与肩同宽，双手持哑铃于体侧或肩前，核心收紧。", key: "核心收紧、脚踩实" },
+          { name: "下蹲", desc: "吸气屈髋屈膝下蹲至大腿平行地面或略低，膝盖与脚尖同向。", key: "蹲至平行" },
+          { name: "起身", desc: "呼气发力站起，臀腿同时发力，顶部不要锁定过猛。", key: "臀腿发力" }
+        ],
+        mistakes: ["错误：膝盖内扣", "错误：重心前倾"],
+        tips: "慢下快起，膝盖与脚尖同向。Keep搜索：哑铃深蹲。"
+      },
+      {
+        id: "romanian_deadlift",
+        name: "哑铃罗马尼亚硬拉",
+        target: "腘绳肌、臀大肌",
+        sets: 4,
+        reps: "12",
+        rest: "90秒",
+        beginnerWeight: "10kg/只",
+        advancedWeight: "20kg/只",
+        steps: [
+          { name: "起始姿势", desc: "站立双手持哑铃于大腿前，膝盖微屈，背部平直。", key: "背部平直" },
+          { name: "俯身", desc: "吸气以髋为轴向后推臀，哑铃沿腿部下放至小腿中部，感受腘绳肌拉伸。", key: "髋铰链、腘绳拉伸" },
+          { name: "起身", desc: "呼气臀部发力站直，收紧臀肌。", key: "臀发力" }
+        ],
+        mistakes: ["错误：弓背", "错误：膝盖过度弯曲变成深蹲"],
+        tips: "想象用臀部去关车门。Keep搜索：哑铃罗马尼亚硬拉。"
+      },
+      {
+        id: "bulgarian_split_squat",
+        name: "哑铃保加利亚分腿蹲",
+        target: "臀大肌、股四头肌",
+        sets: 4,
+        reps: "12/边",
+        rest: "75秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "背对哑铃凳，后脚脚背搭在凳上，前脚向前一步站稳，双手持哑铃于体侧。", key: "后脚搭凳、前脚踩实" },
+          { name: "下蹲", desc: "吸气垂直下蹲，前腿膝盖与脚尖同向，后膝接近地面。", key: "垂直下蹲" },
+          { name: "起身", desc: "呼气前脚发力站起，主要刺激臀部。", key: "前脚发力" }
+        ],
+        mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
+        tips: "练臀利器，重心放在前脚。Keep搜索：哑铃保加利亚分腿蹲。"
+      },
+      {
+        id: "sumo_squat",
+        name: "哑铃相扑深蹲",
+        target: "大腿内侧、臀大肌",
+        sets: 3,
+        reps: "15",
+        rest: "75秒",
+        beginnerWeight: "10kg",
+        advancedWeight: "24kg",
+        steps: [
+          { name: "起始姿势", desc: "宽站位（1.5倍肩宽），脚尖外展约45度，双手持一只哑铃于体前。", key: "宽站位、脚尖外展" },
+          { name: "下蹲", desc: "吸气沿大腿方向下蹲至大腿平行地面，膝盖与脚尖同向。", key: "膝盖向外" },
+          { name: "起身", desc: "呼气大腿内侧与臀部发力站起。", key: "内收发力" }
+        ],
+        mistakes: ["错误：膝盖内扣", "错误：重心前倾"],
+        tips: "练大腿内侧线条。Keep搜索：哑铃相扑深蹲。"
+      },
+      {
+        id: "glute_bridge",
+        name: "哑铃臀桥",
+        target: "臀大肌",
+        sets: 3,
+        reps: "15",
+        rest: "60秒",
+        beginnerWeight: "10kg",
+        advancedWeight: "24kg",
+        steps: [
+          { name: "起始姿势", desc: "仰卧屈膝，双脚踩实，将哑铃放在髋部上方，双手扶住。", key: "髋部放铃" },
+          { name: "顶峰收缩", desc: "呼气臀部发力向上顶起，躯干与大腿呈一条直线，顶部停顿2秒。", key: "顶髋、停2秒" },
+          { name: "还原位置", desc: "吸气缓慢下放，不落地。", key: "控制下放" }
+        ],
+        mistakes: ["错误：用腰代偿", "错误：顶部不足"],
+        tips: "顶部用力夹臀停顿。Keep搜索：哑铃臀桥。"
+      },
+      {
+        id: "calf_raise",
+        name: "站姿小哑铃提踵",
+        target: "小腿三头肌",
+        sets: 3,
+        reps: "20",
+        rest: "45秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "站立双手持哑铃于体侧，前脚掌踩实地面。", key: "前掌踩实" },
+          { name: "顶峰收缩", desc: "呼气踮起脚尖至最高点，停顿1秒。", key: "踮到最高" },
+          { name: "还原位置", desc: "吸气缓慢下放，充分拉伸小腿。", key: "充分拉伸" }
+        ],
+        mistakes: ["错误：快速弹动"],
+        tips: "慢起慢落，练小腿线条。Keep搜索：站姿小哑铃提踵。"
+      }
+    ]
+  },
+  abs: {
+    name: "腹肌日",
+    muscles: "腹直肌、腹斜肌、核心",
+    calories: 250,
+    exercises: [
+      {
+        id: "crunch",
+        name: "卷腹",
+        target: "腹直肌上段",
+        sets: 3,
+        reps: "20",
+        rest: "45秒",
+        beginnerWeight: "自重",
+        advancedWeight: "负重",
+        steps: [
+          { name: "起始姿势", desc: "仰卧屈膝，双手放耳侧，下巴微收。", key: "下巴微收" },
+          { name: "卷起", desc: "呼气用腹部力量卷起肩胛骨离地，下背不离地，停顿1秒。", key: "卷起非坐起" },
+          { name: "还原位置", desc: "吸气缓慢还原。", key: "控制还原" }
+        ],
+        mistakes: ["错误：用手拉头", "错误：完全坐起"],
+        tips: "卷起时呼气收紧腹部。Keep搜索：卷腹。"
+      },
+      {
+        id: "leg_raise",
+        name: "仰卧举腿",
+        target: "腹直肌下段",
+        sets: 3,
+        reps: "15",
+        rest: "45秒",
+        beginnerWeight: "屈膝",
+        advancedWeight: "直腿",
+        steps: [
+          { name: "起始姿势", desc: "仰卧双手放体侧，双腿伸直并拢。", key: "下背贴地" },
+          { name: "举腿", desc: "呼气双腿抬起至垂直地面，感受下腹收缩。", key: "下腹发力" },
+          { name: "还原位置", desc: "吸气缓慢下放，不触地。", key: "不触地" }
+        ],
+        mistakes: ["错误：用惯性甩腿", "错误：腰部拱起"],
+        tips: "下放慢一点，下腹更有感。Keep搜索：仰卧举腿。"
+      },
+      {
+        id: "russian_twist",
+        name: "俄罗斯转体",
+        target: "腹斜肌",
+        sets: 3,
+        reps: "20",
+        rest: "45秒",
+        beginnerWeight: "自重",
+        advancedWeight: "负重",
+        steps: [
+          { name: "起始姿势", desc: "坐姿屈膝，上身后仰约45度，双手交握于胸前。", key: "背部挺直" },
+          { name: "转体", desc: "呼气向左右交替转体，感受腹斜肌收缩。", key: "转体不转腰" },
+          { name: "还原位置", desc: "控制节奏交替进行。", key: "稳定节奏" }
+        ],
+        mistakes: ["错误：耸肩含胸"],
+        tips: "核心全程收紧。Keep搜索：俄罗斯转体。"
+      },
+      {
+        id: "plank",
+        name: "平板支撑",
+        target: "核心稳定",
+        sets: 3,
+        reps: "45秒",
+        rest: "45秒",
+        beginnerWeight: "45秒",
+        advancedWeight: "90秒",
+        steps: [
+          { name: "起始姿势", desc: "俯卧肘撑，肘在肩正下方，身体呈一条直线。", key: "身体直线" },
+          { name: "保持", desc: "收紧腹部与臀部，保持呼吸，不塌腰不撅臀。", key: "不塌腰" },
+          { name: "结束", desc: "时间到缓慢放膝休息。", key: "平稳结束" }
+        ],
+        mistakes: ["错误：塌腰", "错误：憋气"],
+        tips: "臀腹同时收紧。Keep搜索：平板支撑。"
+      },
+      {
+        id: "mountain_climber",
+        name: "登山跑",
+        target: "下腹、心肺",
+        sets: 3,
+        reps: "30秒",
+        rest: "45秒",
+        beginnerWeight: "慢速",
+        advancedWeight: "快速",
+        steps: [
+          { name: "起始姿势", desc: "俯卧撑姿势，双手撑地，身体呈直线。", key: "手在肩下" },
+          { name: "交替提膝", desc: "快速交替将膝盖提向胸口，保持核心稳定。", key: "核心稳定" },
+          { name: "结束", desc: "30秒后放松。", key: "控制节奏" }
+        ],
+        mistakes: ["错误：臀部抬高"],
+        tips: "下腹+燃脂一箭双雕。Keep搜索：登山跑。"
+      },
+      {
+        id: "dead_bug",
+        name: "死虫式",
+        target: "深层核心",
+        sets: 3,
+        reps: "12/边",
+        rest: "45秒",
+        beginnerWeight: "屈膝",
+        advancedWeight: "直腿",
+        steps: [
+          { name: "起始姿势", desc: "仰卧，双臂举向天花板，双腿屈膝抬起呈90度。", key: "下背贴地" },
+          { name: "交替伸展", desc: "呼气对侧手脚同时缓慢下放，吸气还原，交替进行。", key: "下背不离地" },
+          { name: "结束", desc: "缓慢完成交替。", key: "慢速控制" }
+        ],
+        mistakes: ["错误：腰部拱起"],
+        tips: "全程下背贴地，练深层稳定。Keep搜索：死虫式。"
+      }
+    ]
+  }
+};
 
 const DEFAULT_MEAL_LIBRARY = {
       breakfast_standard: {
@@ -884,28 +1021,36 @@ const DEFAULT_INGREDIENT_PRICES = {
     };
     
     // ===== Keep 动作对照表：每动作预计消耗(kcal/10分钟)/器械/Keep自定义训练里的动作名 =====
-    const EXERCISE_META = {
-      bench_press: { kcal: 52, equip: "哑铃+瑜伽垫", keep: "哑铃平地卧推" },
-      incline_dumbbell_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "哑铃上斜卧推" },
-      fly_dumbbell: { kcal: 40, equip: "哑铃+瑜伽垫", keep: "哑铃平地飞鸟" },
-      shoulder_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "坐姿哑铃推举" },
-      lateral_raise: { kcal: 34, equip: "哑铃", keep: "哑铃侧平举" },
-      tricep_pushdown: { kcal: 36, equip: "哑铃", keep: "俯身哑铃臂屈伸" },
-      pull_up: { kcal: 44, equip: "哑铃", keep: "弓步单臂划船" },
-      bent_over_row: { kcal: 42, equip: "哑铃", keep: "俯身哑铃划船" },
-      lat_pulldown: { kcal: 38, equip: "哑铃", keep: "俯身哑铃宽距划船" },
-      face_pull: { kcal: 34, equip: "哑铃", keep: "俯身哑铃反向飞鸟" },
-      bicep_curl: { kcal: 32, equip: "哑铃", keep: "哑铃弯举" },
-      hammer_curl: { kcal: 30, equip: "哑铃", keep: "哑铃锤式弯举" },
-      back_squat: { kcal: 58, equip: "哑铃", keep: "哑铃深蹲" },
-      romanian_deadlift: { kcal: 52, equip: "哑铃", keep: "哑铃罗马尼亚硬拉" },
-      leg_press: { kcal: 50, equip: "哑铃凳+哑铃", keep: "保加利亚分腿蹲" },
-      leg_extension: { kcal: 42, equip: "哑铃", keep: "哑铃相扑深蹲" },
-      hip_thrust: { kcal: 38, equip: "哑铃/自重", keep: "臀桥" },
-      calf_raise: { kcal: 28, equip: "哑铃+台阶", keep: "站姿小哑铃提踵" }
-    };
+
+const EXERCISE_META = {
+  bench_press: { kcal: 45, equip: "哑铃", keep: "哑铃平地卧推" },
+  incline_dumbbell_press: { kcal: 45, equip: "哑铃+凳", keep: "哑铃上斜卧推" },
+  fly_dumbbell: { kcal: 35, equip: "哑铃", keep: "哑铃平地飞鸟" },
+  shoulder_press: { kcal: 40, equip: "哑铃+凳", keep: "坐姿哑铃推举" },
+  lateral_raise: { kcal: 30, equip: "哑铃", keep: "哑铃侧平举" },
+  triceps_extension: { kcal: 30, equip: "哑铃", keep: "俯身哑铃臂屈伸" },
+  lunge_row: { kcal: 40, equip: "哑铃", keep: "弓步单臂划船" },
+  bent_row: { kcal: 40, equip: "哑铃", keep: "俯身哑铃划船" },
+  wide_row: { kcal: 35, equip: "哑铃", keep: "俯身哑铃宽距划船" },
+  reverse_fly: { kcal: 30, equip: "哑铃", keep: "俯身哑铃反向飞鸟" },
+  bicep_curl: { kcal: 25, equip: "哑铃", keep: "哑铃弯举" },
+  hammer_curl: { kcal: 25, equip: "哑铃", keep: "哑铃锤式弯举" },
+  dumbbell_squat: { kcal: 45, equip: "哑铃", keep: "哑铃深蹲" },
+  romanian_deadlift: { kcal: 45, equip: "哑铃", keep: "哑铃罗马尼亚硬拉" },
+  bulgarian_split_squat: { kcal: 50, equip: "哑铃+凳", keep: "哑铃保加利亚分腿蹲" },
+  sumo_squat: { kcal: 40, equip: "哑铃", keep: "哑铃相扑深蹲" },
+  glute_bridge: { kcal: 30, equip: "哑铃", keep: "哑铃臀桥" },
+  calf_raise: { kcal: 20, equip: "哑铃", keep: "站姿小哑铃提踵" },
+  crunch: { kcal: 25, equip: "自重", keep: "卷腹" },
+  leg_raise: { kcal: 25, equip: "自重", keep: "仰卧举腿" },
+  russian_twist: { kcal: 30, equip: "自重", keep: "俄罗斯转体" },
+  plank: { kcal: 20, equip: "自重", keep: "平板支撑" },
+  mountain_climber: { kcal: 40, equip: "自重", keep: "登山跑" },
+  dead_bug: { kcal: 15, equip: "自重", keep: "死虫式" }
+};
+
+let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     // 每次启动同步默认动作库到运行时库：移除废弃器械动作、同名覆盖关键字段、补充缺失动作
-    // （云端旧动作库.json 来自旧版本时也会被本函数修正，保证动作名与 Keep 一致、器械只用哑铃/杠铃）
     function syncDefaultTraining() {
       const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old'];
       Object.values(TRAINING_LIBRARY).forEach(t => {
@@ -925,9 +1070,6 @@ const DEFAULT_INGREDIENT_PRICES = {
         });
       });
     }
-    
-    // 运行时知识库
-    let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     syncDefaultTraining();
     let MEAL_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_MEAL_LIBRARY));
     let INGREDIENT_PRICES = JSON.parse(JSON.stringify(DEFAULT_INGREDIENT_PRICES));
@@ -941,15 +1083,18 @@ const DEFAULT_INGREDIENT_PRICES = {
     // ========== 默认数据结构 ==========
     const DEFAULT_DATA = {
       dataVersion: DATA_VERSION,
+      phase: "薄肌",           // 目标阶段：薄肌（减脂保肌·线条优先）
       profile: { 
         gender: "男", 
-        weight: 70, 
-        bodyFat: 20, 
-        targetWeight: 65, 
+        weight: 66, 
+        bodyFat: 20.2, 
+        targetWeight: 62, 
         targetBodyFat: 15, 
-        bmr: 1700, 
+        bmr: 1462, 
         proteinCoefficient: 1.8, 
-        calorieDeficit: 500 
+        calorieDeficit: 300,   // 谭师温和缺口 200-300
+        weekHours: "6-7",      // 每周运动时长档位：2-3 / 4-5 / 6-7 / 8-9
+        trainingDays: ["周一","周二","周三","周五","周六","周日"]
       },
       bodyRecords: [],
       sleepRecords: [],
@@ -961,6 +1106,9 @@ const DEFAULT_INGREDIENT_PRICES = {
       purchaseRecords: [],
       billRecords: [],
       mealPlans: {},
+      // v2 周循环配餐
+      weeklyPlan: null,        // { weekStart, days:{周一:{dayType,meals:{breakfast,lunch,dinner}}}, targets, generatedAt }
+      weekReview: { history: [], lastReviewedWeek: null },  // 周复盘历史
       settings: {
         apiUrl: "",
         apiKey: "",
@@ -1013,12 +1161,29 @@ const DEFAULT_INGREDIENT_PRICES = {
         if (!data.settings.gistId) data.settings.gistId = "";
         data.dataVersion = 6;
       }
+      if (data.dataVersion < 7) {
+        // v2.0：周循环配餐 + 薄肌阶段 + 食材营养库
+        if (!data.phase) data.phase = "薄肌";
+        if (!data.profile.weekHours) data.profile.weekHours = "6-7";
+        if (!data.profile.calorieDeficit) data.profile.calorieDeficit = 300;
+        if (!data.profile.trainingDays) data.profile.trainingDays = ["周一","周二","周三","周五","周六","周日"];
+        if (!data.weeklyPlan) data.weeklyPlan = null;
+        if (!data.weekReview) data.weekReview = { history: [], lastReviewedWeek: null };
+        data.dataVersion = 7;
+      }
       return data;
     }
     
     function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
     function loadData() {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      let saved = localStorage.getItem(STORAGE_KEY);
+      // v2 升级迁移：新 key 无数据时，从旧版本 key 读取并迁移（保留用户历史）
+      if (!saved) {
+        for (const oldKey of OLD_STORAGE_KEYS) {
+          const old = localStorage.getItem(oldKey);
+          if (old) { saved = old; break; }
+        }
+      }
       if (saved) {
         try { appData = JSON.parse(saved); appData = migrateData(appData); }
         catch (e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
@@ -1342,35 +1507,256 @@ const DEFAULT_INGREDIENT_PRICES = {
     }
     
     function calculateDailyIntake(date) {
-      const record = appData.foodRecords[date];
-      if (!record) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
       let total = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-      ["breakfast", "lunch", "dinner", "snacks"].forEach(type => {
-        record[type].forEach(item => {
-          if (item.nutrition) {
-            total.calories += item.nutrition.calories || 0;
-            total.protein += item.nutrition.protein || 0;
-            total.carbs += item.nutrition.carbs || 0;
-            total.fat += item.nutrition.fat || 0;
-          }
+      const record = appData.foodRecords[date];
+      if (record) {
+        ["breakfast", "lunch", "dinner", "snacks"].forEach(type => {
+          (record[type] || []).forEach(item => {
+            if (item.nutrition) {
+              total.calories += item.nutrition.calories || 0;
+              total.protein += item.nutrition.protein || 0;
+              total.carbs += item.nutrition.carbs || 0;
+              total.fat += item.nutrition.fat || 0;
+            }
+          });
         });
-      });
+      }
+      // v2：mealRecords（餐食照片识别 + 计划打卡 + 手动记录）
+      const mRec = appData.mealRecords && appData.mealRecords[date];
+      if (mRec) {
+        mRec.forEach(r => {
+          total.calories += r.kcal || 0;
+          total.protein += r.protein || 0;
+          total.carbs += r.carbs || 0;
+          total.fat += r.fat || 0;
+        });
+      }
       return total;
     }
     
     // 谭师营养素系数表：按周训练时长（小时）返回每日碳水/蛋白/脂肪 g/kg 系数
-    function getTanshiMacros(weekHours) {
-      const w = appData.profile.weight || 70;
-      const g = appData.profile.gender === '女' ? 0.9 : 1;
-      let carbsK, proteinK, fatK;
-      if (weekHours <= 3) { carbsK = 2.2; proteinK = 1.4; fatK = 0.8; }
-      else if (weekHours <= 5) { carbsK = 2.5; proteinK = 1.6; fatK = 0.9; }
-      else if (weekHours <= 7) { carbsK = 3.0; proteinK = 1.7; fatK = 1.0; }
-      else { carbsK = 3.5; proteinK = 1.8; fatK = 1.0; }
-      if (g < 1) { carbsK = Math.round(carbsK * 0.9 * 10) / 10; fatK = Math.round((fatK + 0.15) * 10) / 10; }
-      return { carbs: Math.round(w * carbsK), protein: Math.round(w * proteinK), fat: Math.round(w * fatK), carbsK, proteinK, fatK };
+        // ========== v2.0 谭师周循环配餐引擎 ==========
+    // 食材营养库（每100g）：默认库 + 用户商品库自动并入
+    const DEFAULT_INGREDIENT_LIBRARY = {
+      // 碳水主食
+      "燕麦": { category: "碳水主食", kcalPer100: 377, proteinPer100: 13.7, carbsPer100: 66.9, fatPer100: 7.0, price: 10, unit: "500g", storage: "常温" },
+      "糙米": { category: "碳水主食", kcalPer100: 348, proteinPer100: 7.7, carbsPer100: 75.0, fatPer100: 2.2, price: 12, unit: "500g", storage: "常温" },
+      "生米": { category: "碳水主食", kcalPer100: 346, proteinPer100: 7.4, carbsPer100: 77.2, fatPer100: 0.8, price: 8, unit: "500g", storage: "常温" },
+      "红薯": { category: "碳水主食", kcalPer100: 86, proteinPer100: 1.6, carbsPer100: 20.1, fatPer100: 0.1, price: 3, unit: "500g", storage: "阴凉" },
+      "紫薯": { category: "碳水主食", kcalPer100: 82, proteinPer100: 1.3, carbsPer100: 19.3, fatPer100: 0.1, price: 5, unit: "500g", storage: "阴凉" },
+      "土豆": { category: "碳水主食", kcalPer100: 77, proteinPer100: 2.0, carbsPer100: 17.2, fatPer100: 0.1, price: 3, unit: "500g", storage: "阴凉" },
+      "贝贝南瓜": { category: "碳水主食", kcalPer100: 93, proteinPer100: 1.8, carbsPer100: 21.0, fatPer100: 0.2, price: 5, unit: "500g", storage: "阴凉" },
+      "全麦面包": { category: "碳水主食", kcalPer100: 246, proteinPer100: 10.0, carbsPer100: 43.0, fatPer100: 3.5, price: 15, unit: "500g", storage: "常温" },
+      "玉米": { category: "碳水主食", kcalPer100: 112, proteinPer100: 4.0, carbsPer100: 22.8, fatPer100: 1.2, price: 6, unit: "500g", storage: "常温" },
+      "荞麦面": { category: "碳水主食", kcalPer100: 340, proteinPer100: 13.0, carbsPer100: 71.0, fatPer100: 2.0, price: 12, unit: "500g", storage: "常温" },
+      // 蛋白
+      "鸡胸肉": { category: "蛋白", kcalPer100: 118, proteinPer100: 24.6, carbsPer100: 0.6, fatPer100: 1.9, price: 24, unit: "500g", storage: "冷冻" },
+      "去皮鸡腿": { category: "蛋白", kcalPer100: 146, proteinPer100: 20.8, carbsPer100: 0, fatPer100: 7.2, price: 28, unit: "500g", storage: "冷冻" },
+      "瘦牛肉": { category: "蛋白", kcalPer100: 125, proteinPer100: 20.2, carbsPer100: 1.2, fatPer100: 4.2, price: 30, unit: "500g", storage: "冷冻" },
+      "龙利鱼": { category: "蛋白", kcalPer100: 88, proteinPer100: 18.4, carbsPer100: 0.4, fatPer100: 1.5, price: 22, unit: "500g", storage: "冷冻" },
+      "巴沙鱼": { category: "蛋白", kcalPer100: 90, proteinPer100: 15.0, carbsPer100: 0, fatPer100: 3.0, price: 20, unit: "500g", storage: "冷冻" },
+      "虾仁": { category: "蛋白", kcalPer100: 93, proteinPer100: 18.6, carbsPer100: 2.8, fatPer100: 0.8, price: 28, unit: "500g", storage: "冷冻" },
+      "三文鱼": { category: "蛋白", kcalPer100: 139, proteinPer100: 17.2, carbsPer100: 0, fatPer100: 7.8, price: 45, unit: "500g", storage: "冷冻" },
+      "鸡蛋": { category: "蛋白", kcalPer100: 144, proteinPer100: 13.3, carbsPer100: 2.8, fatPer100: 8.8, price: 8, unit: "500g", storage: "冷藏" },
+      "豆腐": { category: "蛋白", kcalPer100: 82, proteinPer100: 8.1, carbsPer100: 4.2, fatPer100: 3.7, price: 4, unit: "500g", storage: "冷藏" },
+      "牛奶": { category: "蛋白", kcalPer100: 54, proteinPer100: 3.0, carbsPer100: 3.4, fatPer100: 3.2, price: 12, unit: "1L", storage: "冷藏" },
+      "蛋白粉": { category: "蛋白", kcalPer100: 380, proteinPer100: 75.0, carbsPer100: 10.0, fatPer100: 5.0, price: 300, unit: "2kg", storage: "常温" },
+      // 蔬菜
+      "西兰花": { category: "蔬菜", kcalPer100: 34, proteinPer100: 4.1, carbsPer100: 4.3, fatPer100: 0.6, price: 8, unit: "500g", storage: "冷藏" },
+      "西芹": { category: "蔬菜", kcalPer100: 16, proteinPer100: 0.7, carbsPer100: 3.0, fatPer100: 0.2, price: 6, unit: "500g", storage: "冷藏" },
+      "菠菜": { category: "蔬菜", kcalPer100: 24, proteinPer100: 2.6, carbsPer100: 2.8, fatPer100: 0.3, price: 6, unit: "500g", storage: "冷藏" },
+      "羽衣甘蓝": { category: "蔬菜", kcalPer100: 35, proteinPer100: 2.9, carbsPer100: 6.0, fatPer100: 0.7, price: 10, unit: "500g", storage: "冷藏" },
+      "菇类": { category: "蔬菜", kcalPer100: 22, proteinPer100: 3.1, carbsPer100: 3.3, fatPer100: 0.3, price: 8, unit: "500g", storage: "冷藏" },
+      "青椒": { category: "蔬菜", kcalPer100: 22, proteinPer100: 1.0, carbsPer100: 5.4, fatPer100: 0.2, price: 5, unit: "500g", storage: "冷藏" },
+      "彩椒": { category: "蔬菜", kcalPer100: 26, proteinPer100: 1.0, carbsPer100: 6.0, fatPer100: 0.2, price: 6, unit: "500g", storage: "冷藏" },
+      "番茄": { category: "蔬菜", kcalPer100: 18, proteinPer100: 0.9, carbsPer100: 3.9, fatPer100: 0.2, price: 4, unit: "500g", storage: "常温" },
+      "洋葱": { category: "蔬菜", kcalPer100: 40, proteinPer100: 1.1, carbsPer100: 9.0, fatPer100: 0.1, price: 3, unit: "500g", storage: "常温" },
+      "黄瓜": { category: "蔬菜", kcalPer100: 15, proteinPer100: 0.8, carbsPer100: 2.9, fatPer100: 0.2, price: 4, unit: "500g", storage: "冷藏" },
+      "绿叶蔬菜": { category: "蔬菜", kcalPer100: 20, proteinPer100: 2.0, carbsPer100: 3.0, fatPer100: 0.3, price: 5, unit: "500g", storage: "冷藏" },
+      "混合蔬菜": { category: "蔬菜", kcalPer100: 30, proteinPer100: 2.0, carbsPer100: 5.0, fatPer100: 0.3, price: 10, unit: "500g", storage: "冷冻" },
+      // 脂肪
+      "橄榄油": { category: "脂肪", kcalPer100: 884, proteinPer100: 0, carbsPer100: 0, fatPer100: 100, price: 40, unit: "1L", storage: "常温" },
+      "烹调油": { category: "脂肪", kcalPer100: 884, proteinPer100: 0, carbsPer100: 0, fatPer100: 100, price: 20, unit: "500ml", storage: "常温" },
+      "混合坚果": { category: "脂肪", kcalPer100: 590, proteinPer100: 18.0, carbsPer100: 25.0, fatPer100: 50.0, price: 35, unit: "500g", storage: "常温" },
+      "南瓜籽": { category: "脂肪", kcalPer100: 559, proteinPer100: 30.0, carbsPer100: 10.0, fatPer100: 49.0, price: 15, unit: "500g", storage: "常温" },
+      "牛油果": { category: "脂肪", kcalPer100: 160, proteinPer100: 2.0, carbsPer100: 8.5, fatPer100: 14.7, price: 10, unit: "500g", storage: "冷藏" },
+      "花生酱": { category: "脂肪", kcalPer100: 588, proteinPer100: 25.0, carbsPer100: 20.0, fatPer100: 50.0, price: 15, unit: "500g", storage: "常温" },
+      "芝麻酱": { category: "脂肪", kcalPer100: 618, proteinPer100: 19.2, carbsPer100: 22.0, fatPer100: 52.7, price: 12, unit: "500g", storage: "常温" },
+      // 水果
+      "蓝莓": { category: "水果", kcalPer100: 57, proteinPer100: 0.7, carbsPer100: 14.5, fatPer100: 0.3, price: 12, unit: "500g", storage: "冷藏" },
+      "香蕉": { category: "水果", kcalPer100: 93, proteinPer100: 1.4, carbsPer100: 22.0, fatPer100: 0.2, price: 4, unit: "500g", storage: "常温" }
+    };
+
+    // 合并食材营养库：默认库 + 商品库（有营养数据自动并入并推断类别）
+    function getIngredientLib() {
+      const lib = JSON.parse(JSON.stringify(DEFAULT_INGREDIENT_LIBRARY));
+      Object.entries(PRODUCT_LIBRARY || {}).forEach(([name, p]) => {
+        const np = (p && p.nutritionPer100) || {};
+        if (!np.calories && !np.protein) return;
+        let cat = "蔬菜";
+        if ((np.carbs || 0) > 20) cat = "碳水主食";
+        else if ((np.protein || 0) >= 6 && (np.protein || 0) >= (np.fat || 0)) cat = "蛋白";
+        else if ((np.fat || 0) > 10) cat = "脂肪";
+        else if ((np.carbs || 0) >= 10) cat = "水果";
+        lib[name] = {
+          category: cat,
+          kcalPer100: np.calories || 0, proteinPer100: np.protein || 0,
+          carbsPer100: np.carbs || 0, fatPer100: np.fat || 0,
+          price: p.perPrice || p.price || 0,
+          unit: p.unit || "500g", storage: "常温", fromProduct: true
+        };
+      });
+      return lib;
     }
-    
+
+    // 谭师宏量系数（按每周运动时长分档）
+    function getTanshiMacrosV2() {
+      const w = appData.profile.weight || 66;
+      const isFemale = appData.profile.gender === '女';
+      const hw = appData.profile.weekHours || '6-7';
+      let carbsK, proteinK, fatK;
+      if (hw === '2-3') { carbsK = 2.2; proteinK = 1.4; fatK = 0.8; }
+      else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.9; }
+      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.7; fatK = 1.0; }
+      else { carbsK = 3.5; proteinK = 1.8; fatK = 1.0; }
+      if (isFemale) { carbsK = Math.round(carbsK * 0.9 * 10) / 10; fatK = Math.round((fatK + 0.15) * 10) / 10; }
+      return {
+        carbs: Math.round(w * carbsK), protein: Math.round(w * proteinK), fat: Math.round(w * fatK),
+        carbsK, proteinK, fatK, weight: w,
+        calories: Math.round(w * carbsK * 4 + w * proteinK * 4 + w * fatK * 9)
+      };
+    }
+
+    // 训练日/休息日宏量：训练日=档位碳水；休息日=2.2g/kg 低碳；腹肌日=2.5g/kg
+    function computeDayMacros(dayType) {
+      const base = getTanshiMacrosV2();
+      const w = appData.profile.weight || 66;
+      let carbsK;
+      if (dayType === 'rest') carbsK = 2.2;
+      else if (dayType === 'abs') carbsK = 2.5;
+      else carbsK = base.carbsK;
+      const carbs = Math.round(w * carbsK);
+      return { carbs, protein: base.protein, fat: base.fat, calories: carbs * 4 + base.protein * 4 + base.fat * 9, carbsK };
+    }
+
+    function sumMacros(items) {
+      let c = 0, p = 0, f = 0, kcal = 0;
+      (items || []).forEach(it => { c += it.carbs; p += it.protein; f += it.fat; kcal += it.kcal; });
+      return { carbs: Math.round(c), protein: Math.round(p), fat: Math.round(f), calories: Math.round(kcal) };
+    }
+
+    // 从食材库构建一餐：items = [[名称,克数],...]，缺失自动标出
+    function buildMeal(items, lib) {
+      const out = [];
+      (items || []).forEach((pair) => {
+        const name = pair[0], grams = pair[1] || 0;
+        const info = lib[name];
+        if (!info) { out.push({ name, grams, kcal: 0, protein: 0, carbs: 0, fat: 0, category: "缺失", missing: true }); return; }
+        out.push({
+          name, grams, category: info.category,
+          kcal: Math.round(info.kcalPer100 * grams / 100),
+          protein: Math.round(info.proteinPer100 * grams / 100 * 10) / 10,
+          carbs: Math.round(info.carbsPer100 * grams / 100 * 10) / 10,
+          fat: Math.round(info.fatPer100 * grams / 100 * 10) / 10,
+          missing: false
+        });
+      });
+      return { items: out, sum: sumMacros(out), cost: calcItemsCost(out) };
+    }
+
+    function calcItemsCost(items) {
+      const lib = getIngredientLib();
+      let total = 0;
+      items.forEach(it => {
+        const info = lib[it.name];
+        if (info && info.price && info.unit) {
+          const g = parseUnitGrams(info.unit);
+          total += it.grams / g * info.price;
+        }
+      });
+      return Math.round(total * 100) / 100;
+    }
+
+    // 谭师三餐拆分：早餐模板固定；午餐=生米+肉+蔬菜200g+油；晚餐=薯类+肉+蔬菜
+    function splitDayIntoMeals(macros) {
+      const lib = getIngredientLib();
+      const breakfast = buildMeal([["燕麦", 60], ["鸡蛋", 100], ["南瓜籽", 15], ["蓝莓", 80]], lib);
+      const remainC = Math.max(0, macros.carbs - breakfast.sum.carbs);
+      const remainP = Math.max(0, macros.protein - breakfast.sum.protein);
+      const remainF = Math.max(0, macros.fat - breakfast.sum.fat);
+      const lunchC = Math.round(remainC * 0.45);
+      const dinnerC = remainC - lunchC;
+      const lunchMeat = Math.min(200, Math.max(120, Math.round(remainP * 0.5)));
+      const dinnerMeat = Math.min(200, Math.max(120, Math.round(remainP * 0.5)));
+      const lunchOil = Math.max(0, Math.round(remainF * 0.6));
+      const dinnerOil = Math.max(0, remainF - lunchOil);
+      // 主食克数按「目标碳水 - 蔬菜自带碳水」换算，更贴合目标
+      const lunchVegC = 200 * (lib["西兰花"].carbsPer100 / 100);
+      const dinnerVegC = 250 * (lib["绿叶蔬菜"].carbsPer100 / 100);
+      const riceGrams = Math.max(40, Math.round((lunchC - lunchVegC) / (lib["生米"].carbsPer100 / 100)));
+      const potatoGrams = Math.max(120, Math.round((dinnerC - dinnerVegC) / (lib["红薯"].carbsPer100 / 100)));
+      const lunch = buildMeal([["生米", riceGrams], ["鸡胸肉", lunchMeat], ["西兰花", 200], ["烹调油", lunchOil]], lib);
+      const dinner = buildMeal([["红薯", potatoGrams], ["瘦牛肉", dinnerMeat], ["绿叶蔬菜", 250], ["橄榄油", dinnerOil]], lib);
+      return { breakfast, lunch, dinner };
+    }
+
+    // 兼容旧调用（看板等处）
+    function getTanshiMacros(weekHours) {
+      const v = getTanshiMacrosV2();
+      return { carbs: v.carbs, protein: v.protein, fat: v.fat, carbsK: v.carbsK, proteinK: v.proteinK, fatK: v.fatK };
+    }
+
+    // 周配餐计划：推/拉/腿/休/推/拉/腹
+    function generateWeeklyPlanV2() {
+      const dayTypes = { "周一": "push", "周二": "pull", "周三": "legs", "周四": "rest", "周五": "push", "周六": "pull", "周日": "abs" };
+      const plan = {
+        weekStart: getMonday(),
+        generatedAt: new Date().toISOString().split('T')[0],
+        weekStartWeight: appData.profile.weight,
+        targets: getTanshiMacrosV2(),
+        days: {}
+      };
+      Object.keys(dayTypes).forEach(day => {
+        const dayType = dayTypes[day];
+        const macros = computeDayMacros(dayType);
+        const meals = splitDayIntoMeals(macros);
+        plan.days[day] = { dayType, macros, meals };
+      });
+      appData.weeklyPlan = plan;
+      saveData();
+      return plan;
+    }
+
+    function getMonday() {
+      const d = new Date();
+      const day = d.getDay() || 7;
+      d.setDate(d.getDate() - day + 1);
+      return d.toISOString().split('T')[0];
+    }
+
+    // 周复盘：体重反馈 → 调整下周碳水（新体重重算）
+    function reviewWeekly() {
+      const plan = appData.weeklyPlan;
+      const startWeight = plan && plan.weekStartWeight ? plan.weekStartWeight : appData.profile.weight;
+      const currentWeight = appData.profile.weight;
+      const delta = Math.round((currentWeight - startWeight) * 100) / 100;
+      const weekStart = plan ? plan.weekStart : getMonday();
+      const trainingCount = (appData.trainingRecords || []).filter(r => r.date >= weekStart).length;
+      const bodyCount = (appData.bodyRecords || []).filter(r => r.date >= weekStart).length;
+      let action, carbsAdjust = 0;
+      if (delta <= -0.5) { action = "下降良好"; carbsAdjust = 0; }
+      else if (delta > -0.5 && delta <= 0.2) { action = "下降不明显或持平"; carbsAdjust = -15; }
+      else { action = "体重上升"; carbsAdjust = -25; }
+      const record = { weekStart, startWeight, currentWeight, delta, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: new Date().toISOString().split('T')[0] };
+      if (!appData.weekReview) appData.weekReview = { history: [], lastReviewedWeek: null };
+      appData.weekReview.history.push(record);
+      appData.weekReview.lastReviewedWeek = weekStart;
+      const newTarget = getTanshiMacrosV2();
+      const suggestCarbs = Math.max(0, newTarget.carbs + carbsAdjust);
+      saveData();
+      return { record, suggestCarbs, message: "本周" + action + "：体重 " + startWeight + " → " + currentWeight + "kg（" + (delta > 0 ? "+" : "") + delta + "）\n本周训练 " + trainingCount + " 次，体测 " + bodyCount + " 次\n\n建议：下周碳水 " + newTarget.carbs + "g" + (carbsAdjust ? (carbsAdjust > 0 ? "+" : "") + carbsAdjust + "g → " + suggestCarbs + "g" : "（保持）") + "，蛋白脂肪不变\n\n对我说「按新体重重新配下周餐」即可生效" };
+    }
+
     function generateWeekMealPlan(trainingDays) {
       const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
       const plan = {};
@@ -1642,6 +2028,9 @@ const DEFAULT_INGREDIENT_PRICES = {
       }
       
       if (text.includes("采购清单") || text.includes("买什么")) return { type: "generate_purchase" };
+      if (text.includes("复盘") || text.includes("周总结") || text.includes("本周效果")) return { type: "weekly_review" };
+      if (text.includes("重新配餐") || text.includes("重配餐") || text.includes("重新生成周餐") || text.includes("按新体重")) return { type: "generate_week_plan_v2" };
+      if (text.includes("配餐") || text.includes("生成周餐") || text.includes("下周吃什么") || text.includes("本周吃什么")) return { type: "generate_week_plan_v2" };
       if (text.includes("周计划") || text.includes("下周计划")) return { type: "generate_week_plan" };
       // 长耗材目标库存（先于"库存"判断，避免被拦截）
       const targetMatch = text.match(/([\u4e00-\u9fa5A-Za-z]+?)\s*(?:目标库存|囤货|长期备货)[设为到]?\s*(\d+\.?\d*)\s*(kg|公斤|克|g)?/i);
@@ -1671,6 +2060,8 @@ const DEFAULT_INGREDIENT_PRICES = {
         case "record_training": return quickRecordTraining(cmd.trainingType);
         case "generate_purchase": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
+        case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
+        case "weekly_review": return handleWeeklyReview();
         case "query_stock": return handleQueryStock();
         case "set_stock_target": {
           const cmdArgs = (cmd && cmd.args) || {};
@@ -1708,9 +2099,9 @@ const DEFAULT_INGREDIENT_PRICES = {
     }
     
     function handleGeneratePurchase() {
-      const trainingDays = ["周一", "周二", "周四", "周五"];
-      const plan = generateWeekMealPlan(trainingDays);
-      const list = generatePurchaseListV2(plan);
+      const list = (appData.weeklyPlan && appData.weeklyPlan.days)
+        ? generatePurchaseListV3()
+        : generatePurchaseListV2(generateWeekMealPlan(["周一", "周二", "周三", "周五", "周六", "周日"]));
       let msg = "📋 本周采购清单（按商品包装，含早餐食材）：\n\n";
       let totalPrice = 0;
       const categories = {};
@@ -1795,7 +2186,11 @@ const DEFAULT_INGREDIENT_PRICES = {
       { type: "function", function: { name: "query_finance", description: "查询财务开销与每份备餐成本：本周/本月采购花费、各餐每份成本。用户问花了多少钱/开销/预算/每份餐多少钱/周开销时调用", parameters: { type: "object", properties: { period: { type: "string", description: "week或month，默认week" } } } } },
       { type: "function", function: { name: "set_stock_target", description: "设置长耗材目标库存（如糙米目标库存30kg、囤货），库存低于30%时采购清单自动补货。用户说目标库存/囤/长期备货/一次买多少时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, targetStock: { type: "number", description: "目标库存克数（1kg=1000g，如30kg填30000）" } }, required: ["name", "targetStock"] } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
-      { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } }
+      { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "generate_week_plan_v2", description: "生成v2周循环配餐计划：按谭师系数（周运动时长档位）+训练日/休息日，从食材库自动搭配一周三餐。用户说配餐/生成周餐/重新配餐/下周吃什么/安排饮食时调用", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "weekly_review", description: "执行周复盘：对比周初与当前体重，按谭师规则建议下周碳水调整（下降良好保持/不明显减15g/上升减25g），并记录历史。用户说复盘/周总结/本周效果/该调整吗时调用", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "update_ingredient", description: "更新食材库中某食材的价格/营养/库存（用户说某食材涨价了/多少钱/多少大卡/买回来多少时调用），无则新增。修改后配餐成本与采购自动联动", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, price: { type: "number", description: "价格元（可选）" }, unit: { type: "string", description: "计价单位如500g/1L（可选）" }, proteinPer100: { type: "number", description: "每100g蛋白质g（可选）" }, carbsPer100: { type: "number", description: "每100g碳水g（可选）" }, fatPer100: { type: "number", description: "每100g脂肪g（可选）" }, kcalPer100: { type: "number", description: "每100g热量kcal（可选）" }, stockGrams: { type: "number", description: "现有库存克数（可选）" } }, required: ["name"] } } },
+      { type: "function", function: { name: "query_ingredient_lib", description: "查询食材营养库（含用户上传商品），返回食材列表与营养/价格", parameters: { type: "object", properties: { category: { type: "string", description: "类别筛选：碳水主食/蛋白/蔬菜/脂肪/水果（可选）" } } } } }
     ];
 
     async function executeToolCall(name, args) {
@@ -1861,8 +2256,62 @@ const DEFAULT_INGREDIENT_PRICES = {
         }
         case "generate_purchase_list": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
+        case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
+        case "weekly_review": return handleWeeklyReview();
+        case "update_ingredient": return handleUpdateIngredient(args);
+        case "query_ingredient_lib": return handleQueryIngredientLib(args);
         default: return { success: false, message: "未知工具：" + name };
       }
+    }
+
+    // ========== v2.0 新增工具执行 ==========
+    function handleGenerateWeekPlanV2() {
+      if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
+        const plan = generateWeeklyPlanV2();
+        return { success: true, message: "已按谭师周循环生成本周配餐计划（推/拉/腿/休/推/拉/腹）\n\n去「饮食 → 本周配餐」查看每日三餐食材组合\n去「饮食 → 周采购」按包装规格一键生成采购清单\n\n每周末对我说「复盘」即可根据反馈调整下周碳水" };
+      }
+      const plan = appData.weeklyPlan;
+      return { success: true, message: "本周配餐计划已存在（起始日 " + plan.weekStart + "，起始体重 " + plan.weekStartWeight + "kg）\n· 每日三餐已按训练日/休息日自动搭配\n· 说「重新配餐」可按新体重重算并覆盖本周计划\n· 周末说「复盘」调整下周" };
+    }
+
+    function handleWeeklyReview() {
+      const r = reviewWeekly();
+      return { success: true, message: "📊 周复盘完成\n" + r.message };
+    }
+
+    function handleUpdateIngredient(args) {
+      const name = String(args.name || '').trim();
+      if (!name) return { success: false, message: "请提供食材名称" };
+      const lib = getIngredientLib();
+      let item = lib[name];
+      if (!item) {
+        // 新增：同时写入默认库与价格库（供采购联动）
+        item = { category: "蛋白", kcalPer100: 100, proteinPer100: 15, carbsPer100: 5, fatPer100: 3, price: 0, unit: "500g", storage: "常温" };
+        DEFAULT_INGREDIENT_LIBRARY[name] = item;
+      }
+      const updates = [];
+      const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+      if (num(args.price) !== null) { item.price = num(args.price); updates.push("价格=" + item.price + "元/" + item.unit); }
+      if (String(args.unit || '').trim()) { item.unit = String(args.unit).trim(); updates.push("单位=" + item.unit); }
+      if (num(args.kcalPer100) !== null) { item.kcalPer100 = num(args.kcalPer100); updates.push("热量=" + item.kcalPer100 + "kcal/100g"); }
+      if (num(args.proteinPer100) !== null) { item.proteinPer100 = num(args.proteinPer100); updates.push("蛋白=" + item.proteinPer100 + "g/100g"); }
+      if (num(args.carbsPer100) !== null) { item.carbsPer100 = num(args.carbsPer100); updates.push("碳水=" + item.carbsPer100 + "g/100g"); }
+      if (num(args.fatPer100) !== null) { item.fatPer100 = num(args.fatPer100); updates.push("脂肪=" + item.fatPer100 + "g/100g"); }
+      if (num(args.stockGrams) !== null) { appData.ingredientStock[name] = num(args.stockGrams); updates.push("库存=" + appData.ingredientStock[name] + "g"); }
+      // 同步价格库（采购联动）
+      INGREDIENT_PRICES[name] = { price: item.price, unit: item.unit, category: item.category, storage: item.storage };
+      saveData();
+      return { success: true, message: "「" + name + "」已更新：" + (updates.length ? updates.join("，") : "（无变化）") + "\n配餐成本、采购清单已自动联动" };
+    }
+
+    function handleQueryIngredientLib(args) {
+      const lib = getIngredientLib();
+      const cat = String(args.category || '');
+      const lines = Object.entries(lib)
+        .filter(([, v]) => !cat || v.category === cat)
+        .map(([name, v]) => name + "（" + v.category + " " + (v.kcalPer100 || 0) + "kcal/100g 蛋白" + (v.proteinPer100 || 0) + "g）" + (v.price ? " " + v.price + "元/" + v.unit : ""))
+        .join("\n");
+      return { success: true, message: "食材营养库" + (cat ? "（" + cat + "）" : "") + "共" + Object.keys(lib).filter((n) => !cat || lib[n].category === cat).length + "种：\n" + (lines || "（空）") + "\n\n说「XX涨价到Y元」「XX的热量」即可让AI直接更新或查询" };
     }
 
     async function callAI(prompt, imageBase64 = null, searchResults = null) {
@@ -1872,37 +2321,49 @@ const DEFAULT_INGREDIENT_PRICES = {
         const daily = calculateDailyIntake(today);
         const target = getTodayTargetCalories();
         
-        let systemPrompt = `你是专业的健身教练和营养师，擅长减脂、力量训练、饮食规划。回答简洁专业，贴合用户实际情况。
+        let systemPrompt = `你是专业的健身教练和营养师，擅长减脂（保肌减脂）、力量训练、周循环配餐。用户当前阶段大目标：薄肌身材（保肌减脂、线条优先，不是极端掉秤）。回答简洁专业，贴合用户实际情况。
 
 用户个人参数：
 - 体重：${appData.profile.weight}kg
 - 体脂：${appData.profile.bodyFat}%
 - 基础代谢：${appData.profile.bmr}大卡
+- 每周运动时长档位：${appData.profile.weekHours || '6-7'}小时
 - 今日热量目标：${target}大卡
 - 今日已摄入：${Math.round(daily.calories)}大卡
 - 每日蛋白目标：${getTodayProteinTarget()}g
 - 每日热量缺口：${appData.profile.calorieDeficit}大卡${appData.profile.latestBodyComp ? `\n- 最近体测（${appData.profile.latestBodyComp.date}）：BMI ${appData.profile.latestBodyComp.bmi || '-'}，骨骼肌率 ${appData.profile.latestBodyComp.muscleRate || '-'}%，内脏脂肪 ${appData.profile.latestBodyComp.visceralFat || '-'}，水分 ${appData.profile.latestBodyComp.water || '-'}%，骨量 ${appData.profile.latestBodyComp.boneMass || '-'}kg，身体年龄 ${appData.profile.latestBodyComp.bodyAge || '-'}岁` : ''}
 
-回答规则：
-1. 当用户提出记录/操作类需求（记录体重体脂、睡眠、训练、饮食、采购、查询库存、生成清单或计划）时，必须调用对应工具来真正执行，执行结果会返回给你，你再基于结果简洁回复用户
-2. 知识类问题结合参考资料回答
-3. 所有建议优先符合用户的个人情况和目标
-4. 回答简洁，重点突出，不要冗余
-5. 饮食建议要考虑当日剩余热量和蛋白配额
-6. 食材价格与营养以用户上传的商品库（PRODUCT_LIBRARY）为准；商品库没有的食材才用内置价格库
-7. 推荐餐食优先从餐谱库选（A/B/C/D餐），并给出该餐做法要点；食材缺失时按同类替代：蛋白可互换（鸡胸/去皮鸡腿/鱼/虾/牛肉/蛋/豆腐），碳水可互换（糙米/红薯/贝贝南瓜/燕麦/土豆/玉米），蔬菜不限种类
-8. 回答训练日饮食时参考本周训练安排：训练日碳水蛋白上调，休息日减碳水
+【配餐模式 v2：周节点循环】
+1. 以周为节点：周初生成一周配餐计划（周一生成，存于 weeklyPlan），每天按计划吃，周末做周复盘（reviewWeekly：对比周初体重与当前体重，决定下周碳水调整）
+2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腹（三分化+腹肌）
+3. 训练日碳水=档位系数（高碳），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定
+4. 每周配餐从食材库（DEFAULT_INGREDIENT_LIBRARY + 用户上传商品库 PRODUCT_LIBRARY 自动并入）自动搭配三餐，不是固定菜谱：
+   - 早餐模板：燕麦60g+全蛋2+南瓜籽15g+蓝莓80g
+   - 午餐：生米（按碳水余量换算克数）+肉类150-200g+蔬菜200g+烹调油
+   - 晚餐：薯类（红薯/紫薯/贝贝南瓜，按碳水余量换算克数）+肉类150-200g+蔬菜200-250g+优质脂肪
+   - 肉蛋白可互换：鸡胸/去皮鸡腿/鱼/虾/瘦牛肉/蛋/豆腐；蔬菜不限种类（西兰花没有可用其他绿叶菜代替）
+5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
+6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
 
-【谭师减脂方法论（已并入知识体系，回答减脂/饮食问题时优先参考）】
-1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持
+【谭师减脂方法论（回答减脂/饮食问题时优先参考）】
+1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持；薄肌阶段优先保肌肉、看线条与体脂而非体重
 2. 温和缺口：热量缺口 200-300 大卡更保肌肉（用户当前缺口 ${appData.profile.calorieDeficit} 大卡，若觉乏力/易怒/训练欲望低，建议调低到 200-300）
-3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.9；6-7h → 3.0/1.7/1.0；8-9h → 3.5/1.8/1.0
-4. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳
-5. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
-6. 脂肪固定 0.6-0.8g/kg：优先橄榄油/坚果/牛油果（Omega-3）
-7. 身体信号第一：训练欲望低迷/易怒/犯困→优先调碳水而非加运动；吃太撑/长痘/睡不好→碳水过量；平台期→提高碳水几天再降（安抚瘦素/皮质醇）
-8. 每 10 天复盘：按最新体重重算营养素目标，拍对比照判断趋势
-9. 食材参考：早餐燕麦+鸡蛋+蓝莓+南瓜子；午餐米饭+鱼/去皮鸡腿/鸡胸/虾仁+蔬菜；晚餐红薯/紫薯/贝贝南瓜+牛肉+坚果；油选烟点高的（牛油果油/山茶油），每日盐 6-8g（1g钠=2.5g盐）`;
+3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.9；6-7h → 3.0/1.7/1.0；8-9h → 3.5/1.8/1.0（女生碳水略低、脂肪+0.15-0.2）
+4. 训练日碳水用档位系数；休息日降到 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
+5. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳；碳水下降明显→保持，不明显→减15-20g，上升→减25g
+6. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
+7. 脂肪固定 0.6-0.8g/kg：优先橄榄油/坚果/牛油果（Omega-3）
+8. 身体信号第一：训练欲望低迷/易怒/犯困→优先调碳水而非加运动；吃太撑/长痘/睡不好→碳水过量；平台期→提高碳水几天再降
+9. 力量数据是训练金标准：同样重量次数变多=在进步，比体重秤更可信
+10. 每 10 天/每周末复盘：按最新体重重算营养素目标，拍对比照判断趋势
+11. 食材价格与营养以用户上传的商品库（PRODUCT_LIBRARY）为准；商品库没有的食材才用内置食材库（DEFAULT_INGREDIENT_LIBRARY）
+
+【训练 v2：Keep 动作库实名编排】
+- 训练分：推日（胸/肩/三头）、拉日（背/二头）、腿日、腹肌日，各约 45-60 分钟，组次 3-4组×12-15次
+- 器械仅：哑铃（可组杠铃）+哑铃凳+瑜伽垫；无龙门架/高位下拉/腿举机，不能用这些动作
+- 所有动作必须是 Keep 上能搜到的同名动作（如「坐姿哑铃推肩」「哑铃侧平举」「哑铃弯举」「哑铃罗马尼亚硬拉」），用户要在 Keep 里照着编排课程跟练
+- 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程`;
+
 
         if (searchResults && searchResults.length > 0) {
           systemPrompt += "\n\n参考资料（来自网络搜索）：\n";
@@ -2050,13 +2511,44 @@ const DEFAULT_INGREDIENT_PRICES = {
       document.getElementById('dash-progress-text').textContent = Math.round(progress) + '%';
       document.getElementById('dash-progress-bar').style.width = progress + '%';
       
+      // v2：周循环从周一开始
       const today = new Date();
-      const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((today.getDay() || 7) - 1));
+      monday.setHours(0, 0, 0, 0);
+      const weekStart = monday;
       const weekTraining = appData.trainingRecords.filter(r => new Date(r.date) >= weekStart);
       document.getElementById('week-training-count').textContent = weekTraining.length;
       // 本周开销
       const spend = calculateSpend('week');
       document.getElementById('week-spend').textContent = spend.total;
+      // 周均热量/蛋白（周一到周日，合并 foodRecords + mealRecords）
+      let wkKcal = 0, wkProtein = 0, wkDays = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const dateKey = d.toISOString().split('T')[0];
+        if (dateKey > new Date().toISOString().split('T')[0]) break;
+        const di = calculateDailyIntake(dateKey);
+        if (di.calories > 0) { wkKcal += di.calories; wkProtein += di.protein; wkDays++; }
+      }
+      document.getElementById('week-avg-cal').textContent = wkDays ? Math.round(wkKcal / wkDays) : 0;
+      document.getElementById('week-avg-protein').textContent = wkDays ? Math.round(wkProtein / wkDays) : 0;
+      // 周循环配餐状态
+      const wPlan = appData.weeklyPlan;
+      const dNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      const dayName = dNames[today.getDay()];
+      const typeNames2 = { push: "推日", pull: "拉日", legs: "腿日", rest: "休息日", abs: "腹肌日" };
+      if (wPlan && wPlan.days && wPlan.days[dayName]) {
+        document.getElementById('dash-week-plan-status').textContent = "已生成";
+        document.getElementById('dash-week-daytype').textContent = typeNames2[wPlan.days[dayName].dayType] || dayName;
+        const tgt = wPlan.days[dayName].macros;
+        document.getElementById('dash-week-note').textContent = "今日目标 " + tgt.calories + "kcal · 碳" + tgt.carbs + "g 蛋" + tgt.protein + "g 脂" + tgt.fat + "g · 周末说「复盘」调下周";
+      } else {
+        document.getElementById('dash-week-plan-status').textContent = "未生成";
+        document.getElementById('dash-week-daytype').textContent = "-";
+        document.getElementById('dash-week-note').textContent = "去「饮食 → 本周配餐」生成一周计划";
+      }
       
       // 更新今日实时监控
       updateTodayMonitor();
@@ -2149,11 +2641,11 @@ const DEFAULT_INGREDIENT_PRICES = {
     
     function renderTrainingView() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 4: "legs", 5: "push", 6: "pull" };
+      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "abs" };
       const todayType = trainingMap[dayIndex];
       
       let html = '';
-      if (todayType) {
+      if (todayType && todayType !== 'rest') {
         const training = TRAINING_LIBRARY[todayType];
         html = `
           <div class="mb-6">
@@ -2161,7 +2653,7 @@ const DEFAULT_INGREDIENT_PRICES = {
               <h2 class="text-xl font-bold">今日训练 · ${training.name}</h2>
               <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
             </div>
-            <p class="text-sm text-blue-600 mb-4">预计消耗约 ${training.calories || 400} 大卡（按70kg估算），Keep 跟练后按实际消耗打卡更准</p>
+            <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 400} 大卡，Keep 跟练后按实际消耗打卡更准</p>
             <div class="bg-indigo-50 rounded-xl p-4 mb-4 text-sm text-indigo-800 leading-relaxed">
               <b>📱 如何用 Keep 跟练：</b><br>
               1. 打开 Keep → 训练 → 自定义训练 → 新建课程<br>
@@ -2222,7 +2714,7 @@ const DEFAULT_INGREDIENT_PRICES = {
             <div class="text-5xl mb-4">🛋️</div>
             <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日</h3>
             <p class="text-gray-500 text-sm">好好休息，给肌肉足够的恢复时间</p>
-            <p class="text-sm text-gray-400 mt-2">今日热量目标已按休息日计算</p>
+            <p class="text-sm text-gray-400 mt-2">今日热量目标已按休息日计算（碳水 2.2g/kg 低碳）</p>
           </div>
         `;
       }
@@ -2236,9 +2728,9 @@ const DEFAULT_INGREDIENT_PRICES = {
     
     function completeTraining() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 4: "legs", 5: "push", 6: "pull" };
+      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "abs" };
       const type = trainingMap[dayIndex];
-      if (!type) { alert("今天是休息日哦"); return; }
+      if (!type || type === 'rest') { alert("今天是休息日哦"); return; }
       const result = quickRecordTraining(type);
       alert(result.message);
       renderDashboard();
@@ -2248,97 +2740,211 @@ const DEFAULT_INGREDIENT_PRICES = {
       const html = `
         <div class="mb-4">
           <div class="flex bg-gray-100 rounded-lg p-1">
-            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
-            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="prep" onclick="switchDietTab('prep')">周备餐中心</button>
-            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购清单</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="week" onclick="switchDietTab('week')">本周配餐</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
+            <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="products" onclick="switchDietTab('products')">商品库</button>
           </div>
         </div>
-        <div id="diet-daily" class="diet-panel">${renderDailyDiet()}</div>
-        <div id="diet-prep" class="diet-panel hidden">${renderMealPrep()}</div>
+        <div id="diet-week" class="diet-panel">${renderWeeklyDiet()}</div>
+        <div id="diet-daily" class="diet-panel hidden">${renderDailyDiet()}</div>
         <div id="diet-purchase" class="diet-panel hidden">${renderPurchaseList()}</div>
         <div id="diet-products" class="diet-panel hidden">${renderProductLibrary()}</div>
       `;
       document.getElementById('view-diet').innerHTML = html;
     }
-    
-    function switchDietTab(tab) {
-      document.querySelectorAll('.diet-tab').forEach(t => {
-        t.classList.remove('bg-white', 'shadow-sm');
-        t.classList.add('text-gray-500');
+
+    // ===== 本周配餐计划（v2 核心） =====
+    function renderWeeklyDiet() {
+      const plan = appData.weeklyPlan;
+      if (!plan || !plan.days) {
+        return `
+          <div class="bg-white rounded-xl p-8 text-center shadow-sm">
+            <p class="text-4xl mb-2">🍽️</p>
+            <p class="text-gray-500 text-sm mb-2">还没有本周配餐计划</p>
+            <p class="text-xs text-gray-400 mb-4">基于你的体重、每周运动时长和食材库，自动生成一周三餐搭配（训练日高碳/休息日低碳）</p>
+            <button class="bg-blue-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium" onclick="generatePlanV2AndRender()">生成本周配餐</button>
+          </div>`;
+      }
+      const dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      const typeNames = { push: "推日", pull: "拉日", legs: "腿日", rest: "休息", abs: "腹肌日" };
+      const weekCost = dayOrder.reduce((sum, d) => {
+        const day = plan.days[d];
+        if (!day || !day.meals) return sum;
+        return sum + (day.meals.breakfast.cost || 0) + (day.meals.lunch.cost || 0) + (day.meals.dinner.cost || 0);
+      }, 0);
+      let html = `
+        <div class="mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm opacity-90">本周配餐计划</div>
+            <div class="text-xs opacity-80">${plan.weekStart} 起 · 起始体重 ${plan.weekStartWeight}kg</div>
+          </div>
+          <div class="text-xl font-bold">周目标：碳水${plan.targets.carbs}g / 蛋白${plan.targets.protein}g / 脂肪${plan.targets.fat}g / ${plan.targets.calories}kcal</div>
+          <div class="text-xs opacity-90 mt-1">一周食材参考成本约 ${weekCost.toFixed(1)} 元（按食材库现价）</div>
+        </div>
+        <div class="mb-4 grid grid-cols-2 gap-2">
+          <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button>
+          <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="doWeeklyReview()">周复盘 → 调下周</button>
+        </div>
+        <div class="space-y-3">`;
+      dayOrder.forEach(day => {
+        const dayPlan = plan.days[day];
+        if (!dayPlan) return;
+        const t = dayPlan.dayType;
+        const m = dayPlan.macros;
+        const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner;
+        const fmtItems = (meal) => meal.items.map(it => it.name + " " + it.grams + "g").join(" + ");
+        html += `
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <div class="font-bold">${day} <span class="text-xs text-blue-500 ml-1">${typeNames[t] || t}</span></div>
+              <div class="text-xs text-gray-400">${m.calories}kcal 碳${m.carbs}g 蛋${m.protein}g 脂${m.fat}g</div>
+            </div>
+            <div class="space-y-1.5 text-sm text-gray-600">
+              <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf)} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
+              <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu)} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
+              <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di)} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
+            </div>
+          </div>`;
       });
-      document.querySelector(`.diet-tab[data-tab="${tab}"]`).classList.add('bg-white', 'shadow-sm');
-      document.querySelector(`.diet-tab[data-tab="${tab}"]`).classList.remove('text-gray-500');
-      document.querySelectorAll('.diet-panel').forEach(p => p.classList.add('hidden'));
-      document.getElementById(`diet-${tab}`).classList.remove('hidden');
+      html += `</div>`;
+      if (appData.weekReview && appData.weekReview.history && appData.weekReview.history.length) {
+        const last = appData.weekReview.history[appData.weekReview.history.length - 1];
+        html += `<div class="mt-4 bg-green-50 rounded-xl p-4 text-sm text-green-800">
+          <div class="font-medium mb-1">上次周复盘（${last.reviewedAt}）</div>
+          <div>体重 ${last.startWeight} → ${last.currentWeight}kg（${last.delta > 0 ? '+' : ''}${last.delta}）· 训练 ${last.trainingCount} 次 · 体测 ${last.bodyCount} 次</div>
+          <div>结论：${last.action}${last.carbsAdjust ? ' → 碳水' + (last.carbsAdjust > 0 ? '+' : '') + last.carbsAdjust + 'g' : ''}</div>
+        </div>`;
+      }
+      return html;
     }
-    
+
+    function generatePlanV2AndRender() {
+      generateWeeklyPlanV2();
+      renderDietView();
+      addMessage('assistant', '已按谭师周循环生成本周配餐计划，去「饮食 → 本周配餐」查看');
+    }
+
+    function regenWeekPlan() {
+      if (confirm('将按当前体重重新生成本周配餐并覆盖现有计划，继续？')) {
+        generateWeeklyPlanV2();
+        renderDietView();
+        addMessage('assistant', '已按当前体重重新生成本周配餐计划');
+      }
+    }
+
+    function doWeeklyReview() {
+      const r = reviewWeekly();
+      renderDietView();
+      addMessage('assistant', r.message);
+    }
+
+    // 打卡本周计划中的一餐
+    function recordPlannedMeal(mealKey) {
+      const today = new Date().toISOString().split('T')[0];
+      const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
+      const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
+      if (!dayPlan || !dayPlan.meals || !dayPlan.meals[mealKey]) { alert('本周配餐中该餐不存在，请先生成周餐'); return; }
+      const meal = dayPlan.meals[mealKey];
+      if (!appData.mealRecords) appData.mealRecords = {};
+      if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
+      appData.mealRecords[today].push({
+        type: mealKey === 'breakfast' ? 'breakfast' : mealKey === 'lunch' ? 'lunch' : 'dinner',
+        planned: true,
+        foods: meal.items.map(it => it.name + ' ' + it.grams + 'g').join('、'),
+        kcal: meal.sum.calories, protein: meal.sum.protein, carbs: meal.sum.carbs, fat: meal.sum.fat,
+        at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      });
+      saveData();
+      renderDailyDiet();
+      addMessage('assistant', '已打卡' + (mealKey === 'breakfast' ? '早餐' : mealKey === 'lunch' ? '午餐' : '晚餐') + '：' + meal.sum.calories + 'kcal / 蛋白' + meal.sum.protein + 'g，看板已联动');
+    }
+
+    function addManualFood(type) {
+      const input = prompt('输入格式：名称 克数 热量kcal 蛋白g 碳水g 脂肪g（后3项可留空）\n例：苹果 200 100 0 25 0');
+      if (!input) return;
+      const parts = input.trim().split(/\s+/);
+      if (parts.length < 3) { alert('格式：名称 克数 热量，如「苹果 200 100」'); return; }
+      const today = new Date().toISOString().split('T')[0];
+      if (!appData.mealRecords) appData.mealRecords = {};
+      if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
+      appData.mealRecords[today].push({
+        type: type === 'breakfast' ? 'breakfast' : 'snacks',
+        foods: parts[0] + ' ' + parts[1] + 'g',
+        kcal: parseFloat(parts[2]) || 0, protein: parseFloat(parts[3]) || 0, carbs: parseFloat(parts[4]) || 0, fat: parseFloat(parts[5]) || 0,
+        at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      });
+      saveData();
+      renderDailyDiet();
+    }
+
     function renderDailyDiet() {
       const today = new Date().toISOString().split('T')[0];
+      const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
+      const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
+      const dow = new Date().getDay();
+      const dayType = dayPlan ? dayPlan.dayType : (dow === 4 ? 'rest' : (dow === 0 ? 'abs' : 'push'));
+      const target = dayPlan ? dayPlan.macros : computeDayMacros(dayType);
       const daily = calculateDailyIntake(today);
-      const target = getTodayTargetCalories();
-      const proteinTarget = getTodayProteinTarget();
-      
+      const typeNames = { push: '推日', pull: '拉日', legs: '腿日', rest: '休息日', abs: '腹肌日' };
+      const leftKcal = Math.max(0, target.calories - daily.calories);
+      const mealTitle = (key, label) => {
+        const meal = dayPlan ? dayPlan.meals[key] : null;
+        if (meal) {
+          return `
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium">${label}</h3>
+                <button class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg" onclick="recordPlannedMeal('${key}')">这餐吃了</button>
+              </div>
+              <div class="text-sm text-gray-600 space-y-0.5">${meal.items.map(it => '<div>· ' + it.name + ' ' + it.grams + 'g（' + it.kcal + 'kcal）</div>').join('')}</div>
+              <div class="text-xs text-gray-400 mt-2">合计 ${meal.sum.calories}kcal · 蛋白${meal.sum.protein}g · 碳水${meal.sum.carbs}g · 脂肪${meal.sum.fat}g${meal.cost ? ' · 约' + meal.cost + '元' : ''}</div>
+            </div>`;
+        }
+        return `
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-medium">${label}</h3>
+              <span class="text-xs text-gray-400">暂无计划</span>
+            </div>
+            <p class="text-sm text-gray-500">先到「本周配餐」生成计划，或直接对我说「生成周餐」</p>
+          </div>`;
+      };
       return `
         <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl p-5 mb-4">
-          <div class="text-sm opacity-90 mb-2">今日摄入</div>
-          <div class="text-3xl font-bold mb-1">${Math.round(daily.calories)} <span class="text-lg font-normal opacity-80">/ ${target} 大卡</span></div>
-          <div class="w-full bg-white/20 rounded-full h-2 mb-3">
-            <div class="bg-white rounded-full h-2" style="width: ${Math.min(100, daily.calories / target * 100)}%"></div>
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm opacity-90">今日摄入（${typeNames[dayType] || ''}）</div>
+            <div class="text-xs opacity-80">目标 ${target.calories}kcal / 碳${target.carbs}g 蛋${target.protein}g 脂${target.fat}g</div>
           </div>
-          <div class="grid grid-cols-3 gap-2 text-center text-sm">
-            <div><div class="font-bold">${Math.round(daily.protein)}g</div><div class="opacity-80 text-xs">蛋白质 / ${proteinTarget}g</div></div>
-            <div><div class="font-bold">${Math.round(daily.carbs)}g</div><div class="opacity-80 text-xs">碳水</div></div>
-            <div><div class="font-bold">${Math.round(daily.fat)}g</div><div class="opacity-80 text-xs">脂肪</div></div>
+          <div class="text-3xl font-bold mb-1">${Math.round(daily.calories)} <span class="text-lg font-normal opacity-80">/ ${target.calories} 大卡</span></div>
+          <div class="w-full bg-white/20 rounded-full h-2 mb-3">
+            <div class="bg-white rounded-full h-2" style="width: ${Math.min(100, daily.calories / target.calories * 100)}%"></div>
+          </div>
+          <div class="grid grid-cols-4 gap-2 text-center text-sm">
+            <div><div class="font-bold">${Math.round(daily.carbs)}<span class="text-xs opacity-70">/${target.carbs}g</span></div><div class="opacity-80 text-xs">碳水</div></div>
+            <div><div class="font-bold">${Math.round(daily.protein)}<span class="text-xs opacity-70">/${target.protein}g</span></div><div class="opacity-80 text-xs">蛋白</div></div>
+            <div><div class="font-bold">${Math.round(daily.fat)}<span class="text-xs opacity-70">/${target.fat}g</span></div><div class="opacity-80 text-xs">脂肪</div></div>
+            <div><div class="font-bold">${leftKcal}</div><div class="opacity-80 text-xs">剩余</div></div>
           </div>
         </div>
         <div class="space-y-3">
-          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-medium">🌅 早餐</h3>
-              <div class="flex gap-2">
-                <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_standard', 'breakfast')">标准款</button>
-                <button class="text-sm text-green-500 font-medium" onclick="handleEatMeal('breakfast_alt', 'breakfast')">全麦款</button>
-              </div>
-            </div>
-            <p class="text-sm text-gray-500">标准：燕麦60g+全蛋2+南瓜子15g+蓝莓80g（450大卡）｜全麦：面包40g+花生酱10g+全蛋2+南瓜子10g（430大卡）</p>
-            <p class="text-xs text-gray-400 mt-1">两款均为谭师早餐结构，交替吃更不腻</p>
-          </div>
-          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-medium">☀️ 午餐</h3>
-              <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_a || 0}份A餐</span>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_a', 'lunch')">A餐 · ${(MEAL_LIBRARY.meal_a && MEAL_LIBRARY.meal_a.name || '香煎鸡胸').replace('A餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'lunch')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_g', 'lunch')">G餐 · ${(MEAL_LIBRARY.meal_g && MEAL_LIBRARY.meal_g.name || '黑椒牛肉').replace('G餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_e', 'lunch')">E餐 · ${(MEAL_LIBRARY.meal_e && MEAL_LIBRARY.meal_e.name || '虾仁豆腐').replace('E餐·', '')}</button>
-            </div>
-          </div>
-          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-medium">🌙 晚餐</h3>
-              <span class="text-xs text-gray-400">库存：${appData.mealStock.meal_b || 0}份B餐</span>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_d', 'dinner')">D餐 · ${(MEAL_LIBRARY.meal_d && MEAL_LIBRARY.meal_d.name || '牛肉红薯').replace('D餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_c', 'dinner')">C餐 · ${(MEAL_LIBRARY.meal_c && MEAL_LIBRARY.meal_c.name || '巴沙鱼柳').replace('C餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_f', 'dinner')">F餐 · ${(MEAL_LIBRARY.meal_f && MEAL_LIBRARY.meal_f.name || '三文鱼').replace('F餐·', '')}</button>
-              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="handleEatMeal('meal_b', 'dinner')">B餐 · ${(MEAL_LIBRARY.meal_b && MEAL_LIBRARY.meal_b.name || '卤鸡腿').replace('B餐·', '')}</button>
-            </div>
-          </div>
+          ${mealTitle('breakfast', '早餐')}
+          ${mealTitle('lunch', '午餐')}
+          ${mealTitle('dinner', '晚餐')}
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between">
-              <h3 class="font-medium">🍔 放纵餐</h3>
-              <span class="text-xs text-orange-500">每周建议1次</span>
+              <h3 class="font-medium">手动记录</h3>
+              <span class="text-xs text-gray-400">发餐食照片给AI也能自动记</span>
             </div>
-            <p class="text-sm text-gray-500 mt-1">安排在训练日后最佳，不影响整体进度</p>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="addManualFood('breakfast')">+ 加早餐记录</button>
+              <button class="text-sm py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 text-left" onclick="addManualFood('snacks')">+ 加加餐记录</button>
+            </div>
           </div>
         </div>
       `;
     }
-    
+
     // ========== 商品库视图 ==========
     function renderProductLibrary() {
       const products = Object.entries(PRODUCT_LIBRARY);
@@ -2468,6 +3074,47 @@ const DEFAULT_INGREDIENT_PRICES = {
       renderDietView();
     }
     
+    // ===== 采购清单 V3：基于 v2 周配餐（食材克数聚合 → 包装规格换算） =====
+    function generatePurchaseListV3() {
+      const plan = appData.weeklyPlan;
+      if (!plan || !plan.days) return {};
+      const req = {};
+      const dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      dayOrder.forEach(day => {
+        const d = plan.days[day];
+        if (!d || !d.meals) return;
+        ["breakfast", "lunch", "dinner"].forEach(mk => {
+          const meal = d.meals[mk];
+          (meal.items || []).forEach(it => {
+            if (it.missing || !it.grams || it.grams <= 0) return;
+            req[it.name] = (req[it.name] || 0) + it.grams;
+          });
+        });
+      });
+      const lib = getIngredientLib();
+      const out = {};
+      Object.entries(req).forEach(([name, grams]) => {
+        const info = lib[name] || {};
+        const priceInfo = INGREDIENT_PRICES[name] || {};
+        const stock = appData.ingredientStock[name] || 0;
+        const needGrams = Math.max(0, grams - stock);
+        const unitGrams = parseUnitGrams(info.unit || priceInfo.unit || '500g');
+        const unitPrice = info.price || priceInfo.price || 0;
+        const packs = needGrams > 0 ? Math.max(1, Math.ceil(needGrams / unitGrams)) : 0;
+        out[name] = {
+          amount: Math.round(grams), needGrams: Math.round(needGrams),
+          packs, packUnit: info.unit || priceInfo.unit || '500g',
+          packUnitLabel: info.unit || priceInfo.unit || '500g',
+          packWeight: unitGrams,
+          category: info.category || priceInfo.category || '其他',
+          storage: info.storage || priceInfo.storage || '常温',
+          packPrice: unitPrice, estimatedPrice: packs * unitPrice,
+          isBulk: false, fromWeeklyPlan: true
+        };
+      });
+      return out;
+    }
+
     function renderPurchaseList() {
       const trainingDays = ["周一", "周二", "周四", "周五"];
       const plan = generateWeekMealPlan(trainingDays);
@@ -2509,15 +3156,16 @@ const DEFAULT_INGREDIENT_PRICES = {
           <div><h3 class="font-bold text-lg">本周采购清单</h3><p class="text-sm text-gray-500">预估总价：<span class="font-bold text-orange-500">${Math.round(totalPrice)}元</span></p></div>
         </div>
         <div class="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 mb-3">✅ 采购回来后勾选该项即可自动入库并记账；长耗材按目标库存自动补货</div>
-        ${categoryHtml || '<div class="text-center text-gray-400 py-8 text-sm">本周库存充足，无需采购 🎉</div>'}
+        ${categoryHtml || '<div class="text-center text-gray-400 py-8 text-sm">本周库存充足，无需采购</div>'}
         <div class="mt-4 text-xs text-gray-400 text-center">也可以对话说「生成采购清单」「买了XX多少克多少钱」</div>
       `;
     }
     
     // 采购清单勾选 → 入库 + 记账 + 刷新
     function markPurchased(name) {
-      const trainingDays = ["周一", "周二", "周四", "周五"];
-      const list = generatePurchaseListV2(generateWeekMealPlan(trainingDays));
+      const list = (appData.weeklyPlan && appData.weeklyPlan.days)
+        ? generatePurchaseListV3()
+        : generatePurchaseListV2(generateWeekMealPlan(["周一", "周二", "周三", "周五", "周六", "周日"]));
       const item = list[name];
       if (!item) { alert("该项不在当前采购清单中"); return; }
       const grams = item.packs * item.packWeight;
@@ -2555,6 +3203,7 @@ const DEFAULT_INGREDIENT_PRICES = {
       document.getElementById('setting-target-fat').value = appData.profile.targetBodyFat;
       document.getElementById('setting-protein').value = appData.profile.proteinCoefficient;
       document.getElementById('setting-deficit').value = appData.profile.calorieDeficit;
+      document.getElementById('setting-week-hours').value = appData.profile.weekHours || '6-7';
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
       document.getElementById('setting-apikey').value = appData.settings.apiKey;
       document.getElementById('setting-model').value = appData.settings.model;
@@ -2568,6 +3217,9 @@ const DEFAULT_INGREDIENT_PRICES = {
       appData.profile.targetBodyFat = parseFloat(document.getElementById('setting-target-fat').value) || 15;
       appData.profile.proteinCoefficient = parseFloat(document.getElementById('setting-protein').value) || 1.8;
       appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 500;
+      appData.profile.weekHours = document.getElementById('setting-week-hours').value || '6-7';
+      // 运动档位变化 → 重新生成周配餐
+      if (appData.weeklyPlan && appData.weeklyPlan.days) generateWeeklyPlanV2();
       appData.profile.bmr = Math.round(88.362 + (13.397 * appData.profile.weight) + (4.799 * 175) - (5.677 * 25));
       
       appData.settings.searchUrl = "";
@@ -2631,8 +3283,8 @@ const DEFAULT_INGREDIENT_PRICES = {
         }
         addMessage('assistant', "📸 正在识别图片类型...");
         // 第一步：判断图片类型
-        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/饮品/补剂/商品截图（买菜APP、商品详情页、营养标签、超市小票、补剂瓶身等）；3-Keep/运动App的训练记录或运动完成截图（含训练名称、时长、消耗热量）；4-其他类型图片", e.target.result);
-        const typeNum = classify ? (String(classify).match(/[1234]/) || [])[0] : null;
+        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可：1-体脂秤/身体成分数据截图；2-食材/饮品/补剂/商品截图（买菜APP、商品详情页、营养标签、超市小票、补剂瓶身等）；3-Keep/运动App的训练记录或运动完成截图（含训练名称、时长、消耗热量）；5-餐食照片（正在吃或将吃的食物、外卖、自己做的饭、减脂餐摆盘）；4-其他类型图片", e.target.result);
+        const typeNum = classify ? (String(classify).match(/[12345]/) || [])[0] : null;
         if (typeNum === '2') {
           // ===== 商品截图（食材/饮品/补剂）：识别 → 导入商品库 + 营养/财务参考，不入库存 =====
           addMessage('assistant', "🛒 正在识别商品信息...");
@@ -2716,6 +3368,50 @@ const DEFAULT_INGREDIENT_PRICES = {
             addMessage('assistant', "未能从这张截图中识别出训练数据。\n\n也可以直接说：\n· 「推日练完了，45分钟，消耗320大卡」\n· 「Keep跟练打卡：腿部训练 50分钟」");
           }
           saveData();
+        } else if (typeNum === '5') {
+          // ===== 餐食照片：识别食物 → 估算热量营养 → 记录当日饮食，与配餐宏量联动 =====
+          addMessage('assistant', "正在识别餐食并估算热量...");
+          const mealInfo = await callAI("请识别这张餐食照片，用JSON返回（不要输出其他文字）：{\"foods\":[{\"name\":\"食物/食材名称\",\"grams\":\"估算重量克数\",\"calories\":\"估算热量千卡\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"}],\"mealType\":\"breakfast/lunch/dinner/snack\",\"notes\":\"一句话评价（是否符合减脂配餐：碳水/蛋白/蔬菜比例、油盐程度）\"}。按常见份量合理估算，识别不准的字段null，不要编造精确数字", e.target.result);
+          if (mealInfo) {
+            const jm = mealInfo.match(/\{[\s\S]*\}/);
+            if (jm) {
+              try {
+                const parsed = JSON.parse(jm[0]);
+                const foods = Array.isArray(parsed.foods) ? parsed.foods : [];
+                let kcal = 0, protein = 0, carbs = 0, fat = 0;
+                foods.forEach(f => {
+                  const toN = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; };
+                  kcal += toN(f.calories); protein += toN(f.protein); carbs += toN(f.carbs); fat += toN(f.fat);
+                });
+                if (kcal > 0) {
+                  const today = new Date().toISOString().split('T')[0];
+                  if (!appData.mealRecords) appData.mealRecords = {};
+                  if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
+                  appData.mealRecords[today].push({
+                    type: String(parsed.mealType || 'snack'),
+                    foods: foods.map(f => String(f.name || '') + (f.grams ? ' ' + f.grams + 'g' : '')).join('、'),
+                    kcal: Math.round(kcal), protein: Math.round(protein), carbs: Math.round(carbs), fat: Math.round(fat),
+                    notes: String(parsed.notes || ''), at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+                  });
+                  // 与当日目标宏量联动
+                  const dayKey = ["周日","周一","周二","周三","周四","周五","周六"][new Date().getDay()];
+                  const dayType = (appData.weeklyPlan && appData.weeklyPlan.days && appData.weeklyPlan.days[dayKey]) ? appData.weeklyPlan.days[dayKey].dayType : 'push';
+                  const target = computeDayMacros(dayType);
+                  const dayRecords = appData.mealRecords[today];
+                  const daySum = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+                  dayRecords.forEach(r => { daySum.kcal += r.kcal; daySum.protein += r.protein; daySum.carbs += r.carbs; daySum.fat += r.fat; });
+                  const left = { kcal: target.calories - daySum.kcal, protein: target.protein - daySum.protein, carbs: target.carbs - daySum.carbs, fat: target.fat - daySum.fat };
+                  saveData();
+                  renderDashboard();
+                  const foodLines = foods.map(f => "· " + (f.name || "?") + (f.grams ? " " + f.grams + "g" : "") + " 约" + (f.calories || "?") + "kcal").join("\n");
+                  addMessage('assistant', "已记录这餐（" + (parsed.mealType === 'breakfast' ? "早餐" : parsed.mealType === 'lunch' ? "午餐" : parsed.mealType === 'dinner' ? "晚餐" : "加餐") + "）：\n" + foodLines + "\n合计：约" + Math.round(kcal) + "kcal（蛋白" + Math.round(protein) + "g / 碳水" + Math.round(carbs) + "g / 脂肪" + Math.round(fat) + "g）\n\n当日目标（" + (dayType === 'rest' ? "休息日" : dayType === 'abs' ? "腹肌日" : "训练日") + "）：" + target.calories + "kcal / 蛋白" + target.protein + "g / 碳水" + target.carbs + "g / 脂肪" + target.fat + "g\n今日已摄入：" + Math.round(daySum.kcal) + "kcal，剩余：" + Math.max(0, left.kcal) + "kcal" + (left.protein < 0 ? "（蛋白超标" + Math.abs(left.protein) + "g）" : " 蛋白剩余" + Math.max(0, left.protein) + "g") + "\n\n" + (parsed.notes ? "点评：" + parsed.notes : ""));
+                } else {
+                  addMessage('assistant', "未能从这张图片中估算出热量。可以这样说：\n· 「午餐吃了150g鸡胸肉+200g糙米+西兰花」\n· 「帮我记：燕麦60g+全蛋2个+蓝莓80g」");
+                }
+              } catch (e) { console.error("餐食JSON解析失败", e); addMessage('assistant', "识别餐食失败，请直接描述吃了什么，例如「午餐150g鸡胸肉200g糙米」"); }
+            }
+          }
+          saveData();
         } else if (typeNum === '1') {
           // ===== 体脂秤截图：全量身体成分识别 =====
           addMessage('assistant', "📸 正在识别体脂秤截图，请稍候...");
@@ -2753,7 +3449,7 @@ const DEFAULT_INGREDIENT_PRICES = {
             addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重66kg体脂20.2%」");
           }
         } else {
-          addMessage('assistant', "这张图片不是体脂秤截图也不是食材截图。\n\n· 体测数据：上传Keep体脂秤截图，或说「体重66kg体脂20.2%」\n· 买菜记录：上传多多买菜/美团买菜截图，或说「买了西红柿500g3块5」");
+          addMessage('assistant', "这张图片无法识别。\n\n· 体测：上传Keep体脂秤截图，或说「体重66kg体脂20.2%」\n· 商品：上传多多买菜/美团买菜/商品详情截图\n· 训练打卡：上传Keep训练完成截图\n· 餐食记录：上传餐食照片，或说「午餐150g鸡胸肉200g糙米」");
         }
       };
       reader.readAsDataURL(file);
@@ -2797,6 +3493,10 @@ const DEFAULT_INGREDIENT_PRICES = {
     // ========== 初始化 ==========
     function init() {
       loadData();
+      // v2：首次打开自动生成周配餐计划（按当前体重+运动档位）
+      if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
+        try { generateWeeklyPlanV2(); } catch (e) { console.error("自动生成周计划失败", e); }
+      }
       renderDashboard();
       renderTrainingView();
       renderDietView();
@@ -2813,22 +3513,22 @@ const DEFAULT_INGREDIENT_PRICES = {
       
       if (appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
         setTimeout(() => {
-          addMessage('assistant', `👋 欢迎使用你的专属健身减脂智能体 v${VERSION}！
+          addMessage('assistant', `欢迎使用健身减脂智能体 v${VERSION} · 薄肌计划
+
+已为你自动生成一周配餐计划（推/拉/腿/休/推/拉/腹），去「饮食 → 本周配餐」查看每日三餐。
 
 我是你的私人教练+营养师，可以帮你：
-• 📊 记录体重体脂、睡眠数据
-• 💪 三分化训练计划，每个动作带详细要点
-• 🍱 早餐+午晚餐全结构化，精准热量计算
-• 🔥 训练消耗自动联动，热量目标动态调整
-• 📦 食材库存 + 成品餐库存自动联动
-• 🌐 联网搜索知识，可自学习存入知识库
-• 🗣️ 全功能对话操作，张嘴就能搞定
-• ☁️ 云端知识库，支持对话修改
+• 周循环配餐：按谭师系数自动搭配一周三餐（训练日高碳/休息日低碳）
+• 训练计划：三分化+腹肌，Keep 实名动作，跟练后截图自动打卡
+• 体测联动：体脂秤截图全量识别，周复盘自动调下周碳水
+• 食材/商品库：上传买菜截图自动入库，配餐、采购、成本全部联动
+• 餐食记录：发餐食照片自动估算热量，联动当日剩余
+• 联网学习：知识问题自动搜索，可存入云端知识库自学习
 
-**快速开始三步：**
-1. 先在「设置」里填写你的基础参数
-2. 配置GitHub Token，初始化云端知识库
-3. 配置Agnes API和搜索API，启用智能对话和联网学习
+**开始三步：**
+1. 「设置」确认体重/体脂/每周运动时长
+2. 配置 Agnes API（对话+截图识别+联网）
+3. 直接说话或发截图，我全都能处理
 
 有任何问题随时告诉我，我们边用边优化～`);
         }, 300);
