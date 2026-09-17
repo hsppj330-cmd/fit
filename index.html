@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.4";
+    const VERSION = "2.1.5";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3919,7 +3919,7 @@ let PRODUCT_LIBRARY = {
               ${np.calories ? `<div class="mt-2 text-xs text-gray-500">每${unitLabel}：${np.calories}kcal · 蛋白${np.protein || 0}g · 碳水${np.carbs || 0}g · 脂肪${np.fat || 0}g</div>` : ''}
               ${p.targetStock ? `<div class="mt-1 text-xs text-purple-500">长耗材：目标库存 ${(p.targetStock / 1000)}kg（低于 ${Math.round(p.targetStock * 0.3 / 1000 * 10) / 10}kg 自动补货）</div>` : ''}
               <div class="mt-2 flex items-center justify-between">
-                <div class="text-xs text-gray-500">当前库存：<span class="font-bold text-gray-700">${stock ? Math.round(stock) + 'g' : '无'}</span></div>
+                <div class="text-xs text-gray-500">当前库存(g)：<input type="number" id="cur-stock-${name}" class="w-20 px-2 py-1 border border-gray-200 rounded-lg text-xs ml-1" value="${stock ? Math.round(stock) : ''}" placeholder="0"><button class="px-2 py-1 bg-blue-500 text-white rounded-lg text-xs ml-1" onclick="setCurrentStock('${name}')">保存</button></div>
                 <div class="flex items-center gap-1 text-xs">
                   <span class="text-gray-400">目标库存(g)：</span>
                   <input type="number" id="target-stock-${name}" class="w-20 px-2 py-1 border border-gray-200 rounded-lg text-xs" placeholder="${p.targetStock || '不设'}" value="${p.targetStock || ''}">
@@ -4130,6 +4130,18 @@ let PRODUCT_LIBRARY = {
     }
     
     // 商品库：设置长耗材目标库存
+    // 商品库：直接修正当前库存（历史脏数据修正入口，与对话「XX库存改成N克」等效）
+    function setCurrentStock(name) {
+      const input = document.getElementById('cur-stock-' + name);
+      const v = parseFloat(input ? input.value : '');
+      if (isNaN(v) || v < 0) { alert("请输入有效的库存克数"); return; }
+      appData.ingredientStock[name] = v;
+      saveData();
+      renderDietView();
+      renderDashboard();
+      alert("✅ " + name + " 库存已更新为 " + v + "g，采购/配餐已联动");
+    }
+
     function setStockTarget(name) {
       const input = document.getElementById('target-stock-' + name);
       const v = parseFloat(input.value);
