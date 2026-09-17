@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.0";
+    const VERSION = "2.1.1";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1224,6 +1224,25 @@ let PRODUCT_LIBRARY = {
 },
 "detail": "墨西哥进口原油，单不饱和脂肪酸约71%（油酸为主），维生素E约14mg/100g；烟点高适合热炒，也可冷吃凉拌。减脂期优质脂肪来源。"
 },
+"鸡蛋": {
+"brand": "线下自购",
+"product": "鲜鸡蛋（线下采购）",
+"spec": "约500g/份",
+"price": 7.5,
+"perPrice": 7.5,
+"unit": "500g",
+"category": "蛋白",
+"storage": "冷藏",
+"source": "线下",
+"procurement": "线下",
+"nutritionPer100": {
+"calories": 144,
+"protein": 13.3,
+"carbs": 2.8,
+"fat": 8.8
+},
+"detail": "线下菜市场/超市采购：500g约7.5元（约8-9个）。全蛋优质蛋白+卵磷脂，早餐微波燕麦蛋杯用。"
+},
 "乳清蛋白粉": {
 "brand": "马泰时刻",
 "product": "马泰时刻乳清蛋白粉（茉莉抹茶味·2磅）",
@@ -1248,7 +1267,7 @@ let PRODUCT_LIBRARY = {
 "spec": "101g/罐",
 "price": 15.3,
 "perPrice": 75.74,
-"unit": "500g",
+"unit": "101g",
 "category": "补剂",
 "storage": "常温",
 "source": "电商",
@@ -2180,12 +2199,22 @@ let PRODUCT_LIBRARY = {
           else if ((np.fat || 0) > 10) cat = "脂肪";
           else if ((np.carbs || 0) >= 10) cat = "水果";
         }
+        // 采购单价判定：若 price 对应 unit 包装（price 折算每500g≈perPrice）用 price，否则 price 是大包装价、用 perPrice
+        let packPrice = p.price || p.perPrice || 0;
+        if (p.perPrice && p.price) {
+          const ug = parseUnitGrams(p.unit || '500g');
+          const per500FromPrice = ug > 0 ? p.price / ug * 500 : 0;
+          if (Math.abs(per500FromPrice - p.perPrice) > 0.01) packPrice = p.perPrice;
+        }
         lib[name] = {
           category: cat,
           kcalPer100: np.calories || 0, proteinPer100: np.protein || 0,
           carbsPer100: np.carbs || 0, fatPer100: np.fat || 0,
-          price: p.perPrice || p.price || 0,
-          unit: p.unit || "500g", storage: "常温", fromProduct: true
+          price: packPrice,
+          perPrice: p.perPrice || 0,
+          unit: p.unit || "500g", storage: p.storage || "常温",
+          procurement: p.procurement || "线上",
+          fromProduct: true
         };
       });
       return lib;
@@ -2711,6 +2740,20 @@ let PRODUCT_LIBRARY = {
           saveData();
           return { success: true, message: "✅ " + name + " 已设为长耗材：库存低于 " + Math.round(t * 0.3) + "g（" + (Math.round(t * 0.3 / 100) / 10) + "kg）时，采购清单自动补货到 " + t + "g（" + (t / 1000) + "kg）" };
         }
+        case "set_procurement": {
+          const pa = (cmd && cmd.args) || args || {};
+          const channel = String(pa.channel || '').trim();
+          const name = String(pa.name || '').trim();
+          if (!name || (channel !== '线下' && channel !== '线上')) return { success: false, message: "请提供食材名称和渠道（线下/线上）" };
+          if (!PRODUCT_LIBRARY[name]) {
+            if (!INGREDIENT_PRICES[name] && !getIngredientLib()[name]) return { success: false, message: "商品库没有「" + name + "」，可先上传商品截图或告诉我价格" };
+            PRODUCT_LIBRARY[name] = { name, unit: '500g', category: getIngredientLib()[name] ? (getIngredientLib()[name].category || '食材') : '食材' };
+          }
+          PRODUCT_LIBRARY[name].procurement = channel;
+          saveData();
+          const lib = getIngredientLib()[name] || {};
+          return { success: true, message: "✅ " + name + " 已设为" + channel + "采购（" + (lib.perPrice || lib.price ? '参考价 ' + (lib.perPrice || lib.price) + '元/' + (lib.unit || '500g') : '按商品库价格') + "）。采购清单已按渠道分组，重新配餐或刷新采购清单即可看到。" };
+        }
         case "query_finance": {
           const cmdArgs = (cmd && cmd.args) || {};
           const period = cmdArgs.period === 'month' ? 'month' : 'week';
@@ -2823,6 +2866,7 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "query_finance", description: "查询财务开销与每份备餐成本：本周/本月采购花费、各餐每份成本。用户问花了多少钱/开销/预算/每份餐多少钱/周开销时调用", parameters: { type: "object", properties: { period: { type: "string", description: "week或month，默认week" } } } } },
       { type: "function", function: { name: "set_stock_target", description: "设置长耗材目标库存（如糙米目标库存30kg、囤货），库存低于30%时采购清单自动补货。用户说目标库存/囤/长期备货/一次买多少时调用", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, targetStock: { type: "number", description: "目标库存克数（1kg=1000g，如30kg填30000）" } }, required: ["name", "targetStock"] } } },
+      { type: "function", function: { name: "set_procurement", description: "设置食材采购渠道：线下（菜市场/超市自购）或线上（电商下单）。用户说XX线下买/去菜市场买/超市买/改为线下采购/在哪里买/线下采购时调用；设置后采购清单按渠道分组并自动联动成本", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, channel: { type: "string", enum: ["线下", "线上"], description: "采购渠道" } }, required: ["name", "channel"] } } },
       { type: "function", function: { name: "generate_purchase_list", description: "生成一周采购清单和预估总价", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan", description: "生成一周的训练和饮食计划", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "generate_week_plan_v2", description: "生成/重新生成v2周循环配餐计划：按谭师系数（周运动时长档位）+训练日/休息日，从食材库自动搭配一周三餐。仅在用户要求生成、重算、安排一周餐时调用；若只是问缺口/目标/碳水倍率等数据查询，用 query_plan_summary", parameters: { type: "object", properties: {} } } },
@@ -2882,6 +2926,19 @@ let PRODUCT_LIBRARY = {
           PRODUCT_LIBRARY[name].targetStock = t;
           saveData();
           return { success: true, message: "✅ " + name + " 已设为长耗材：库存低于 " + Math.round(t * 0.3) + "g（" + (Math.round(t * 0.3 / 100) / 10) + "kg）时，采购清单自动补货到 " + t + "g（" + (t / 1000) + "kg）" };
+        }
+        case "set_procurement": {
+          const channel = String(args.channel || '').trim();
+          const name = String(args.name || '').trim();
+          if (!name || (channel !== '线下' && channel !== '线上')) return { success: false, message: "请提供食材名称和渠道（线下/线上）" };
+          if (!PRODUCT_LIBRARY[name]) {
+            if (!INGREDIENT_PRICES[name] && !getIngredientLib()[name]) return { success: false, message: "商品库没有「" + name + "」，可先上传商品截图或告诉我价格" };
+            PRODUCT_LIBRARY[name] = { name, unit: '500g', category: getIngredientLib()[name] ? (getIngredientLib()[name].category || '食材') : '食材' };
+          }
+          PRODUCT_LIBRARY[name].procurement = channel;
+          saveData();
+          const lib = getIngredientLib()[name] || {};
+          return { success: true, message: "✅ " + name + " 已设为" + channel + "采购（" + (lib.perPrice || lib.price ? '参考价 ' + (lib.perPrice || lib.price) + '元/' + (lib.unit || '500g') : '按商品库价格') + "）。采购清单已按渠道分组，重新配餐或刷新采购清单即可看到。" };
         }
         case "query_finance": {
           const period = args.period === 'month' ? 'month' : 'week';
@@ -3741,7 +3798,7 @@ let PRODUCT_LIBRARY = {
                   <div class="font-medium">${name}${p.brand ? ' <span class="text-xs text-gray-400">' + p.brand + '</span>' : ''}</div>
                   <div class="text-xs text-gray-500 mt-0.5">${p.spec || (p.weight ? p.weight + 'g/件' : '')} · ${p.price ? p.price + '元' : ''}${p.perPrice ? '（折合' + p.perPrice + '元/' + (p.unit || '') + '）' : ''}</div>
                 </div>
-                <span class="text-xs px-2 py-1 rounded-full ${p.category === '补剂' ? 'bg-purple-50 text-purple-600' : p.category === '饮品' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}">${p.category || '食材'}</span>
+                <span class="text-xs px-2 py-1 rounded-full ${p.category === '补剂' ? 'bg-purple-50 text-purple-600' : p.category === '饮品' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}">${p.category || '食材'}</span>${p.procurement === '线下' ? ' <span class="text-xs px-2 py-1 rounded-full bg-orange-50 text-orange-600">🏪 线下</span>' : ''}
               </div>
               ${np.calories ? `<div class="mt-2 text-xs text-gray-500">每${unitLabel}：${np.calories}kcal · 蛋白${np.protein || 0}g · 碳水${np.carbs || 0}g · 脂肪${np.fat || 0}g</div>` : ''}
               ${p.targetStock ? `<div class="mt-1 text-xs text-purple-500">长耗材：目标库存 ${(p.targetStock / 1000)}kg（低于 ${Math.round(p.targetStock * 0.3 / 1000 * 10) / 10}kg 自动补货）</div>` : ''}
@@ -3880,7 +3937,8 @@ let PRODUCT_LIBRARY = {
           category: info.category || priceInfo.category || '其他',
           storage: info.storage || priceInfo.storage || '常温',
           packPrice: unitPrice, estimatedPrice: packs * unitPrice,
-          isBulk: false, fromWeeklyPlan: true
+          isBulk: false, fromWeeklyPlan: true,
+          procurement: info.procurement || '线上'
         };
       });
       return out;
@@ -3897,17 +3955,20 @@ let PRODUCT_LIBRARY = {
         totalPrice += info.estimatedPrice;
       });
       let categoryHtml = '';
+      let onlineTotal = 0, offlineTotal = 0;
       Object.entries(categories).forEach(([cat, items]) => {
         categoryHtml += `
           <div class="mb-4">
             <h4 class="font-medium mb-2 text-gray-700">${cat}</h4>
             <div class="space-y-2">
-              ${items.map(item => `
+              ${items.map(item => {
+                if (item.procurement === '线下') offlineTotal += item.estimatedPrice; else onlineTotal += item.estimatedPrice;
+                return `
                 <div class="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm ${item.isBulk ? 'border-l-4 border-purple-400' : ''}">
                   <div class="flex items-center gap-3">
                     <input type="checkbox" class="w-4 h-4 text-blue-500" onchange="markPurchased('${item.name}')">
                     <div>
-                      <div class="text-sm font-medium">${item.name}${item.isBulk ? ' <span class="text-purple-500 text-xs">长耗材</span>' : ''}</div>
+                      <div class="text-sm font-medium">${item.name}${item.isBulk ? ' <span class="text-purple-500 text-xs">长耗材</span>' : ''} <span class="text-xs px-1.5 py-0.5 rounded ${item.procurement === '线下' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}">${item.procurement === '线下' ? '🏪 线下' : '📦 线上'}</span></div>
                       <div class="text-xs text-gray-500">需${item.packs}${item.packUnit.includes('g') || item.packUnit.includes('ml') ? '包' : '件'}（${item.packUnitLabel}） · ${item.storage}</div>
                     </div>
                   </div>
@@ -3915,12 +3976,17 @@ let PRODUCT_LIBRARY = {
                     <div class="text-sm text-gray-600 font-medium">${Math.round(item.estimatedPrice)}元</div>
                     <div class="text-xs text-gray-400">${item.packPrice}元/件</div>
                   </div>
-                </div>
-              `).join('')}
+                </div>`;
+              }).join('')}
             </div>
           </div>
         `;
       });
+      categoryHtml += `
+        <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-sm flex items-center justify-between">
+          <div class="text-gray-600">📦 电商下单 <span class="text-blue-600 font-bold">${Math.round(onlineTotal)}元</span> &nbsp;·&nbsp; 🏪 线下自购 <span class="text-orange-600 font-bold">${Math.round(offlineTotal)}元</span></div>
+          <div class="text-gray-800 font-bold">合计 ${Math.round(onlineTotal + offlineTotal)}元</div>
+        </div>`;
       return `
         <div class="mb-4 flex items-center justify-between">
           <div><h3 class="font-bold text-lg">本周采购清单</h3><p class="text-sm text-gray-500">预估总价：<span class="font-bold text-orange-500">${Math.round(totalPrice)}元</span></p></div>
