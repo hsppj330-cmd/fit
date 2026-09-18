@@ -113,6 +113,16 @@
             <div id="body-health-tips" class="mt-3 space-y-1"></div>
           </div>
           
+          <!-- 体脂秤每日打卡 -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-cyan-400">
+            <div class="flex justify-between items-center mb-2">
+              <p class="font-medium">📌 体脂秤每日打卡</p>
+              <span class="text-xs font-medium" id="dash-checkin-status">--</span>
+            </div>
+            <p class="text-xs text-gray-400" id="dash-checkin-note">每天早上称重并记录（体重/体脂/骨骼肌等）→ 自动云端备份 → 周末复盘自动调取</p>
+            <div class="mt-2" id="dash-checkin-btn-area"></div>
+          </div>
+          
           <div class="bg-white rounded-2xl p-4 shadow-sm">
             <h3 class="font-medium mb-3">今日热量实时监控</h3>
             <div class="mb-3">
@@ -146,6 +156,17 @@
             
             <div class="mt-3 p-3 bg-blue-50 rounded-lg">
               <p class="text-sm text-blue-700" id="today-advice">记录饮食后显示实时建议</p>
+            </div>
+            <div class="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600 font-medium">🔥 实时热量缺口</span>
+                <span class="font-bold text-orange-600" id="today-deficit">-- 大卡</span>
+              </div>
+              <div class="flex justify-between text-xs text-gray-500">
+                <span>总消耗 <span id="today-burn">--</span> 大卡（基准 <span id="today-tdee">--</span> + 训练 <span id="today-train-burn">0</span>）</span>
+                <span id="today-deficit-verdict">--</span>
+              </div>
+              <div class="text-xs text-gray-400 mt-1">目标温和缺口 200-300 大卡（谭师保肌优先）· 训练打卡后自动上浮</div>
             </div>
           </div>
           
@@ -340,7 +361,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.3";
+    const VERSION = "2.2.4";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1886,7 +1907,8 @@ let PRODUCT_LIBRARY = {
         "食材价格库.json": { content: JSON.stringify(INGREDIENT_PRICES, null, 2) },
         "商品库.json": { content: JSON.stringify(PRODUCT_LIBRARY, null, 2) },
         "补剂库.json": { content: JSON.stringify(SUPPLEMENT_LIBRARY, null, 2) },
-        "规则.json": { content: JSON.stringify(PERSONAL_RULES, null, 2) }
+        "规则.json": { content: JSON.stringify(PERSONAL_RULES, null, 2) },
+        "身体数据.json": { content: JSON.stringify({ bodyRecords: appData.bodyRecords, trainingRecords: appData.trainingRecords, foodRecords: appData.foodRecords, mealRecords: appData.mealRecords, trainingBurnToday: appData.trainingBurnToday, weekReview: appData.weekReview, profile: appData.profile }, null, 2) }
       };
     }
     
@@ -1995,6 +2017,18 @@ let PRODUCT_LIBRARY = {
         }
         if (data["补剂库.json"]) SUPPLEMENT_LIBRARY = data["补剂库.json"];
         if (data["规则.json"]) PERSONAL_RULES = data["规则.json"];
+        // v2.2.4 云端身体数据合并（按日期去重，周复盘可跨设备调取）
+        if (data["身体数据.json"]) {
+          try {
+            const bd = data["身体数据.json"];
+            if (bd && Array.isArray(bd.bodyRecords) && bd.bodyRecords.length) {
+              const localDates = new Set((appData.bodyRecords || []).map(r => r.date));
+              bd.bodyRecords.forEach(r => { if (r && r.date && !localDates.has(r.date)) appData.bodyRecords.push(r); });
+              appData.bodyRecords.sort((a, b) => a.date < b.date ? -1 : 1);
+              saveData();
+            }
+          } catch (e) {}
+        }
         
         renderTrainingView();
         renderDietView();
@@ -2073,6 +2107,30 @@ let PRODUCT_LIBRARY = {
     function getTodayProteinTarget() {
       return Math.round(appData.profile.weight * appData.profile.proteinCoefficient);
     }
+
+    // v2.2.4 今日类型（按周循环）与基准消耗 TDEE：训练日 BMR×1.45（含计划训练）、休息日 ×1.25
+    function getTodayType() {
+      const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
+      const plan = appData.weeklyPlan;
+      if (plan && plan.days && plan.days[dayName]) return plan.days[dayName].dayType;
+      return new Date().getDay() === 4 ? 'rest' : 'push';
+    }
+    function getTodayTDEE() {
+      const bmr = appData.profile.bmr || 1462;
+      const factor = getTodayType() === 'rest' ? 1.25 : 1.45;
+      return Math.round(bmr * factor);
+    }
+    // v2.2.4 实时热量缺口：总消耗（基准TDEE + 今日训练打卡消耗）− 今日已摄入
+    function computeDailyDeficit() {
+      const today = new Date().toISOString().split('T')[0];
+      const tdee = getTodayTDEE();
+      const trainBurn = appData.trainingBurnToday[today] || 0;
+      const intake = calculateDailyIntake(today).calories;
+      const totalBurn = tdee + trainBurn;
+      const deficit = Math.round(totalBurn - intake);
+      const verdict = deficit < 0 ? '⚠️ 摄入超消耗' : (deficit >= 200 && deficit <= 300 ? '✅ 温和缺口区间' : (deficit > 300 ? '⚠️ 缺口偏大（>300）' : '📉 缺口不足（<200）'));
+      return { tdee, trainBurn, totalBurn, intake: Math.round(intake), deficit, verdict };
+    }
     
     // ========== 业务逻辑 ==========
     function recordBodyData(weight, bodyFat, extra) {
@@ -2108,6 +2166,8 @@ let PRODUCT_LIBRARY = {
       };
       appData.bodyRecords.push(record);
       saveData();
+      // v2.2.4 体脂秤打卡自动云端备份（静默失败，不打断打卡）
+      if (appData.settings.gitToken) { gistPutAll()['catch'](function() {}); }
       let msg = `已记录：体重${record.weight || appData.profile.weight}kg`;
       if (record.bodyFat !== undefined) msg += `，体脂${record.bodyFat}%`;
       if (record.bmi !== undefined) msg += `，BMI ${record.bmi}`;
@@ -2115,6 +2175,21 @@ let PRODUCT_LIBRARY = {
       if (record.visceralFat !== undefined) msg += `，内脏脂肪${record.visceralFat}`;
       if (record.water !== undefined) msg += `，水分${record.water}%`;
       return { success: true, message: msg };
+    }
+    
+    // v2.2.4 体脂秤打卡：看板按钮 → 体重/体脂录入 → 记录+云备份
+    function openBodyCheckin() {
+      const last = appData.bodyRecords[appData.bodyRecords.length - 1];
+      const wStr = prompt('请输入今早体重（kg）' + (last ? '，上次 ' + last.weight + 'kg' : '，上次 ' + appData.profile.weight + 'kg'), '');
+      if (wStr === null) return;
+      const w = parseFloat(wStr);
+      if (isNaN(w) || w <= 0) { alert('体重格式不正确'); return; }
+      const bfStr = prompt('请输入体脂率（%，Keep体脂秤读数）' + (last && last.bodyFat !== undefined ? '，上次 ' + last.bodyFat + '%' : ''), last && last.bodyFat !== undefined ? String(last.bodyFat) : '');
+      if (bfStr === null) return;
+      const bf = bfStr.trim() === '' ? undefined : parseFloat(bfStr);
+      const r = recordBodyData(w, isNaN(bf) ? undefined : bf, {});
+      addMessage("assistant", "✅ " + r.message + "\n\n已自动云端备份；周末说「复盘」自动调取本周体脂秤数据调整下周配餐。");
+      switchView('chat');
     }
     
     function recordSleep(hours) {
@@ -2474,19 +2549,41 @@ let PRODUCT_LIBRARY = {
       const weekStart = plan ? plan.weekStart : getMonday();
       const trainingCount = (appData.trainingRecords || []).filter(r => r.date >= weekStart).length;
       const bodyCount = (appData.bodyRecords || []).filter(r => r.date >= weekStart).length;
+      // v2.2.4 本周体脂变化（体脂秤打卡数据）
+      const weekBodies = (appData.bodyRecords || []).filter(r => r.date >= weekStart).slice().sort((a, b) => a.date < b.date ? -1 : 1);
+      let fatDelta = null;
+      if (weekBodies.length >= 2) {
+        const fb = weekBodies[0], lb = weekBodies[weekBodies.length - 1];
+        if (fb.bodyFat !== undefined && lb.bodyFat !== undefined) fatDelta = Math.round((lb.bodyFat - fb.bodyFat) * 10) / 10;
+      }
+      // v2.2.4 本周实测日均摄入/蛋白（周一到周日合并）
+      let wkKcal = 0, wkProtein = 0, wkDays = 0;
+      const ws = new Date(weekStart);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(ws);
+        d.setDate(ws.getDate() + i);
+        const dateKey = d.toISOString().split('T')[0];
+        if (dateKey > new Date().toISOString().split('T')[0]) break;
+        const di = calculateDailyIntake(dateKey);
+        if (di.calories > 0) { wkKcal += di.calories; wkProtein += di.protein; wkDays++; }
+      }
+      const avgKcal = wkDays ? Math.round(wkKcal / wkDays) : null;
+      const avgProtein = wkDays ? Math.round(wkProtein / wkDays) : null;
       let action, carbsAdjust = 0;
       if (delta <= -0.7) { action = "下降过快（约1%+/周，警惕掉肌肉）"; carbsAdjust = 15; }
       else if (delta <= -0.5) { action = "下降良好"; carbsAdjust = 0; }
       else if (delta <= 0.2) { action = "下降不明显或持平"; carbsAdjust = -15; }
       else { action = "体重上升"; carbsAdjust = -25; }
-      const record = { weekStart, startWeight, currentWeight, delta, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: new Date().toISOString().split('T')[0] };
+      const record = { weekStart, startWeight, currentWeight, delta, fatDelta, avgKcal, avgProtein, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: new Date().toISOString().split('T')[0] };
       if (!appData.weekReview) appData.weekReview = { history: [], lastReviewedWeek: null };
       appData.weekReview.history.push(record);
       appData.weekReview.lastReviewedWeek = weekStart;
       const newTarget = getTanshiMacrosV2();
       const suggestCarbs = Math.max(0, newTarget.carbs + carbsAdjust);
       saveData();
-      return { record, suggestCarbs, message: "本周" + action + "：体重 " + startWeight + " → " + currentWeight + "kg（" + (delta > 0 ? "+" : "") + delta + "）\n本周训练 " + trainingCount + " 次，体测 " + bodyCount + " 次\n\n建议：下周碳水 " + newTarget.carbs + "g" + (carbsAdjust ? (carbsAdjust > 0 ? "+" : "") + carbsAdjust + "g → " + suggestCarbs + "g" : "（保持）") + "，蛋白脂肪不变\n\n对我说「按新体重重新配下周餐」即可生效" };
+      const fatMsg = fatDelta === null ? "数据不足" : ((fatDelta > 0 ? "+" : "") + fatDelta + "%");
+      const intakeMsg = avgKcal ? (avgKcal + "大卡/天（蛋白 " + avgProtein + "g）") : "暂无记录";
+      return { record, suggestCarbs, message: "📊 本周复盘（体脂秤打卡数据自动调取）\n· 体重 " + startWeight + " → " + currentWeight + "kg（" + (delta > 0 ? "+" : "") + delta + "）· " + action + "\n· 体脂变化 " + fatMsg + "（本周体测 " + bodyCount + " 次）\n· 本周训练 " + trainingCount + " 次 · 实测日均摄入 " + intakeMsg + "\n\n建议：下周碳水 " + newTarget.carbs + "g" + (carbsAdjust ? (carbsAdjust > 0 ? "+" : "") + carbsAdjust + "g → " + suggestCarbs + "g" : "（保持）") + "，蛋白脂肪不变\n\n对我说「按新体重重新配下周餐」即可生效" };
     }
 
     function generateWeekMealPlan(trainingDays) {
@@ -3544,6 +3641,23 @@ let PRODUCT_LIBRARY = {
       document.getElementById('dash-bmr').textContent = appData.profile.bmr;
       document.getElementById('dash-today-target').textContent = getTodayTargetCalories();
       renderBodyComposition();
+      // v2.2.4 体脂秤每日打卡状态（打开项引导）
+      const todayKey = new Date().toISOString().split('T')[0];
+      const hasTodayBody = (appData.bodyRecords || []).some(r => r.date === todayKey);
+      const stEl = document.getElementById('dash-checkin-status');
+      const ntEl = document.getElementById('dash-checkin-note');
+      const baEl = document.getElementById('dash-checkin-btn-area');
+      if (hasTodayBody) {
+        stEl.textContent = '✅ 今日已打卡';
+        stEl.className = 'text-xs font-medium text-green-600';
+        ntEl.textContent = '已记录并云端备份，周末说「复盘」自动调取本周数据';
+        baEl.innerHTML = '<button class="text-xs bg-gray-100 text-gray-500 px-3 py-1.5 rounded-lg" onclick="openBodyCheckin()">补录/更新</button>';
+      } else {
+        stEl.textContent = '⏰ 待打卡';
+        stEl.className = 'text-xs font-medium text-orange-500';
+        ntEl.textContent = '每天早上称重上传（体重/体脂/骨骼肌等）→ 自动云端备份 → 周末复盘自动调取';
+        baEl.innerHTML = '<button class="text-xs bg-cyan-500 text-white px-3 py-1.5 rounded-lg" onclick="openBodyCheckin()">立即打卡</button>';
+      }
       
       const startFat = 25;
       const progress = Math.min(100, Math.max(0, ((startFat - appData.profile.bodyFat) / (startFat - appData.profile.targetBodyFat)) * 100));
@@ -3621,6 +3735,14 @@ let PRODUCT_LIBRARY = {
       document.getElementById('today-protein').textContent = Math.round(daily.protein) + 'g';
       document.getElementById('today-carbs').textContent = Math.round(daily.carbs) + 'g';
       document.getElementById('today-fat').textContent = Math.round(daily.fat) + 'g';
+      
+      // v2.2.4 实时热量缺口（基准TDEE + 训练打卡消耗 − 已摄入）
+      const df = computeDailyDeficit();
+      document.getElementById('today-deficit').textContent = (df.deficit >= 0 ? '' : '-') + Math.abs(df.deficit) + ' 大卡';
+      document.getElementById('today-burn').textContent = df.totalBurn;
+      document.getElementById('today-tdee').textContent = df.tdee;
+      document.getElementById('today-train-burn').textContent = df.trainBurn;
+      document.getElementById('today-deficit-verdict').textContent = df.verdict;
       
       // 智能建议
       const adviceEl = document.getElementById('today-advice');
