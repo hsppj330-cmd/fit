@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.8";
+    const VERSION = "2.1.9";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2231,9 +2231,9 @@ let PRODUCT_LIBRARY = {
       const hw = appData.profile.weekHours || '6-7';
       let carbsK, proteinK, fatK;
       if (hw === '2-3') { carbsK = 2.2; proteinK = 1.4; fatK = 0.8; }
-      else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.9; }
-      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.7; fatK = 1.0; }
-      else { carbsK = 3.5; proteinK = 1.8; fatK = 1.0; }
+      else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.8; }
+      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.7; fatK = 0.8; }
+      else { carbsK = 3.5; proteinK = 1.8; fatK = 0.8; }
       if (isFemale) { carbsK = Math.round(carbsK * 0.9 * 10) / 10; fatK = Math.round((fatK + 0.15) * 10) / 10; }
       return {
         carbs: Math.round(w * carbsK), protein: Math.round(w * proteinK), fat: Math.round(w * fatK),
@@ -2341,11 +2341,13 @@ let PRODUCT_LIBRARY = {
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 50], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);
-      const riceGrams = isRest ? 70 : 105;   // 休息日低碳
+      const riceGrams = isRest ? 52 : 105;   // 休息日低碳
       // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
-      // 训练日克数（v2.1.8 精准校准：蛋白112/碳水198/脂肪66）= 糙米105 + 鸡胸110 + 油27 / 土豆285 + 琵琶腿95 / 乳清15
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 130 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 15 : 27]], lib);
-      const dinner = buildMeal([["土豆", isRest ? 220 : 285], ["琵琶腿", isRest ? 180 : 95], ["西兰花", 250]], lib);
+      // v2.1.9 脂肪0.8全局精准（谭师最新）：训练日=糙米105+鸡胸110+油14 / 土豆285+琵琶腿95 / 乳清15
+      //   蛋白112 碳水198 脂肪53 热量1717；休息日=糙米52+鸡胸128+油12 / 土豆200+琵琶腿155
+      //   蛋白112 碳水145 脂肪53 热量1505
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 12 : 14]], lib);
+      const dinner = buildMeal([["土豆", isRest ? 200 : 285], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
       // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 15]], lib)
@@ -2397,8 +2399,9 @@ let PRODUCT_LIBRARY = {
       const trainingCount = (appData.trainingRecords || []).filter(r => r.date >= weekStart).length;
       const bodyCount = (appData.bodyRecords || []).filter(r => r.date >= weekStart).length;
       let action, carbsAdjust = 0;
-      if (delta <= -0.5) { action = "下降良好"; carbsAdjust = 0; }
-      else if (delta > -0.5 && delta <= 0.2) { action = "下降不明显或持平"; carbsAdjust = -15; }
+      if (delta <= -0.7) { action = "下降过快（约1%+/周，警惕掉肌肉）"; carbsAdjust = 15; }
+      else if (delta <= -0.5) { action = "下降良好"; carbsAdjust = 0; }
+      else if (delta <= 0.2) { action = "下降不明显或持平"; carbsAdjust = -15; }
       else { action = "体重上升"; carbsAdjust = -25; }
       const record = { weekStart, startWeight, currentWeight, delta, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: new Date().toISOString().split('T')[0] };
       if (!appData.weekReview) appData.weekReview = { history: [], lastReviewedWeek: null };
@@ -3252,8 +3255,8 @@ let PRODUCT_LIBRARY = {
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
 4. 当前固定三餐体系（v2.1+，用户定制；配餐营养=熟后口径，采购清单和商品库=生重口径）：
    - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
-   - 午餐（周备餐冷冻）：三色糙米（训练日90g/休息日70g 生干重）+鸡胸肉130g+上海青100g+大青椒100g+牛油果油15g（炒菜用，油脂集中在早/午）
-   - 晚餐（清淡无油）：土豆（训练日280g/休息日220g）+琵琶腿180g（去皮食用）+西兰花250g
+   - 午餐（周备餐冷冻）：三色糙米（训练日105g/休息日52g 生干重）+鸡胸肉（训练日110g/休息日128g）+上海青100g+大青椒100g+牛油果油（训练日14g/休息日12g，炒菜用，油脂集中在早/午）
+   - 晚餐（清淡无油）：土豆（训练日285g/休息日200g）+琵琶腿（训练日95g/休息日155g，去皮食用）+西兰花250g
    - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉15g（约60kcal/11g蛋白），已计入当日配餐数值；休息日不补
    - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
 5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
@@ -3262,7 +3265,7 @@ let PRODUCT_LIBRARY = {
 【谭师减脂方法论（回答减脂/饮食问题时优先参考）】
 1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持；薄肌阶段优先保肌肉、看线条与体脂而非体重
 2. 温和缺口：热量缺口 200-300 大卡更保肌肉（用户当前缺口 ${appData.profile.calorieDeficit} 大卡，若觉乏力/易怒/训练欲望低，建议调低到 200-300）
-3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.9；6-7h → 3.0/1.7/1.0；8-9h → 3.5/1.8/1.0（女生碳水略低、脂肪+0.15-0.2）
+3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.8；6-7h → 3.0/1.7/0.8；8-9h → 3.5/1.8/0.8（女生碳水略低、脂肪+0.15-0.2）
 4. 训练日碳水用档位系数；休息日降到 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
 5. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳；碳水下降明显→保持，不明显→减15-20g，上升→减25g
 6. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
@@ -3781,14 +3784,14 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-blue-700 mb-1">🥩 午餐 · 批量7份 · 炒鸡胸糙米饭</div>
               <div>腌制（每500g鸡胸）：生抽10g + 蚝油5g + 料酒5g + 盐3g + 玉米淀粉10g + 黑胡椒2g，抓匀冷藏30分钟以上</div>
-              <div>鸡胸770g（110g×7）煎熟切条；三色糙米735g（105g×7）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约231g + 炒鸡胸约83g + 炒蔬菜约170g，淋牛油果油27g</div>
+              <div>鸡胸788g（训练日110g×6 + 休息日128g）煎熟切条；三色糙米682g（训练日105g×6 + 休息日52g）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
+              <div class="text-xs text-gray-500 mt-1">组装：训练日每份 熟糙米饭约231g + 炒鸡胸约83g + 炒蔬菜约170g，淋牛油果油14g；休息日 熟饭约114g + 鸡胸约96g + 油12g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-purple-700 mb-1">🍗 晚餐 · 批量7份 · 卤鸡腿土豆餐（无油）</div>
               <div>卤水（每1kg琵琶腿）：卤料包1袋 + 生抽20g + 老抽10g + 料酒10g + 姜片10g + 葱段；卤料包已含八角/桂皮/香叶/花椒等香料，无需另加。卤25分钟关火焖10分钟</div>
-              <div>琵琶腿665g（95g×7）卤好去皮食用；土豆1995g（285g×7）烤/水煮；西兰花1750g（250g×7）水煮</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约257g + 卤鸡腿去皮约57g + 水煮西兰花225g</div>
+              <div>琵琶腿725g（训练日95g×6 + 休息日155g）卤好去皮食用；土豆1910g（训练日285g×6 + 休息日200g）烤/水煮；西兰花1750g（250g×7）水煮</div>
+              <div class="text-xs text-gray-500 mt-1">组装：训练日每份 熟土豆约257g + 卤鸡腿去皮约57g + 水煮西兰花225g；休息日 熟土豆约180g + 腿去皮约93g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
