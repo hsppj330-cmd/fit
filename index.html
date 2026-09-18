@@ -2163,7 +2163,7 @@ let PRODUCT_LIBRARY = {
       const intake = calculateDailyIntake(today).calories;
       const totalBurn = tdee;
       const deficit = Math.round(totalBurn - intake);
-      const verdict = deficit < 0 ? '⚠️ 摄入超消耗' : (deficit >= 200 && deficit <= 300 ? '✅ 温和缺口区间' : (deficit > 300 ? '⚠️ 缺口偏大（>300）' : '📉 缺口不足（<200）'));
+      const verdict = deficit < 0 ? '⚠️ 摄入超消耗' : (deficit >= 300 && deficit <= 500 ? '✅ 安全减脂缺口（300-500）' : (deficit > 500 ? '⚠️ 缺口偏大（>500）' : '📉 缺口不足（<300）'));
       return { tdee, trainBurn, totalBurn, intake: Math.round(intake), deficit, verdict, trained: trainBurn > 0 };
     }
     
