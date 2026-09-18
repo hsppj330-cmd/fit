@@ -4034,7 +4034,7 @@ let PRODUCT_LIBRARY = {
           <div class="text-xs opacity-90 mt-1">一周食材参考成本约 ${weekCost.toFixed(1)} 元（按商品库现价）</div>
           <div class="mt-2 bg-white/15 rounded-xl px-3 py-2 text-xs leading-relaxed">
             <div class="font-medium opacity-95">📊 当前实际倍率（按 ${weight}kg 体重）</div>
-            <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 3.0 / 1.7 / 0.8）</div>
+            <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 ${plan.targets.carbsK} / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
             <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / 1.7 / 0.8）</div>
           </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
