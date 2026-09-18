@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.10";
+    const VERSION = "2.2.11";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2996,6 +2996,15 @@ let PRODUCT_LIBRARY = {
       if (/查财务|花了多少钱|花了多少|本周开销|这个月开销|开销|预算|花了钱|财务/.test(text)) return { type: "query_finance" };
       if (text.includes("库存") || text.includes("还有多少")) return { type: "query_stock" };
       // 实时替换食材（没买到A用B / 把A换成B / A替代B）→ 全周配餐/采购/成本联动
+      // v2.2.11：类别词本地兜底（不依赖AI），"午餐蔬菜改为X"直接映射到具体食材名
+      const catMap = { "午餐蔬菜": "上海青", "晚餐蔬菜": "西兰花", "午餐另一蔬菜": "大青椒", "午餐主食": "三色糙米", "晚餐主食": "土豆", "午餐蛋白": "鸡胸肉", "晚餐蛋白": "琵琶腿" };
+      let catHit = null;
+      for (const k of Object.keys(catMap)) {
+        const m = text.match(new RegExp(k + "\\s*(?:改为|换成|换成了|改成|调整为|换为)\\s*([^\\s,，。.？?！!、]+)"));
+        if (m) { catHit = { oldName: catMap[k], newName: m[1].trim() }; break; }
+      }
+      if (catHit) return { type: "replace_ingredient", args: catHit };
+
       const rep1 = text.match(/(?:把)?([\u4e00-\u9fa5A-Za-z0-9]+?)\s*(?:换成|替代|代替)\s*(?:了)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/);
       const rep2 = text.match(/(?:没有|没买到|买不到)([\u4e00-\u9fa5A-Za-z0-9]+?)[，,。]?\s*(?:用|换)([\u4e00-\u9fa5A-Za-z0-9]+)/);
       if (rep1) return { type: "replace_ingredient", args: { oldName: rep1[1], newName: rep1[2] } };
