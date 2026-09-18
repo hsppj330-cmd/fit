@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.0";
+    const VERSION = "2.2.1";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -352,6 +352,23 @@
     muscles: "胸、肩中束、三头",
     calories: 420,
     exercises: [
+      {
+        id: "barbell_bench_press",
+        name: "杠铃卧推",
+        target: "胸大肌",
+        sets: 4,
+        reps: "8-12",
+        rest: "90秒",
+        beginnerWeight: "20kg（含杆）",
+        advancedWeight: "40kg（含杆）",
+        steps: [
+          { name: "起始姿势", desc: "仰卧哑铃凳，双眼位于杠铃正下方，双脚踩实，肩胛骨后缩下沉，握距略宽于肩。", key: "肩胛下沉、双脚踩实" },
+          { name: "下放", desc: "吸气控制杠铃下放至胸部中下沿，手肘约45度夹角，停顿1秒。", key: "肘45度、触胸即停" },
+          { name: "推起", desc: "呼气发力将杠铃推回起始位置，手臂接近伸直，不锁死。", key: "推起不锁肘" }
+        ],
+        mistakes: ["错误：手腕后折 → 腕压大", "错误：杠铃落点在颈部 → 肩压力大", "错误：弓腰过高"],
+        tips: "握距略宽于肩，杠铃下放至乳头连线附近。Keep搜索：杠铃卧推。"
+      },
       {
         id: "bench_press",
         name: "哑铃平地卧推",
@@ -462,6 +479,23 @@
     calories: 400,
     exercises: [
       {
+        id: "barbell_row",
+        name: "杠铃俯身划船",
+        target: "背阔肌、菱形肌",
+        sets: 4,
+        reps: "10-12",
+        rest: "90秒",
+        beginnerWeight: "20kg（含杆）",
+        advancedWeight: "40kg（含杆）",
+        steps: [
+          { name: "起始姿势", desc: "双脚与肩同宽，屈髋俯身约45度，双手正握杠铃自然下垂，背部平直。", key: "髋铰链、背部平直" },
+          { name: "拉起", desc: "呼气将杠铃拉向腹部下沿，肩胛骨后缩，停顿1秒。", key: "拉向腹部、夹背" },
+          { name: "还原位置", desc: "吸气控制下放，感受背部拉伸。", key: "控制下放" }
+        ],
+        mistakes: ["错误：弓背 → 腰部受伤", "错误：用惯性甩起", "错误：站太直变成直立划船"],
+        tips: "俯身角度约45度，杠铃贴大腿上拉至腹部。Keep搜索：杠铃俯身划船。"
+      },
+      {
         id: "lunge_row",
         name: "弓步单臂划船",
         target: "背阔肌",
@@ -570,6 +604,23 @@
     muscles: "股四头、腘绳、臀",
     calories: 450,
     exercises: [
+      {
+        id: "barbell_squat",
+        name: "杠铃深蹲",
+        target: "股四头肌、臀大肌",
+        sets: 4,
+        reps: "8-12",
+        rest: "90秒",
+        beginnerWeight: "20kg（含杆）",
+        advancedWeight: "50kg（含杆）",
+        steps: [
+          { name: "起始姿势", desc: "杠铃置于上背斜方肌处，双脚与肩同宽，脚尖略外展，核心收紧。", key: "杠放上背、核心收紧" },
+          { name: "下蹲", desc: "吸气屈髋屈膝下蹲至大腿平行或略低，膝盖与脚尖同向。", key: "蹲至平行、膝盖外展" },
+          { name: "起身", desc: "呼气发力站起，臀腿同时发力，顶部不锁死。", key: "臀腿发力" }
+        ],
+        mistakes: ["错误：膝盖内扣", "错误：重心前倾脚跟离地", "错误：弓腰"],
+        tips: "慢下快起，脚跟始终踩实。Keep搜索：杠铃深蹲。"
+      },
       {
         id: "dumbbell_squat",
         name: "哑铃深蹲",
@@ -1023,6 +1074,9 @@ const DEFAULT_INGREDIENT_PRICES = {
     // ===== Keep 动作对照表：每动作预计消耗(kcal/10分钟)/器械/Keep自定义训练里的动作名 =====
 
 const EXERCISE_META = {
+  barbell_bench_press: { kcal: 50, equip: "杠铃", keep: "杠铃卧推" },
+  barbell_row: { kcal: 40, equip: "杠铃", keep: "杠铃俯身划船" },
+  barbell_squat: { kcal: 55, equip: "杠铃", keep: "杠铃深蹲" },
   bench_press: { kcal: 45, equip: "哑铃", keep: "哑铃平地卧推" },
   incline_dumbbell_press: { kcal: 45, equip: "哑铃+凳", keep: "哑铃上斜卧推" },
   fly_dumbbell: { kcal: 35, equip: "哑铃", keep: "哑铃平地飞鸟" },
@@ -1050,6 +1104,26 @@ const EXERCISE_META = {
 };
 
 let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
+    // ===== 器械过滤：用户只有跳绳/哑铃/哑铃凳/杠铃（无龙门架/单杠/双杠/腿举机等），
+    // 任何需要未持有器械的动作（绳索下压/高位下拉/引体向上/坐姿划船/器械夹胸等）一律从训练库移除 =====
+    const BANNED_EQUIP_RE = /绳索|龙门架|高位下拉|腿举|坐姿划船|器械夹胸|蝴蝶机|拉力器|钢线|面拉|直臂下压|双杠|引体向上|悍马机|倒蹬/;
+    function sanitizeTrainingEquipment(lib) {
+      if (!lib) return lib;
+      Object.values(lib).forEach(t => {
+        if (!t || !Array.isArray(t.exercises)) return;
+        const before = t.exercises.length;
+        t.exercises = t.exercises.filter(e => {
+          if (!e) return false;
+          const hay = (e.name || '') + ' ' + (e.target || '') + ' ' + (e.tips || '') + ' ' + (e.desc || '');
+          return !BANNED_EQUIP_RE.test(hay);
+        });
+        if (t.exercises.length === 0 && before > 0) {
+          const dt = DEFAULT_TRAINING_LIBRARY[Object.keys(DEFAULT_TRAINING_LIBRARY).find(k => DEFAULT_TRAINING_LIBRARY[k].name === t.name)];
+          if (dt) t.exercises = JSON.parse(JSON.stringify(dt.exercises));
+        }
+      });
+      return lib;
+    }
     // 每次启动同步默认动作库到运行时库：移除废弃器械动作、同名覆盖关键字段、补充缺失动作
     function syncDefaultTraining() {
       const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old'];
@@ -1069,6 +1143,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
           }
         });
       });
+      sanitizeTrainingEquipment(TRAINING_LIBRARY);
     }
     syncDefaultTraining();
     let MEAL_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_MEAL_LIBRARY));
@@ -1781,6 +1856,9 @@ let PRODUCT_LIBRARY = {
       if (appData.trainingLibrary && appData.trainingLibrary.push && appData.trainingLibrary.pull && appData.trainingLibrary.legs) {
         try { TRAINING_LIBRARY = appData.trainingLibrary; } catch (e) {}
       }
+      // 器械过滤：本地库/云端库可能被旧版本AI加入绳索下压等需龙门架动作，一律清理并持久化
+      sanitizeTrainingEquipment(TRAINING_LIBRARY);
+      saveData();
     }
     
     // ========== GitHub Gist 云同步工具 ==========
@@ -1876,7 +1954,7 @@ let PRODUCT_LIBRARY = {
         });
         merged[type].exercises = Object.values(map);
       });
-      return merged;
+      return sanitizeTrainingEquipment(merged);
     }
     
     // 云端餐谱合并：默认新库（谭师食材+做法流程）为准，同名覆盖，用户自创餐保留
@@ -3317,7 +3395,9 @@ let PRODUCT_LIBRARY = {
 
 【训练 v2：Keep 动作库实名编排】
 - 训练分：推日（胸/肩/三头）、拉日（背/二头）、腿日、腹肌日，各约 45-60 分钟，组次 3-4组×12-15次
-- 器械仅：哑铃（可组杠铃）+哑铃凳+瑜伽垫；无龙门架/高位下拉/腿举机，不能用这些动作
+- 器械仅：跳绳+哑铃（可组杠铃）+哑铃凳+瑜伽垫；无龙门架/单杠/双杠/腿举机/坐姿划船机
+- 严禁使用需要未持有器械的动作：绳索下压、直臂下压、高位下拉、引体向上、坐姿划船、器械夹胸、腿举、面拉等一律不许出现在训练库/训练计划中
+- 训练计划要体现全部器材：杠铃（杠铃卧推/杠铃深蹲/杠铃俯身划船）+哑铃+跳绳（空腹有氧）
 - 所有动作必须是 Keep 上能搜到的同名动作（如「坐姿哑铃推肩」「哑铃侧平举」「哑铃弯举」「哑铃罗马尼亚硬拉」），用户要在 Keep 里照着编排课程跟练
 - 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程
 - 用户告知新增/更换器材、增删改动作时，必须调用 update_training 真正写入训练库并持久化，不能只口头建议`;
