@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.9";
+    const VERSION = "2.2.0";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2698,14 +2698,31 @@ let PRODUCT_LIBRARY = {
       const sleepMatch = text.match(/睡了\s*(\d+\.?\d*)\s*小时/i);
       if (sleepMatch) return { type: "record_sleep", hours: parseFloat(sleepMatch[1]) };
       
-      const purchaseMatch = text.match(/买了\s*(\d+\.?\d*)\s*(g|kg|斤|升|毫升|ml|l|L|罐|盒|袋|包|瓶|桶)?\s*(.+?)\s*(\d+\.?\d*)\s*(块|元|块钱)?/i);
-      if (purchaseMatch) {
-        const pname = purchaseMatch[3].trim();
-        const pval = parseFloat(purchaseMatch[1]);
-        const punit = (purchaseMatch[2] || 'g').toLowerCase();
+      // v2.2.0：采购口语识别（买了/到了/到货/收到/入账），支持中文数字（一升/两斤/三盒）+ 克/公斤/千克等常用单位
+      const cnMap = { "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "半": 0.5 };
+      const cnToNum = (s) => {
+        if (!s) return null;
+        if (cnMap[s] !== undefined) return cnMap[s];
+        if (/^十[一二三四五六七八九]$/.test(s)) return 10 + (cnMap[s[1]] || 0);
+        if (/^[二三四五六七八九]十$/.test(s)) return cnMap[s[0]] * 10;
+        if (/^[二三四五六七八九]十[一二三四五六七八九]$/.test(s)) return cnMap[s[0]] * 10 + cnMap[s[2]];
+        return null;
+      };
+      const NUM = '(\\d+\\.?\\d*|[一二两三四五六七八九十半]+)';
+      const UNIT = '(g|kg|公斤|千克|克|斤|升|毫升|ml|l|L|罐|盒|袋|包|瓶|桶|箱|板|支)';
+      const purchaseMatch = text.match(new RegExp('买了\\s*' + NUM + '\\s*' + UNIT + '?\\s*(.+?)\\s*(\\d+\\.?\\d*)\\s*(块|元|块钱)?', 'i'));
+      const arr1 = text.match(new RegExp('(?:到了|到货|收到|入账)\\s*' + NUM + '\\s*' + UNIT + '\\s*(.+?)\\s*$', 'i'));
+      const arr2 = text.match(new RegExp('(.+?)\\s*(?:到了|到货|收到|入账)\\s*' + NUM + '\\s*' + UNIT + '\\s*$', 'i'));
+      let pname = null, pval = null, punit = 'g', pcost = null;
+      const resolveVal = (raw) => { const n = parseFloat(raw); return isNaN(n) ? cnToNum(raw) : n; };
+      const normUnit = (u) => String(u || 'g').toLowerCase().replace(/公斤|千克/, 'kg');
+      if (purchaseMatch) { pname = purchaseMatch[3].trim(); pval = resolveVal(purchaseMatch[1]); punit = normUnit(purchaseMatch[2]); pcost = parseFloat(purchaseMatch[4]); }
+      else if (arr1) { pname = arr1[3].trim(); pval = resolveVal(arr1[1]); punit = normUnit(arr1[2]); }
+      else if (arr2) { pname = arr2[1].trim(); pval = resolveVal(arr2[2]); punit = normUnit(arr2[3]); }
+      if (pname && pval && !/体重|体脂|睡眠|时间/.test(pname)) {
         let amount = convertUnitGrams(pname, pval, punit);
         if (amount === null) amount = punit === 'kg' ? pval * 1000 : punit === '斤' ? pval * 500 : pval;
-        return { type: "purchase", name: pname, amount, cost: parseFloat(purchaseMatch[4]) };
+        return { type: "purchase", name: pname, amount, cost: pcost };
       }
       
       const cookMatch = text.match(/做了\s*(\d+)\s*份\s*(.+)/i);
@@ -2749,7 +2766,13 @@ let PRODUCT_LIBRARY = {
         if (unit === 'kg' || unit === '公斤') grams = grams * 1000;
         return { type: "set_stock_target", args: { name: targetMatch[1].replace(/[设为到库存囤货长期备货]/g, ''), targetStock: grams } };
       }
+      if (/查财务|花了多少钱|花了多少|本周开销|这个月开销|开销|预算|花了钱|财务/.test(text)) return { type: "query_finance" };
       if (text.includes("库存") || text.includes("还有多少")) return { type: "query_stock" };
+      // 实时替换食材（没买到A用B / 把A换成B / A替代B）→ 全周配餐/采购/成本联动
+      const rep1 = text.match(/(?:把)?([\u4e00-\u9fa5A-Za-z0-9]+?)\s*(?:换成|替代|代替)\s*(?:了)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/);
+      const rep2 = text.match(/(?:没有|没买到|买不到)([\u4e00-\u9fa5A-Za-z0-9]+?)[，,。]?\s*(?:用|换)([\u4e00-\u9fa5A-Za-z0-9]+)/);
+      if (rep1) return { type: "replace_ingredient", args: { oldName: rep1[1], newName: rep1[2] } };
+      if (rep2) return { type: "replace_ingredient", args: { oldName: rep2[1], newName: rep2[2] } };
       if (text.includes("同步")) return { type: "sync_cloud" };
       
       const deficitMatch = text.match(/缺口\s*(?:改|调|调成|改成|设为|为|到)?\s*(\d+)/i);
@@ -3160,24 +3183,41 @@ let PRODUCT_LIBRARY = {
     function handleUpdateIngredient(args) {
       const name = String(args.name || '').trim();
       if (!name) return { success: false, message: "请提供食材名称" };
-      const lib = getIngredientLib();
-      let item = lib[name];
-      if (!item) {
-        // 新增：同时写入默认库与价格库（供采购联动）
-        item = { category: "蛋白", kcalPer100: 100, proteinPer100: 15, carbsPer100: 5, fatPer100: 3, price: 0, unit: "500g", storage: "常温" };
+      const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+      const updates = [];
+      // v2.2.0 修复：getIngredientLib() 返回深拷贝合并对象，直接改它不会持久。
+      // 必须写回源头库：商品库（用户上传商品）优先，否则默认食材库。
+      const isProduct = !!PRODUCT_LIBRARY[name];
+      if (isProduct) {
+        const p = PRODUCT_LIBRARY[name];
+        const np = p.nutritionPer100 || (p.nutritionPer100 = {});
+        if (num(args.kcalPer100) !== null) { np.calories = num(args.kcalPer100); updates.push("热量=" + np.calories + "kcal/100g"); }
+        if (num(args.proteinPer100) !== null) { np.protein = num(args.proteinPer100); updates.push("蛋白=" + np.protein + "g/100g"); }
+        if (num(args.carbsPer100) !== null) { np.carbs = num(args.carbsPer100); updates.push("碳水=" + np.carbs + "g/100g"); }
+        if (num(args.fatPer100) !== null) { np.fat = num(args.fatPer100); updates.push("脂肪=" + np.fat + "g/100g"); }
+        if (num(args.price) !== null) {
+          p.price = num(args.price);
+          const ug = parseUnitGrams(p.unit || '500g');
+          p.perPrice = ug > 0 ? Math.round(p.price / ug * 500 * 100) / 100 : p.price;
+          updates.push("价格=" + p.price + "元/" + (p.unit || '500g'));
+        }
+        if (String(args.unit || '').trim()) { p.unit = String(args.unit).trim(); updates.push("单位=" + p.unit); }
+      } else {
+        const lib = getIngredientLib();
+        let item = lib[name];
+        if (!item) item = { category: "蛋白", kcalPer100: 100, proteinPer100: 15, carbsPer100: 5, fatPer100: 3, price: 0, unit: "500g", storage: "常温" };
+        if (num(args.price) !== null) { item.price = num(args.price); updates.push("价格=" + item.price + "元/" + item.unit); }
+        if (String(args.unit || '').trim()) { item.unit = String(args.unit).trim(); updates.push("单位=" + item.unit); }
+        if (num(args.kcalPer100) !== null) { item.kcalPer100 = num(args.kcalPer100); updates.push("热量=" + item.kcalPer100 + "kcal/100g"); }
+        if (num(args.proteinPer100) !== null) { item.proteinPer100 = num(args.proteinPer100); updates.push("蛋白=" + item.proteinPer100 + "g/100g"); }
+        if (num(args.carbsPer100) !== null) { item.carbsPer100 = num(args.carbsPer100); updates.push("碳水=" + item.carbsPer100 + "g/100g"); }
+        if (num(args.fatPer100) !== null) { item.fatPer100 = num(args.fatPer100); updates.push("脂肪=" + item.fatPer100 + "g/100g"); }
         DEFAULT_INGREDIENT_LIBRARY[name] = item;
       }
-      const updates = [];
-      const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
-      if (num(args.price) !== null) { item.price = num(args.price); updates.push("价格=" + item.price + "元/" + item.unit); }
-      if (String(args.unit || '').trim()) { item.unit = String(args.unit).trim(); updates.push("单位=" + item.unit); }
-      if (num(args.kcalPer100) !== null) { item.kcalPer100 = num(args.kcalPer100); updates.push("热量=" + item.kcalPer100 + "kcal/100g"); }
-      if (num(args.proteinPer100) !== null) { item.proteinPer100 = num(args.proteinPer100); updates.push("蛋白=" + item.proteinPer100 + "g/100g"); }
-      if (num(args.carbsPer100) !== null) { item.carbsPer100 = num(args.carbsPer100); updates.push("碳水=" + item.carbsPer100 + "g/100g"); }
-      if (num(args.fatPer100) !== null) { item.fatPer100 = num(args.fatPer100); updates.push("脂肪=" + item.fatPer100 + "g/100g"); }
       if (num(args.stockGrams) !== null) { appData.ingredientStock[name] = num(args.stockGrams); updates.push("库存=" + appData.ingredientStock[name] + "g"); }
-      // 同步价格库（采购联动）
-      INGREDIENT_PRICES[name] = { price: item.price, unit: item.unit, category: item.category, storage: item.storage };
+      // 同步价格库（采购联动兜底）
+      const fi = getIngredientLib()[name];
+      if (fi) INGREDIENT_PRICES[name] = { price: fi.price, unit: fi.unit, category: fi.category, storage: fi.storage };
       saveData();
       return { success: true, message: "「" + name + "」已更新：" + (updates.length ? updates.join("，") : "（无变化）") + "\n配餐成本、采购清单已自动联动" };
     }
