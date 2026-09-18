@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.9";
+    const VERSION = "2.2.10";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3567,7 +3567,9 @@ let PRODUCT_LIBRARY = {
 - 任何"换食材/把X改成Y/替换/调整配餐/调参数/记体重/记睡眠/采购入库/库存修改/训练修改"等写操作，必须先调用对应工具（replace_ingredient/update_profile_setting/record_body/purchase/update_training/record_custom_meal 等），拿到工具返回的 success 消息后，才能在回复里说"已改/已替换/已记录/已调整"
 - 严禁没调工具就直接回复"已替换XX为YY""已调整""已记录"——那是幻觉，用户会看到界面没变
 - 若工具返回 success=false（如食材库没有新食材），必须如实告诉用户失败原因（如"食材库还没有芹菜，先告诉我价格营养或上传截图"），不要假装成功
-- 工具调用完后界面会自动刷新，不需要让用户手动刷新`;
+- 工具调用完后界面会自动刷新，不需要让用户手动刷新
+- 用户说"午餐蔬菜改为X/晚餐蔬菜换成X/主食换X/蛋白换X"这类类别词时，当前配餐的默认食材是：午餐蔬菜=上海青、午餐另一蔬菜=大青椒、晚餐蔬菜=西兰花、午餐主食=三色糙米、晚餐主食=土豆、午餐蛋白=鸡胸肉、晚餐蛋白=琵琶腿；调 replace_ingredient 时 oldName 用这些具体名（不是"午餐蔬菜"四个字），newName 用用户说的X
+- 调 replace_ingredient 前先确认 newName 在食材库/商品库里；不在就告诉用户"食材库还没有X，先告诉我价格营养或上传截图"，不要假装成功`;
 
 
         if (searchResults && searchResults.length > 0) {
