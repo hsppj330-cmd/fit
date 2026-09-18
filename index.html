@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.2";
+    const VERSION = "2.2.3";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1316,7 +1316,7 @@ let PRODUCT_LIBRARY = {
 "carbs": 2.8,
 "fat": 8.8
 },
-"detail": "线下菜市场/超市采购：500g约7.5元（约8-9个）。全蛋优质蛋白+卵磷脂，早餐微波燕麦蛋杯用。"
+"detail": "线下菜市场/超市采购：500g约7.5元（约8-9个）。全蛋优质蛋白+卵磷脂，早餐微波燕麦蛋杯用。带壳单枚平均约60g（实测），蛋壳约12%，可食约53g。"
 },
 "乳清蛋白粉": {
 "brand": "马泰时刻",
@@ -2418,17 +2418,15 @@ let PRODUCT_LIBRARY = {
       // 早餐=微波燕麦蛋杯+南瓜子仁+巴西莓粉+牛奶；午餐=糙米饭+炒鸡胸+炒蔬菜（牛油果油，油脂集中在早/午）；
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
-      const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 50], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);
+      const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 53], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);  // 鸡蛋带壳60g，蛋壳约12%，可食53g（用户实测）
       const riceGrams = isRest ? 52 : 105;   // 休息日低碳
       // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
-      // v2.1.9 脂肪0.8全局精准（谭师最新）：训练日=糙米105+鸡胸110+油14 / 土豆285+琵琶腿95 / 乳清15
-      //   蛋白112 碳水198 脂肪53 热量1717；休息日=糙米52+鸡胸128+油12 / 土豆200+琵琶腿155
-      //   蛋白112 碳水145 脂肪53 热量1505
+      // v2.2.3：蛋带壳60g(可食53g) + 练后乳清30g一勺：训练日≈碳200/蛋124/脂54/热1761（1.88g/kg蛋白）；休息日≈碳144/蛋113/脂53/热1484
       const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 12 : 14]], lib);
       const dinner = buildMeal([["土豆", isRest ? 200 : 285], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
       // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
       const postWorkout = (dayType && dayType !== 'rest')
-        ? buildMeal([["乳清蛋白粉", 15]], lib)
+        ? buildMeal([["乳清蛋白粉", 30]], lib)  // 一勺30g（用户实测）
         : null;
       return { breakfast, lunch, dinner, postWorkout };
     }
@@ -3375,7 +3373,7 @@ let PRODUCT_LIBRARY = {
    - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
    - 午餐（周备餐冷冻）：三色糙米（训练日105g/休息日52g 生干重）+鸡胸肉（训练日110g/休息日128g）+上海青100g+大青椒100g+牛油果油（训练日14g/休息日12g，炒菜用，油脂集中在早/午）
    - 晚餐（清淡无油）：土豆（训练日285g/休息日200g）+琵琶腿（训练日95g/休息日155g，去皮食用）+西兰花250g
-   - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉15g（约60kcal/11g蛋白），已计入当日配餐数值；休息日不补
+   - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（一勺，约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
    - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
 5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
@@ -3848,6 +3846,25 @@ let PRODUCT_LIBRARY = {
       }
       const dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
       const typeNames = { push: "推日", pull: "拉日", legs: "腿日", rest: "休息", abs: "腹肌日" };
+      // 实时倍率：取第一个训练日与休息日的「三餐+练后实际摄入」÷ 体重（真实入口口径）
+      const weight = plan.weekStartWeight || appData.profile.weight || 66;
+      const sumDayMacros = (day) => {
+        const meals = day.meals;
+        return ['breakfast', 'lunch', 'dinner', 'postWorkout'].reduce((acc, k) => {
+          const m = meals[k];
+          if (m && m.sum) { acc.carbs += m.sum.carbs || 0; acc.protein += m.sum.protein || 0; acc.fat += m.sum.fat || 0; }
+          return acc;
+        }, { carbs: 0, protein: 0, fat: 0 });
+      };
+      let trainMacros = null, restMacros = null;
+      dayOrder.forEach(d => {
+        const day = plan.days[d];
+        if (!day || !day.meals) return;
+        if (day.dayType !== 'rest' && !trainMacros) trainMacros = sumDayMacros(day);
+        if (day.dayType === 'rest' && !restMacros) restMacros = sumDayMacros(day);
+      });
+      if (!trainMacros) trainMacros = plan.targets;
+      if (!restMacros) restMacros = plan.targets;
       const weekCost = dayOrder.reduce((sum, d) => {
         const day = plan.days[d];
         if (!day || !day.meals) return sum;
@@ -3861,6 +3878,11 @@ let PRODUCT_LIBRARY = {
           </div>
           <div class="text-xl font-bold">周目标：碳水${plan.targets.carbs}g / 蛋白${plan.targets.protein}g / 脂肪${plan.targets.fat}g / ${plan.targets.calories}kcal</div>
           <div class="text-xs opacity-90 mt-1">一周食材参考成本约 ${weekCost.toFixed(1)} 元（按商品库现价）</div>
+          <div class="mt-2 bg-white/15 rounded-xl px-3 py-2 text-xs leading-relaxed">
+            <div class="font-medium opacity-95">📊 当前实际倍率（按 ${weight}kg 体重）</div>
+            <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 3.0 / 1.7 / 0.8）</div>
+            <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / 1.7 / 0.8）</div>
+          </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
         </div>
         <div class="mb-4 grid grid-cols-2 gap-2">
@@ -3875,11 +3897,12 @@ let PRODUCT_LIBRARY = {
         const m = dayPlan.macros;
         const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner, po = dayPlan.meals.postWorkout;
         const fmtItems = (meal, mode) => meal.items.map(it => {
+          const label = it.name === "鸡蛋" ? "鸡蛋(带壳60g)" : it.name;
           const cooked = cookedWeightGrams(it.name, it.grams);
           if (mode === "cooked" && cooked) {
-            return it.name + "(熟) <b>" + cooked + "g</b><span class=\"text-xs text-gray-400\">(生" + it.grams + "g)</span>";
+            return label + "(熟) <b>" + cooked + "g</b><span class=\"text-xs text-gray-400\">(生" + it.grams + "g)</span>";
           }
-          return it.name + " " + it.grams + "g";
+          return label + " " + it.grams + "g";
         }).join(" + ");
         html += `
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -3902,7 +3925,7 @@ let PRODUCT_LIBRARY = {
           <div class="space-y-3 text-sm leading-relaxed text-gray-700">
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-amber-700 mb-1">🥚 早餐 · 每天现做（生重口径，不批量）</div>
-              <div>燕麦片60g（生干）+ 清水约150ml + 生鸡蛋1个（约50g）打散 → 微波炉中高火3分钟</div>
+              <div>燕麦片60g（生干）+ 清水约150ml + 生鸡蛋1个（带壳约60g，可食约53g）打散 → 微波炉中高火3分钟</div>
               <div class="text-xs text-gray-500 mt-1">取出后加南瓜子仁10g + 巴西莓粉5g（替代蓝莓），配纯牛奶250ml喝</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
@@ -3943,7 +3966,7 @@ let PRODUCT_LIBRARY = {
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
-              <div>乳清蛋白粉 15g 冲泡（约半勺，11g蛋白）</div>
+              <div>乳清蛋白粉 30g 冲泡（一勺，约22g蛋白）</div>
             </div>
             <div class="bg-yellow-50 rounded-xl p-3 text-xs text-gray-600">
               🧂 <b>每日盐量核算（全量计入，含酱油/蚝油隐形盐）：</b>腌制盐 4.7g÷7≈0.67g + 炒菜盐 0.8g + 卤汁隐形盐 3.7g÷7≈0.53g ≈ <b>2.0g/日</b> ＜ 5g 上限 ✓（复热/蘸料额外加盐请计入，总量别超5g；酱油建议薄盐型）
