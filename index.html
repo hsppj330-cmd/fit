@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.5";
+    const VERSION = "2.2.6";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1785,6 +1785,8 @@ let PRODUCT_LIBRARY = {
         bodyFat: 20.2, 
         targetWeight: 62, 
         targetBodyFat: 15, 
+        height: 175,   // 身高cm（公式兜底用，Keep实测bmr优先）
+        age: 25,       // 年龄（公式兜底用）
         bmr: 1462, 
         proteinCoefficient: 1.8, 
         calorieDeficit: 300,   // 谭师温和缺口 200-300
@@ -2111,18 +2113,32 @@ let PRODUCT_LIBRARY = {
     }
     
     // ========== 核心热量计算 ==========
-    function getTodayTargetCalories() {
-      // v2.0.1：今日目标 = 当日配餐宏量热量（谭师按运动量定摄入，训练日高碳/休息日低碳），
-      // 不再用 BMR-缺口（那会得到 962 这种与配餐 1835 矛盾的值）。缺口由 TDEE-目标自然体现。
+    // v2.2.6 今日目标宏量 = 当天配餐实际总和（含练后餐），保证「目标=吃满配餐」不再出现吃满还超目标的矛盾
+    function getTodayPlanMacros() {
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const plan = appData.weeklyPlan;
-      if (plan && plan.days && plan.days[dayName]) return plan.days[dayName].macros.calories;
+      if (plan && plan.days && plan.days[dayName] && plan.days[dayName].meals) {
+        const meals = plan.days[dayName].meals;
+        const sum = ['breakfast', 'lunch', 'dinner', 'postWorkout'].reduce((a, k) => {
+          const m = meals[k];
+          if (m && m.sum) { a.carbs += m.sum.carbs || 0; a.protein += m.sum.protein || 0; a.fat += m.sum.fat || 0; a.calories += m.sum.calories || 0; }
+          return a;
+        }, { carbs: 0, protein: 0, fat: 0, calories: 0 });
+        return { carbs: Math.round(sum.carbs), protein: Math.round(sum.protein), fat: Math.round(sum.fat), calories: Math.round(sum.calories) };
+      }
       const dow = new Date().getDay();
       const dayType = dow === 4 ? 'rest' : 'push';
-      return computeDayMacros(dayType).calories;
+      return computeDayMacros(dayType);
+    }
+    function getTodayTargetCalories() {
+      // v2.2.6：今日目标 = 当日配餐实际热量（训练日 1622 / 休息日 1484），缺口由 TDEE−目标自然体现
+      return getTodayPlanMacros().calories;
     }
 
     function getTodayProteinTarget() {
+      // v2.2.6：蛋白目标优先取当天配餐实际蛋白（吃满配餐即达标），无周计划时回退系数
+      const p = getTodayPlanMacros().protein;
+      if (p > 0) return p;
       return Math.round(appData.profile.weight * appData.profile.proteinCoefficient);
     }
 
@@ -2138,16 +2154,17 @@ let PRODUCT_LIBRARY = {
       const factor = getTodayType() === 'rest' ? 1.25 : 1.45;
       return Math.round(bmr * factor);
     }
-    // v2.2.4 实时热量缺口：总消耗（基准TDEE + 今日训练打卡消耗）− 今日已摄入
+    // v2.2.6 实时热量缺口：总消耗 = 基准TDEE（训练日×1.45 已含计划训练消耗），
+    // 训练打卡只作记录确认（trainBurn 保留展示），不再叠加，避免「1.45因子+打卡消耗」双重计算导致缺口虚高
     function computeDailyDeficit() {
       const today = new Date().toISOString().split('T')[0];
       const tdee = getTodayTDEE();
       const trainBurn = appData.trainingBurnToday[today] || 0;
       const intake = calculateDailyIntake(today).calories;
-      const totalBurn = tdee + trainBurn;
+      const totalBurn = tdee;
       const deficit = Math.round(totalBurn - intake);
       const verdict = deficit < 0 ? '⚠️ 摄入超消耗' : (deficit >= 200 && deficit <= 300 ? '✅ 温和缺口区间' : (deficit > 300 ? '⚠️ 缺口偏大（>300）' : '📉 缺口不足（<200）'));
-      return { tdee, trainBurn, totalBurn, intake: Math.round(intake), deficit, verdict };
+      return { tdee, trainBurn, totalBurn, intake: Math.round(intake), deficit, verdict, trained: trainBurn > 0 };
     }
     
     // ========== 业务逻辑 ==========
@@ -2168,7 +2185,7 @@ let PRODUCT_LIBRARY = {
       if (record.bmr) {
         appData.profile.bmr = Math.round(record.bmr);
       } else if (weight) {
-        appData.profile.bmr = Math.round(88.362 + (13.397 * weight) + (4.799 * 175) - (5.677 * 25));
+        appData.profile.bmr = Math.round(88.362 + (13.397 * weight) + (4.799 * (appData.profile.height || 175)) - (5.677 * (appData.profile.age || 25)));
       }
       // 保存最近一次身体成分（供 AI 上下文与看板）
       appData.profile.latestBodyComp = {
@@ -3727,8 +3744,8 @@ let PRODUCT_LIBRARY = {
       if (wPlan && wPlan.days && wPlan.days[dayName]) {
         document.getElementById('dash-week-plan-status').textContent = "已生成";
         document.getElementById('dash-week-daytype').textContent = typeNames2[wPlan.days[dayName].dayType] || dayName;
-        const tgt = wPlan.days[dayName].macros;
-        document.getElementById('dash-week-note').textContent = "今日目标 " + tgt.calories + "kcal · 碳" + tgt.carbs + "g 蛋" + tgt.protein + "g 脂" + tgt.fat + "g · 周末说「复盘」调下周";
+        const tgt = getTodayPlanMacros();
+        document.getElementById('dash-week-note').textContent = "今日目标 " + tgt.calories + "kcal · 碳" + tgt.carbs + "g 蛋" + tgt.protein + "g 脂" + tgt.fat + "g（按配餐实算）· 周末说「复盘」调下周";
       } else {
         document.getElementById('dash-week-plan-status').textContent = "未生成";
         document.getElementById('dash-week-daytype').textContent = "-";
@@ -3794,7 +3811,7 @@ let PRODUCT_LIBRARY = {
       
       const hasTraining = appData.trainingBurnToday[today] > 0;
       if (hasTraining) {
-        advice += ' 今日有训练，热量目标已上浮。';
+        advice += ' 今日训练已记录（消耗约' + appData.trainingBurnToday[today] + '大卡，已含于训练日基准，不重复计算）。';
       }
       
       adviceEl.textContent = advice;
@@ -4205,7 +4222,8 @@ let PRODUCT_LIBRARY = {
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       const dow = new Date().getDay();
       const dayType = dayPlan ? dayPlan.dayType : (dow === 4 ? 'rest' : 'push');
-      const target = dayPlan ? dayPlan.macros : computeDayMacros(dayType);
+      // v2.2.6：目标 = 当天配餐实际宏量（含练后餐），与「吃满配餐」完全一致
+      const target = getTodayPlanMacros();
       const daily = calculateDailyIntake(today);
       const typeNames = { push: '推日', pull: '拉日', legs: '腿日', rest: '休息日', abs: '腹肌日' };
       const leftKcal = Math.max(0, target.calories - daily.calories);
@@ -4758,7 +4776,7 @@ let PRODUCT_LIBRARY = {
                   // 与当日目标宏量联动
                   const dayKey = ["周日","周一","周二","周三","周四","周五","周六"][new Date().getDay()];
                   const dayType = (appData.weeklyPlan && appData.weeklyPlan.days && appData.weeklyPlan.days[dayKey]) ? appData.weeklyPlan.days[dayKey].dayType : 'push';
-                  const target = computeDayMacros(dayType);
+                  const target = getTodayPlanMacros();
                   const dayRecords = appData.mealRecords[today];
                   const daySum = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
                   dayRecords.forEach(r => { daySum.kcal += r.kcal; daySum.protein += r.protein; daySum.carbs += r.carbs; daySum.fat += r.fat; });
