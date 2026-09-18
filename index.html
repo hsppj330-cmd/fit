@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.7";
+    const VERSION = "2.1.8";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2341,13 +2341,14 @@ let PRODUCT_LIBRARY = {
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 50], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);
-      const riceGrams = isRest ? 70 : 90;   // 休息日低碳
+      const riceGrams = isRest ? 70 : 105;   // 休息日低碳
       // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", 130], ["上海青", 100], ["大青椒", 100], ["牛油果油", 15]], lib);
-      const dinner = buildMeal([["土豆", isRest ? 220 : 280], ["琵琶腿", 180], ["西兰花", 250]], lib);
+      // 训练日克数（v2.1.8 精准校准：蛋白112/碳水198/脂肪66）= 糙米105 + 鸡胸110 + 油27 / 土豆285 + 琵琶腿95 / 乳清15
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 130 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 15 : 27]], lib);
+      const dinner = buildMeal([["土豆", isRest ? 220 : 285], ["琵琶腿", isRest ? 180 : 95], ["西兰花", 250]], lib);
       // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
       const postWorkout = (dayType && dayType !== 'rest')
-        ? buildMeal([["乳清蛋白粉", 30]], lib)
+        ? buildMeal([["乳清蛋白粉", 15]], lib)
         : null;
       return { breakfast, lunch, dinner, postWorkout };
     }
@@ -3253,7 +3254,7 @@ let PRODUCT_LIBRARY = {
    - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
    - 午餐（周备餐冷冻）：三色糙米（训练日90g/休息日70g 生干重）+鸡胸肉130g+上海青100g+大青椒100g+牛油果油15g（炒菜用，油脂集中在早/午）
    - 晚餐（清淡无油）：土豆（训练日280g/休息日220g）+琵琶腿180g（去皮食用）+西兰花250g
-   - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
+   - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉15g（约60kcal/11g蛋白），已计入当日配餐数值；休息日不补
    - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
 5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
@@ -3780,20 +3781,20 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-blue-700 mb-1">🥩 午餐 · 批量7份 · 炒鸡胸糙米饭</div>
               <div>腌制（每500g鸡胸）：生抽10g + 蚝油5g + 料酒5g + 盐3g + 玉米淀粉10g + 黑胡椒2g，抓匀冷藏30分钟以上</div>
-              <div>鸡胸910g（130g×7）煎熟切条；三色糙米630g（90g×7）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约200g + 炒鸡胸约95g + 炒蔬菜约170g，淋牛油果油15g</div>
+              <div>鸡胸770g（110g×7）煎熟切条；三色糙米735g（105g×7）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟糙米饭约231g + 炒鸡胸约83g + 炒蔬菜约170g，淋牛油果油27g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-purple-700 mb-1">🍗 晚餐 · 批量7份 · 卤鸡腿土豆餐（无油）</div>
               <div>卤水（每1kg琵琶腿）：卤料包1袋 + 生抽20g + 老抽10g + 料酒10g + 姜片10g + 葱段；卤料包已含八角/桂皮/香叶/花椒等香料，无需另加。卤25分钟关火焖10分钟</div>
-              <div>琵琶腿1260g（180g×7）卤好去皮食用；土豆1960g（280g×7）烤/水煮；西兰花1750g（250g×7）水煮</div>
-              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约250g + 卤鸡腿去皮约110g + 水煮西兰花225g</div>
+              <div>琵琶腿665g（95g×7）卤好去皮食用；土豆1995g（285g×7）烤/水煮；西兰花1750g（250g×7）水煮</div>
+              <div class="text-xs text-gray-500 mt-1">组装（每份）：熟土豆约257g + 卤鸡腿去皮约57g + 水煮西兰花225g</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
-              <div>乳清蛋白粉30g冲泡（约1勺，22g蛋白）</div>
+              <div>乳清蛋白粉15g冲泡（约半勺，11g蛋白）</div>
             </div>
-            <div class="text-xs text-gray-500">🧂 每日用盐≈2.3g（腌制+卤汁合计，含酱油/蚝油等隐形盐，按全量计入），低于「每日≤5g」标准；但复热/蘸料若额外加盐请计入，总量别超5g。酱油建议选薄盐型。</div>
+            <div class="text-xs text-gray-500">🧂 每日用盐≈1.7g（腌制+卤汁合计，含酱油/蚝油等隐形盐，按全量计入），低于「每日≤5g」标准；但复热/蘸料若额外加盐请计入，总量别超5g。酱油建议选薄盐型。</div>
             <div class="text-xs text-gray-500">冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
           </div>
         </div>`;
