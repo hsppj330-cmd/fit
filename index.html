@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.11";
+    const VERSION = "2.2.12";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3285,12 +3285,35 @@ let PRODUCT_LIBRARY = {
           return { success: true, message: "✅ " + name + " 已设为" + channel + "采购（" + (lib.perPrice || lib.price ? '参考价 ' + (lib.perPrice || lib.price) + '元/' + (lib.unit || '500g') : '按商品库价格') + "）。采购清单已按渠道分组，重新配餐或刷新采购清单即可看到。" };
         }
         case "replace_ingredient": {
-          const oldName = String(args.oldName || '').trim();
-          const newName = String(args.newName || '').trim();
+          // v2.2.12：食材别名规范化（口语→库名）
+          const ALIAS = {
+            "西芹菜": "西芹", "芹菜": "西芹", "西洋芹": "西芹",
+            "包菜": "莲花白", "圆白菜": "莲花白", "卷心菜": "莲花白", "甘蓝": "莲花白", "椰菜": "莲花白",
+            "小棠菜": "上海青", "青菜": "上海青", "小白菜": "上海青",
+            "青椒": "大青椒", "彩椒": "大青椒",
+            "土豆": "土豆", "马铃薯": "土豆",
+            "鸡胸": "鸡胸肉", "鸡胸肉": "鸡胸肉",
+            "鸡腿": "琵琶腿", "琵琶腿": "琵琶腿",
+            "糙米": "三色糙米", "杂粮饭": "三色糙米"
+          };
+          const normalize = n => {
+            const key = String(n || '').trim();
+            return ALIAS[key] || key;
+          };
+          const oldName = normalize(args.oldName);
+          const newName = normalize(args.newName);
           const rlib = getIngredientLib();
           if (!oldName || !newName || oldName === newName) return { success: false, message: "请提供要替换的食材名和替换成什么食材（如：上海青换成小水白菜）" };
           if (!rlib[oldName]) return { success: false, message: "食材库没有「" + oldName + "」" };
-          if (!rlib[newName]) return { success: false, message: "食材库没有「" + newName + "」，可先上传商品截图或告诉我价格营养" };
+          if (!rlib[newName]) {
+            // v2.2.12：模糊匹配——库里找包含 newName 或被 newName 包含的
+            const libKeys = Object.keys(rlib);
+            const fuzzy = libKeys.find(k => k.includes(newName) || newName.includes(k));
+            if (fuzzy) {
+              return executeToolCall("replace_ingredient", { oldName: oldName, newName: fuzzy });
+            }
+            return { success: false, message: "食材库没有「" + newName + "」，可先上传商品截图或告诉我价格营养" };
+          }
           appData.ingredientSwaps = appData.ingredientSwaps || {};
           appData.ingredientSwaps[oldName] = newName;
           const keepStart = appData.weeklyPlan && appData.weeklyPlan.startDate;
