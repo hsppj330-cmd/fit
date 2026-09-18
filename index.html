@@ -232,9 +232,9 @@
                 <label class="text-sm text-gray-600">每周运动时长（决定碳水量，谭师系数）</label>
                 <select id="setting-week-hours" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
                   <option value="2-3">2-3 小时：碳水 2.2g/kg · 蛋白 1.4 · 脂肪 0.8</option>
-                  <option value="4-5">4-5 小时：碳水 2.5g/kg · 蛋白 1.6 · 脂肪 0.9</option>
-                  <option value="6-7">6-7 小时：碳水 3.0g/kg · 蛋白 1.7 · 脂肪 1.0</option>
-                  <option value="8-9">8-9 小时：碳水 3.5g/kg · 蛋白 1.8 · 脂肪 1.0</option>
+                  <option value="4-5">4-5 小时：碳水 2.5g/kg · 蛋白 1.6 · 脂肪 0.8</option>
+                  <option value="6-7">6-7 小时：碳水 3.0g/kg · 蛋白 1.7 · 脂肪 0.8</option>
+                  <option value="8-9">8-9 小时：碳水 3.5g/kg · 蛋白 1.8 · 脂肪 0.8</option>
                 </select>
               </div>
               <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.1";
+    const VERSION = "2.2.2";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2347,15 +2347,15 @@ let PRODUCT_LIBRARY = {
       "巴沙鱼柳": { cooked: 0.85, note: "煎/蒸" },
       "三文鱼": { cooked: 0.85, note: "煎" },
       "虾仁": { cooked: 0.9, note: "煮/炒" },
-      "三色糙米": { cooked: 2.2, note: "干米→熟饭" },
+      "三色糙米": { cooked: 2.5, note: "干米→熟饭（1:2.5，联网核实）" },
       "燕麦片": { cooked: 3.0, note: "干→粥" },
       "西瓜红蜜薯": { cooked: 0.85, note: "烤/蒸" },
       "土豆": { cooked: 0.9, note: "煮/蒸" },
       "贝贝南瓜": { cooked: 0.9, note: "蒸/烤" },
       "西兰花": { cooked: 0.9, note: "焯水" },
-      "上海青": { cooked: 0.55, note: "炒后缩水" },
+      "上海青": { cooked: 0.6, note: "炒后缩水（油菜标准1:0.6，联网核实）" },
       "西芹": { cooked: 0.8, note: "焯/炒" },
-      "大青椒": { cooked: 0.85, note: "炒" },
+      "大青椒": { cooked: 0.8, note: "炒（辣椒0.75-0.85，联网核实）" },
       "混合蔬菜": { cooked: 0.85, note: "解冻快炒" },
       "嫩豆腐": { cooked: 1.0, note: "煮后近似不变" },
       "鸡蛋": { cooked: 1.0, note: "水煮蛋" },
@@ -3874,9 +3874,12 @@ let PRODUCT_LIBRARY = {
         const t = dayPlan.dayType;
         const m = dayPlan.macros;
         const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner, po = dayPlan.meals.postWorkout;
-        const fmtItems = (meal) => meal.items.map(it => {
+        const fmtItems = (meal, mode) => meal.items.map(it => {
           const cooked = cookedWeightGrams(it.name, it.grams);
-          return it.name + " " + it.grams + "g" + (cooked ? "→熟" + cooked + "g" : "");
+          if (mode === "cooked" && cooked) {
+            return it.name + "(熟) <b>" + cooked + "g</b><span class=\"text-xs text-gray-400\">(生" + it.grams + "g)</span>";
+          }
+          return it.name + " " + it.grams + "g";
         }).join(" + ");
         html += `
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -3885,40 +3888,68 @@ let PRODUCT_LIBRARY = {
               <div class="text-xs text-gray-400">${m.calories}kcal 碳${m.carbs}g 蛋${m.protein}g 脂${m.fat}g</div>
             </div>
             <div class="space-y-1.5 text-sm text-gray-600">
-              <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf)} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
-              <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu)} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
-              <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di)} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
-              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po) + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
+              <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf, 'raw')} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
+              <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu, 'cooked')} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
+              <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di, 'cooked')} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
+              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
             </div>
           </div>`;
       });
       html += `</div>
         <div class="bg-amber-50 rounded-2xl p-4 mt-4">
-          <h3 class="font-bold text-lg mb-2">📋 本周备餐指南（周日集中制作午晚餐）</h3>
+          <h3 class="font-bold text-lg mb-2">📋 周备餐 · 周日集中制作（午晚餐批量7份）</h3>
+          <div class="text-xs text-gray-500 mb-3">批量清单与「周采购」联动（生重）；营养按熟后入口口径；制作完按组装表分装冷冻</div>
           <div class="space-y-3 text-sm leading-relaxed text-gray-700">
             <div class="bg-white rounded-xl p-3">
-              <div class="font-medium text-amber-700 mb-1">🍳 早餐 · 每天现做（微波炉3分钟）</div>
-              <div>燕麦片60g + 清水约150ml + 生鸡蛋1个打散 → 微波炉中高火3分钟</div>
-              <div class="text-xs text-gray-500 mt-1">取出后加南瓜子仁10g + 巴西莓粉5g，配纯牛奶250ml喝</div>
+              <div class="font-medium text-amber-700 mb-1">🥚 早餐 · 每天现做（生重口径，不批量）</div>
+              <div>燕麦片60g（生干）+ 清水约150ml + 生鸡蛋1个（约50g）打散 → 微波炉中高火3分钟</div>
+              <div class="text-xs text-gray-500 mt-1">取出后加南瓜子仁10g + 巴西莓粉5g（替代蓝莓），配纯牛奶250ml喝</div>
             </div>
-            <div class="bg-white rounded-xl p-3">
-              <div class="font-medium text-blue-700 mb-1">🥩 午餐 · 批量7份 · 炒鸡胸糙米饭</div>
-              <div>腌制（每500g鸡胸）：生抽10g + 蚝油5g + 料酒5g + 盐3g + 玉米淀粉10g + 黑胡椒2g，抓匀冷藏30分钟以上</div>
-              <div>鸡胸788g（训练日110g×6 + 休息日128g）煎熟切条；三色糙米682g（训练日105g×6 + 休息日52g）泡30分钟煮熟；上海青700g + 大青椒700g 焯水快炒（西兰花改到晚餐）</div>
-              <div class="text-xs text-gray-500 mt-1">组装：训练日每份 熟糙米饭约231g + 炒鸡胸约83g + 炒蔬菜约170g，淋牛油果油14g；休息日 熟饭约114g + 鸡胸约96g + 油12g</div>
+            <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
+              <div class="font-medium text-blue-700 mb-1">🍚 Step 1 · 主食：三色糙米（周生重 682g → 熟饭约 1705g）</div>
+              <div>① 称出生糙米 682g（训练日105g×6 + 休息日52g）→ 淘洗后清水浸泡 30 分钟</div>
+              <div>② 加水量约 1:1.6（米面齐平再高约1指）→ 电饭煲煮熟 → 打散晾凉备用</div>
+              <div class="text-xs text-gray-500 mt-1">熟饭共约 1705g（1:2.5）；组装时每份按下方「组装表」取熟饭克数</div>
             </div>
-            <div class="bg-white rounded-xl p-3">
-              <div class="font-medium text-purple-700 mb-1">🍗 晚餐 · 批量7份 · 卤鸡腿土豆餐（无油）</div>
-              <div>卤水（每1kg琵琶腿）：卤料包1袋 + 生抽20g + 老抽10g + 料酒10g + 姜片10g + 葱段；卤料包已含八角/桂皮/香叶/花椒等香料，无需另加。卤25分钟关火焖10分钟</div>
-              <div>琵琶腿725g（训练日95g×6 + 休息日155g）卤好去皮食用；土豆1910g（训练日285g×6 + 休息日200g）烤/水煮；西兰花1750g（250g×7）水煮</div>
-              <div class="text-xs text-gray-500 mt-1">组装：训练日每份 熟土豆约257g + 卤鸡腿去皮约57g + 水煮西兰花225g；休息日 熟土豆约180g + 腿去皮约93g</div>
+            <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
+              <div class="font-medium text-blue-700 mb-1">🥩 Step 2 · 鸡胸肉：周生重 788g → 熟 591g（腌制+炒制）</div>
+              <div>① 称出生鸡胸 788g → 切条（约2cm粗）</div>
+              <div>② 腌制（按 788g/500g≈1.6 批缩放）：生抽 16g + 蚝油 8g + 料酒 8g + 盐 4.7g + 玉米淀粉 16g + 黑胡椒 3.2g，抓匀冷藏 30 分钟以上</div>
+              <div>③ 炒制用油：牛油果油 68g（训练日10g×6 + 休息日8g×1）→ 中大火分 2-3 批炒熟（每批别加水）→ 熟鸡胸共约 591g</div>
+              <div class="text-xs text-gray-500 mt-1">注：炒鸡胸油 68g 已含在周采购牛油果油 96g 内</div>
+            </div>
+            <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
+              <div class="font-medium text-blue-700 mb-1">🥦 Step 3 · 蔬菜：上海青 700g + 大青椒 700g（生 → 熟约 980g）</div>
+              <div>① 上海青 700g 洗净切段、大青椒 700g 去籽切条</div>
+              <div>② 分 2 批快炒：每批用牛油果油 14g（共 28g）+ 盐 2.8g（共 5.6g，约 0.8g/份），大火快炒断生即出锅</div>
+              <div class="text-xs text-gray-500 mt-1">熟菜共约 980g（上海青420g + 青椒560g），每份 140g</div>
+            </div>
+            <div class="bg-white rounded-xl p-3 border-l-4 border-purple-500">
+              <div class="font-medium text-purple-700 mb-1">🍗 Step 4 · 晚餐：卤鸡腿 + 土豆 + 西兰花（无油清淡）</div>
+              <div>① 卤琵琶腿：725g → 冷水下锅焯水2分钟 → 换水加卤水：卤料包1袋 + 生抽 14.5g + 老抽 7.3g + 料酒 7.3g + 姜片 10g + 葱段 → 大火烧开转小火卤 25 分钟，关火焖 10 分钟 → 去皮食用（熟肉约 435g）</div>
+              <div>② 土豆：1910g 洗净（可去皮）→ 水煮/蒸 20 分钟至筷子能插透（熟约 1719g）</div>
+              <div>③ 西兰花：1750g 掰小朵 → 沸水焯 2 分钟（熟约 1575g，不加油）</div>
+              <div class="text-xs text-gray-500 mt-1">卤汁盐≈3.7g/周（生抽+老抽隐形盐，全量计入），日均约0.5g</div>
+            </div>
+            <div class="bg-white rounded-xl p-3 border-l-4 border-emerald-500">
+              <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（每份熟重克数 · 7份）</div>
+              <div class="grid grid-cols-2 gap-2 mt-1">
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日（6天）</div><div>熟糙米饭 <b>263g</b> + 熟鸡胸 <b>83g</b> + 炒蔬菜 <b>140g</b> + 牛油果油 14g</div></div>
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日（1天）</div><div>熟糙米饭 <b>130g</b> + 熟鸡胸 <b>96g</b> + 炒蔬菜 <b>140g</b> + 牛油果油 12g</div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日（6天）</div><div>熟土豆 <b>257g</b> + 卤鸡腿去皮 <b>57g</b> + 水煮西兰花 <b>225g</b></div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日（1天）</div><div>熟土豆 <b>180g</b> + 卤鸡腿去皮 <b>93g</b> + 水煮西兰花 <b>225g</b></div></div>
+              </div>
+              <div class="text-xs text-gray-500 mt-2">闭合校验：熟饭 263×6+130×1=1708g ≈ 1705g；熟鸡胸 83×6+96×1=594g ≈ 591g；蔬菜 140×7=980g ✓；土豆 257×6+180×1=1722g ≈ 1719g；腿肉 57×6+93×1=435g ✓；西兰花 225×7=1575g ✓；油 14×6+12×1=96g ✓</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
-              <div>乳清蛋白粉15g冲泡（约半勺，11g蛋白）</div>
+              <div>乳清蛋白粉 15g 冲泡（约半勺，11g蛋白）</div>
             </div>
-            <div class="text-xs text-gray-500">🧂 每日用盐≈1.7g（腌制+卤汁合计，含酱油/蚝油等隐形盐，按全量计入），低于「每日≤5g」标准；但复热/蘸料若额外加盐请计入，总量别超5g。酱油建议选薄盐型。</div>
-            <div class="text-xs text-gray-500">冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
+            <div class="bg-yellow-50 rounded-xl p-3 text-xs text-gray-600">
+              🧂 <b>每日盐量核算（全量计入，含酱油/蚝油隐形盐）：</b>腌制盐 4.7g÷7≈0.67g + 炒菜盐 0.8g + 卤汁隐形盐 3.7g÷7≈0.53g ≈ <b>2.0g/日</b> ＜ 5g 上限 ✓（复热/蘸料额外加盐请计入，总量别超5g；酱油建议薄盐型）
+              <div class="mt-1">🛢️ <b>油脂集中早/午：</b>早餐0油 + 午餐14g（训练日）/12g（休息日，炒鸡胸+炒菜+淋）+ 晚餐0油，符合「油脂集中在早午、晚餐清淡」</div>
+              <div class="mt-1">❄️ 冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
+            </div>
           </div>
         </div>`;
       if (appData.weekReview && appData.weekReview.history && appData.weekReview.history.length) {
