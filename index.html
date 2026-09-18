@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.6";
+    const VERSION = "2.2.7";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2983,9 +2983,8 @@ let PRODUCT_LIBRARY = {
       if (!/改|调|设/.test(text) && (/(热量缺口|缺口).{0,10}(多少|是几|几大卡|什么|多少大卡)/.test(text) || /几倍碳水|碳水.{0,4}(几倍|倍率|多少)/.test(text) || /配餐.{0,6}(热量缺口|碳水倍率|多少热量)/.test(text))) {
         return { type: "query_plan_summary" };
       }
+      // v2.2.7：只保留"重新配餐"明确词直通；其他含"配餐/周计划"的自由描述一律走 AI，由 AI 判断该查询还是重算
       if (text.includes("重新配餐") || text.includes("重配餐") || text.includes("重新生成周餐") || text.includes("按新体重")) return { type: "generate_week_plan_v2" };
-      if (!isQuestion && (text.includes("配餐") || text.includes("生成周餐") || text.includes("下周吃什么") || text.includes("本周吃什么"))) return { type: "generate_week_plan_v2" };
-      if (!isQuestion && (text.includes("周计划") || text.includes("下周计划"))) return { type: "generate_week_plan" };
       // 长耗材目标库存（先于"库存"判断，避免被拦截）
       const targetMatch = text.match(/([\u4e00-\u9fa5A-Za-z]+?)\s*(?:目标库存|囤货|长期备货)[设为到]?\s*(\d+\.?\d*)\s*(kg|公斤|克|g)?/i);
       if (targetMatch) {
@@ -3405,12 +3404,9 @@ let PRODUCT_LIBRARY = {
     }
 
     function handleGenerateWeekPlanV2() {
-      if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
-        const plan = generateWeeklyPlanV2();
-        return { success: true, message: "已按谭师周循环生成本周配餐计划（推/拉/腿/休/推/拉/腹）\n\n去「饮食 → 本周配餐」查看每日三餐食材组合\n去「饮食 → 周采购」按包装规格一键生成采购清单\n\n每周末对我说「复盘」即可根据反馈调整下周碳水" };
-      }
-      const plan = appData.weeklyPlan;
-      return { success: true, message: "本周配餐计划已存在（起始日 " + plan.weekStart + "，起始体重 " + plan.weekStartWeight + "kg）\n· 每日三餐已按训练日/休息日自动搭配\n· 说「重新配餐」可按新体重重算并覆盖本周计划\n· 周末说「复盘」调整下周" };
+      // v2.2.7：被调用即重算（AI 判断要重算时不再因"已存在"拒绝）
+      const plan = generateWeeklyPlanV2();
+      return { success: true, message: "✅ 已按最新身体数据重算本周配餐（起始体重 " + appData.profile.weight + "kg，体脂 " + appData.profile.bodyFat + "%）\n\n去「饮食 → 本周配餐」查看每日三餐食材组合\n去「饮食 → 周采购」按包装规格一键生成采购清单" };
     }
 
     function handleWeeklyReview() {
@@ -3541,7 +3537,8 @@ let PRODUCT_LIBRARY = {
    - 晚餐（清淡无油）：土豆（训练日285g/休息日200g）+琵琶腿（训练日95g/休息日155g，去皮食用）+西兰花250g
    - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（一勺，约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
    - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
-5. 用户说「重新配餐」→ 调 generate_week_plan_v2 用新体重重算；说「复盘」→ 调 weekly_review
+5. 用户说「重新配餐/根据新身体数据重新配餐/按今早体测重新算/按最新体重调整下周吃什么」→ 必须先调 update_profile_setting 把最新体重/体脂写入 profile（体重体脂来自用户刚说的或最近一次体测记录），再调 generate_week_plan_v2 强制重算覆盖本周计划；说「复盘」→ 调 weekly_review
+5b. 用户说「根据新的身体数据制定新的周配餐计划」「按我刚测的数据重新配」这类话，不要只回复"本周已存在"，必须实际调 update_profile_setting + generate_week_plan_v2 两步执行
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
 
 【谭师减脂方法论（回答减脂/饮食问题时优先参考）】
