@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.7";
+    const VERSION = "2.2.8";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3561,7 +3561,13 @@ let PRODUCT_LIBRARY = {
 - 训练计划要体现全部器材：杠铃（杠铃卧推/杠铃深蹲/杠铃俯身划船）+哑铃+跳绳（空腹有氧）
 - 所有动作必须是 Keep 上能搜到的同名动作（如「坐姿哑铃推肩」「哑铃侧平举」「哑铃弯举」「哑铃罗马尼亚硬拉」），用户要在 Keep 里照着编排课程跟练
 - 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程
-- 用户告知新增/更换器材、增删改动作时，必须调用 update_training 真正写入训练库并持久化，不能只口头建议`;
+- 用户告知新增/更换器材、增删改动作时，必须调用 update_training 真正写入训练库并持久化，不能只口头建议
+
+【铁律：修改类操作必须真调工具，禁止空口说"已改"】
+- 任何"换食材/把X改成Y/替换/调整配餐/调参数/记体重/记睡眠/采购入库/库存修改/训练修改"等写操作，必须先调用对应工具（replace_ingredient/update_profile_setting/record_body/purchase/update_training/record_custom_meal 等），拿到工具返回的 success 消息后，才能在回复里说"已改/已替换/已记录/已调整"
+- 严禁没调工具就直接回复"已替换XX为YY""已调整""已记录"——那是幻觉，用户会看到界面没变
+- 若工具返回 success=false（如食材库没有新食材），必须如实告诉用户失败原因（如"食材库还没有芹菜，先告诉我价格营养或上传截图"），不要假装成功
+- 工具调用完后界面会自动刷新，不需要让用户手动刷新`;
 
 
         if (searchResults && searchResults.length > 0) {
