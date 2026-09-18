@@ -250,13 +250,23 @@
                 <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
               </div>
               <div>
-                <label class="text-sm text-gray-600">每周运动时长（决定碳水量，谭师系数）</label>
+                <label class="text-sm text-gray-600">每周运动时长（决定蛋白/脂肪，谭师系数）</label>
                 <select id="setting-week-hours" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                  <option value="2-3">2-3 小时：碳水 2.2g/kg · 蛋白 1.4 · 脂肪 0.8</option>
-                  <option value="4-5">4-5 小时：碳水 2.5g/kg · 蛋白 1.6 · 脂肪 0.8</option>
-                  <option value="6-7">6-7 小时：碳水 3.0g/kg · 蛋白 1.7 · 脂肪 0.8</option>
-                  <option value="8-9">8-9 小时：碳水 3.5g/kg · 蛋白 1.8 · 脂肪 0.8</option>
+                  <option value="2-3">2-3 小时：蛋白 1.4 · 脂肪 0.8</option>
+                  <option value="4-5">4-5 小时：蛋白 1.6 · 脂肪 0.8</option>
+                  <option value="6-7">6-7 小时：蛋白 1.7 · 脂肪 0.8</option>
+                  <option value="8-9">8-9 小时：蛋白 1.8 · 脂肪 0.8</option>
                 </select>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">训练日碳水倍率 (g/kg)</label>
+                <select id="setting-carb-multiplier" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                  <option value="2.2">2.2（缺口最大，谨慎）</option>
+                  <option value="2.5">2.5（当前阶段：缺口 300-500 安全区）</option>
+                  <option value="3.0">3.0（谭师 6-7h 档标准）</option>
+                  <option value="3.5">3.5（高训练量/增肌期）</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">当前 2.5：把缺口拉到 300-500 安全区；复盘见肌肉迟滞再调回 3.0</p>
               </div>
               <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
             </div>
@@ -361,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.4";
+    const VERSION = "2.2.5";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1856,6 +1866,14 @@ let PRODUCT_LIBRARY = {
         if (!data.weekReview) data.weekReview = { history: [], lastReviewedWeek: null };
         data.dataVersion = 7;
       }
+      if (data.dataVersion < 8) {
+        // v2.2.5：训练日碳水倍率覆盖（当前阶段 2.5，缺口 300-500 安全区；复盘见肌肉迟滞再拉高）
+        if (data.profile.carbOverrideK === undefined) {
+          data.profile.carbOverrideK = 2.5;
+          data.weeklyPlan = null;   // 触发按新倍率重建周配餐
+        }
+        data.dataVersion = 8;
+      }
       return data;
     }
     
@@ -2177,18 +2195,9 @@ let PRODUCT_LIBRARY = {
       return { success: true, message: msg };
     }
     
-    // v2.2.4 体脂秤打卡：看板按钮 → 体重/体脂录入 → 记录+云备份
+    // v2.2.5 体脂秤打卡：看板按钮 → 引导发截图（AI 识别全量身体成分后自动记录+云备份）
     function openBodyCheckin() {
-      const last = appData.bodyRecords[appData.bodyRecords.length - 1];
-      const wStr = prompt('请输入今早体重（kg）' + (last ? '，上次 ' + last.weight + 'kg' : '，上次 ' + appData.profile.weight + 'kg'), '');
-      if (wStr === null) return;
-      const w = parseFloat(wStr);
-      if (isNaN(w) || w <= 0) { alert('体重格式不正确'); return; }
-      const bfStr = prompt('请输入体脂率（%，Keep体脂秤读数）' + (last && last.bodyFat !== undefined ? '，上次 ' + last.bodyFat + '%' : ''), last && last.bodyFat !== undefined ? String(last.bodyFat) : '');
-      if (bfStr === null) return;
-      const bf = bfStr.trim() === '' ? undefined : parseFloat(bfStr);
-      const r = recordBodyData(w, isNaN(bf) ? undefined : bf, {});
-      addMessage("assistant", "✅ " + r.message + "\n\n已自动云端备份；周末说「复盘」自动调取本周体脂秤数据调整下周配餐。");
+      addMessage("assistant", "📤 请直接发送你的体脂秤截图（Keep 截图即可）。\n\n我会自动识别全部身体成分数据：体重 / 体脂 / BMI / 基础代谢 / 肌肉量 / 内脏脂肪 / 皮下脂肪 / 蛋白质 / 骨骼肌率 / 去脂体重 / 水分 / 骨量 / 身体得分 / 身体年龄，并完成记录 + 云端备份 + 看板更新。\n\n（不想发截图也可以直接说：体重66.2kg体脂19.9%）");
       switchView('chat');
     }
     
@@ -2387,6 +2396,8 @@ let PRODUCT_LIBRARY = {
       else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.8; }
       else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.7; fatK = 0.8; }
       else { carbsK = 3.5; proteinK = 1.8; fatK = 0.8; }
+      // v2.2.5 训练日碳水倍率覆盖（设置页/对话可调；当前阶段 2.5）
+      if (appData.profile.carbOverrideK) carbsK = parseFloat(appData.profile.carbOverrideK);
       if (isFemale) { carbsK = Math.round(carbsK * 0.9 * 10) / 10; fatK = Math.round((fatK + 0.15) * 10) / 10; }
       return {
         carbs: Math.round(w * carbsK), protein: Math.round(w * proteinK), fat: Math.round(w * fatK),
@@ -2494,15 +2505,29 @@ let PRODUCT_LIBRARY = {
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 53], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);  // 鸡蛋带壳60g，蛋壳约12%，可食53g（用户实测）
-      const riceGrams = isRest ? 52 : 105;   // 休息日低碳
       // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
       // v2.2.3：蛋带壳60g(可食53g) + 练后乳清30g一勺：训练日≈碳200/蛋124/脂54/热1761（1.88g/kg蛋白）；休息日≈碳144/蛋113/脂53/热1484
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 12 : 14]], lib);
-      const dinner = buildMeal([["土豆", isRest ? 200 : 285], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
-      // 练后餐：力量训练后30分钟内喝乳清蛋白（仅训练日；休息日不补）
+      // v2.2.5：训练日主食按目标碳水反推（糙米60% + 土豆40% 分担主食碳），carbOverrideK=2.5 时自动减主食、缺口拉至300-500；
+      //         休息日低碳固定（糙米52/土豆200）不受影响；carbOverrideK 未设(=3.0档)时保持原克数
+      const lunchVeg = buildMeal([["上海青", 100], ["大青椒", 100]], lib);
+      const dinnerSide = buildMeal([["西兰花", 250]], lib);
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 30]], lib)  // 一勺30g（用户实测）
         : null;
+      let riceGrams = isRest ? 52 : 105;
+      let potatoGrams = isRest ? 200 : 285;
+      if (!isRest && macros.carbsK && macros.carbsK < 3.0) {
+        const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
+        if (riceInfo && potatoInfo && riceInfo.carbsPer100 > 0 && potatoInfo.carbsPer100 > 0) {
+          const fixedCarbs = breakfast.sum.carbs + lunchVeg.sum.carbs + dinnerSide.sum.carbs + (postWorkout ? postWorkout.sum.carbs : 0);
+          // +4 校准：固定蛋白餐 1.88 倍（用户已确认不削）使热量基数偏高，主食碳略增 4g 让实际缺口居中落回 300-500 安全区
+          const starchCarbs = Math.max(40, Math.round(macros.carbs - fixedCarbs) + 4);
+          riceGrams = Math.round(starchCarbs * 0.6 / riceInfo.carbsPer100 * 100);
+          potatoGrams = Math.round(starchCarbs * 0.4 / potatoInfo.carbsPer100 * 100);
+        }
+      }
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 12 : 14]], lib);
+      const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
       return { breakfast, lunch, dinner, postWorkout };
     }
 
@@ -2924,6 +2949,9 @@ let PRODUCT_LIBRARY = {
       
       if (!isQuestion && (text.includes("采购清单") || text.includes("买什么"))) return { type: "generate_purchase" };
       if (text.includes("复盘") || text.includes("周总结") || text.includes("本周效果")) return { type: "weekly_review" };
+      // 碳水倍率修改（先于查询类：避免"碳水倍率改成2.5倍"被误判为查询）
+      const carbOverrideMatch = text.match(/碳水(?:倍率|系数|摄入)?\s*(?:改成|改为|设成|设为|调到|调成|用|调整|改成)?\s*(\d+(?:\.\d+)?)\s*倍/);
+      if (carbOverrideMatch && /改|调|设|用|调整/.test(text)) return { type: "update_profile_setting", args: { carbMultiplier: parseFloat(carbOverrideMatch[1]) } };
       // 查询类（必须先于"配餐"生成命令，避免问"缺口/碳水倍率"被拦截成生成周餐）
       if (!/改|调|设/.test(text) && (/(热量缺口|缺口).{0,10}(多少|是几|几大卡|什么|多少大卡)/.test(text) || /几倍碳水|碳水.{0,4}(几倍|倍率|多少)/.test(text) || /配餐.{0,6}(热量缺口|碳水倍率|多少热量)/.test(text))) {
         return { type: "query_plan_summary" };
@@ -3135,7 +3163,7 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "update_ingredient", description: "更新食材库中某食材的价格/营养/库存（用户说某食材涨价了/多少钱/多少大卡/买回来多少时调用），无则新增。修改后配餐成本与采购自动联动。注意：stockGrams 填克数，用户说的非克单位（升/毫升/斤/罐/盒）先调用 convert_unit 换算", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, price: { type: "number", description: "价格元（可选）" }, unit: { type: "string", description: "计价单位如500g/1L（可选）" }, proteinPer100: { type: "number", description: "每100g蛋白质g（可选）" }, carbsPer100: { type: "number", description: "每100g碳水g（可选）" }, fatPer100: { type: "number", description: "每100g脂肪g（可选）" }, kcalPer100: { type: "number", description: "每100g热量kcal（可选）" }, stockGrams: { type: "number", description: "现有库存克数（非克单位先 convert_unit 换算）" } }, required: ["name"] } } },
       { type: "function", function: { name: "update_training", description: "修改训练库并真正持久化（不是只口头建议）：用户说新增了器材/要增加动作/调整动作/换动作/删除动作/训练计划改动时调用。例：「增加哑铃弯举」「把坐姿哑铃推举改成站姿哑铃推举」「推日加一个动作」「我买了龙门架」", parameters: { type: "object", properties: { day: { type: "string", description: "训练日：推日/拉日/腿日" }, action: { type: "string", enum: ["add", "remove", "modify"], description: "add=新增动作，remove=删除动作，modify=修改动作" }, exercise: { type: "object", description: "动作信息（name 必须为 Keep 可搜索的同名动作）", properties: { name: { type: "string", description: "动作名（Keep实名）" }, target: { type: "string", description: "锻炼部位" }, sets: { type: "number", description: "组数" }, reps: { type: "string", description: "次数/次数范围" }, rest: { type: "string", description: "组间休息" }, beginnerWeight: { type: "string", description: "起始重量建议" }, tips: { type: "string", description: "要点提示" } } } }, required: ["day", "action", "exercise"] } } },
       { type: "function", function: { name: "query_ingredient_lib", description: "查询食材营养库（含用户上传商品），返回食材列表与营养/价格", parameters: { type: "object", properties: { category: { type: "string", description: "类别筛选：碳水主食/蛋白/蔬菜/脂肪/水果（可选）" } } } } },
-      { type: "function", function: { name: "update_profile_setting", description: "更新个人基础参数（热量缺口/体重/体脂/每周运动时长/蛋白系数），修改后自动重新生成周配餐并联动看板。用户说缺口改/热量缺口/调低缺口/体重新/体脂新/运动时长改/调整参数时调用", parameters: { type: "object", properties: { calorieDeficit: { type: "number", description: "热量缺口大卡（谭师建议200-300）" }, weight: { type: "number", description: "体重kg" }, bodyFat: { type: "number", description: "体脂%" }, weekHours: { type: "string", description: "每周运动时长档位：2-3/4-5/6-7/8-9" }, proteinCoefficient: { type: "number", description: "蛋白系数g/kg（1.2-2.0）" } } } } }
+      { type: "function", function: { name: "update_profile_setting", description: "更新个人基础参数（热量缺口/体重/体脂/每周运动时长/蛋白系数），修改后自动重新生成周配餐并联动看板。用户说缺口改/热量缺口/调低缺口/体重新/体脂新/运动时长改/调整参数时调用", parameters: { type: "object", properties: { calorieDeficit: { type: "number", description: "热量缺口大卡（谭师建议200-300）" }, weight: { type: "number", description: "体重kg" }, bodyFat: { type: "number", description: "体脂%" }, weekHours: { type: "string", description: "每周运动时长档位：2-3/4-5/6-7/8-9" }, proteinCoefficient: { type: "number", description: "蛋白系数g/kg（1.2-2.0）" }, carbMultiplier: { type: "number", description: "训练日碳水倍率g/kg（2.2-3.5；当前阶段2.5，复盘后可按需调回3.0）" } } } } }
     ];
 
     async function executeToolCall(name, args) {
@@ -3427,6 +3455,10 @@ let PRODUCT_LIBRARY = {
         appData.profile.weekHours = wh;
         updates.push("每周运动时长=" + wh + "小时");
       }
+      if (num(args.carbMultiplier) !== null && num(args.carbMultiplier) >= 2.2 && num(args.carbMultiplier) <= 3.5) {
+        appData.profile.carbOverrideK = num(args.carbMultiplier);
+        updates.push("训练日碳水倍率=" + appData.profile.carbOverrideK + "g/kg");
+      }
       if (num(args.proteinCoefficient) !== null && num(args.proteinCoefficient) > 0) {
         appData.profile.proteinCoefficient = num(args.proteinCoefficient);
         updates.push("蛋白系数=" + appData.profile.proteinCoefficient + "g/kg");
@@ -3463,7 +3495,7 @@ let PRODUCT_LIBRARY = {
 【配餐模式 v2：周节点循环】
 1. 以周为节点：周初生成一周配餐计划（周一生成，存于 weeklyPlan），每天按计划吃，周末做周复盘（reviewWeekly：对比周初体重与当前体重，决定下周碳水调整）
 2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腿（三分化；周三/周日另加10分钟腹肌碎片）
-3. 训练日碳水=档位系数（高碳），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定
+3. 训练日碳水=当前倍率（profile.carbOverrideK，默认2.5g/kg，把缺口拉到300-500安全区），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定。用户说「碳水改成X倍/碳水倍率调到X」→ 调 profile.carbOverrideK 并重新配餐
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
 4. 当前固定三餐体系（v2.1+，用户定制；配餐营养=熟后口径，采购清单和商品库=生重口径）：
@@ -3479,7 +3511,7 @@ let PRODUCT_LIBRARY = {
 1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持；薄肌阶段优先保肌肉、看线条与体脂而非体重
 2. 温和缺口：热量缺口 200-300 大卡更保肌肉（用户当前缺口 ${appData.profile.calorieDeficit} 大卡，若觉乏力/易怒/训练欲望低，建议调低到 200-300）
 3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.8；6-7h → 3.0/1.7/0.8；8-9h → 3.5/1.8/0.8（女生碳水略低、脂肪+0.15-0.2）
-4. 训练日碳水用档位系数；休息日降到 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
+4. 训练日碳水用当前倍率（默认2.5）；休息日 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
 5. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳；碳水下降明显→保持，不明显→减15-20g，上升→减25g
 6. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
 7. 脂肪固定 0.6-0.8g/kg：优先橄榄油/坚果/牛油果（Omega-3）
@@ -3655,8 +3687,8 @@ let PRODUCT_LIBRARY = {
       } else {
         stEl.textContent = '⏰ 待打卡';
         stEl.className = 'text-xs font-medium text-orange-500';
-        ntEl.textContent = '每天早上称重上传（体重/体脂/骨骼肌等）→ 自动云端备份 → 周末复盘自动调取';
-        baEl.innerHTML = '<button class="text-xs bg-cyan-500 text-white px-3 py-1.5 rounded-lg" onclick="openBodyCheckin()">立即打卡</button>';
+        ntEl.textContent = '每天早上称重 → 发 Keep 体脂秤截图，自动识别全量数据并云端备份 → 周末复盘自动调取';
+        baEl.innerHTML = '<button class="text-xs bg-cyan-500 text-white px-3 py-1.5 rounded-lg" onclick="openBodyCheckin()">📤 发体脂秤截图打卡</button>';
       }
       
       const startFat = 25;
@@ -4515,6 +4547,7 @@ let PRODUCT_LIBRARY = {
       document.getElementById('setting-protein').value = appData.profile.proteinCoefficient;
       document.getElementById('setting-deficit').value = appData.profile.calorieDeficit;
       document.getElementById('setting-week-hours').value = appData.profile.weekHours || '6-7';
+      document.getElementById('setting-carb-multiplier').value = String(appData.profile.carbOverrideK || 2.5);
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
       document.getElementById('setting-apikey').value = appData.settings.apiKey;
       document.getElementById('setting-model').value = appData.settings.model;
@@ -4529,7 +4562,8 @@ let PRODUCT_LIBRARY = {
       appData.profile.proteinCoefficient = parseFloat(document.getElementById('setting-protein').value) || 1.8;
       appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 500;
       appData.profile.weekHours = document.getElementById('setting-week-hours').value || '6-7';
-      // 运动档位变化 → 重新生成周配餐
+      appData.profile.carbOverrideK = parseFloat(document.getElementById('setting-carb-multiplier').value) || 2.5;
+      // 参数变化 → 重新生成周配餐
       if (appData.weeklyPlan && appData.weeklyPlan.days) generateWeeklyPlanV2();
       appData.profile.bmr = Math.round(88.362 + (13.397 * appData.profile.weight) + (4.799 * 175) - (5.677 * 25));
       
