@@ -340,7 +340,7 @@
   </div>
 
   <script>
-    const VERSION = "2.1.6";
+    const VERSION = "2.1.7";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1777,6 +1777,10 @@ let PRODUCT_LIBRARY = {
         try { appData = JSON.parse(saved); appData = migrateData(appData); }
         catch (e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
       }
+      // 恢复本地训练库（update_training 的改动优先于默认库，云端同步再覆盖）
+      if (appData.trainingLibrary && appData.trainingLibrary.push && appData.trainingLibrary.pull && appData.trainingLibrary.legs) {
+        try { TRAINING_LIBRARY = appData.trainingLibrary; } catch (e) {}
+      }
     }
     
     // ========== GitHub Gist 云同步工具 ==========
@@ -2929,6 +2933,7 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "query_plan_summary", description: "查询当前热量缺口、碳水倍率、今日配餐目标、蛋白脂肪等数据概览。用户问缺口多少、几倍碳水、碳水倍率、热量目标/目标是多少、配餐参数、摄入多少等数据查询问题时调用", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "weekly_review", description: "执行周复盘：对比周初与当前体重，按谭师规则建议下周碳水调整（下降良好保持/不明显减15g/上升减25g），并记录历史。用户说复盘/周总结/本周效果/该调整吗时调用", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "update_ingredient", description: "更新食材库中某食材的价格/营养/库存（用户说某食材涨价了/多少钱/多少大卡/买回来多少时调用），无则新增。修改后配餐成本与采购自动联动。注意：stockGrams 填克数，用户说的非克单位（升/毫升/斤/罐/盒）先调用 convert_unit 换算", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, price: { type: "number", description: "价格元（可选）" }, unit: { type: "string", description: "计价单位如500g/1L（可选）" }, proteinPer100: { type: "number", description: "每100g蛋白质g（可选）" }, carbsPer100: { type: "number", description: "每100g碳水g（可选）" }, fatPer100: { type: "number", description: "每100g脂肪g（可选）" }, kcalPer100: { type: "number", description: "每100g热量kcal（可选）" }, stockGrams: { type: "number", description: "现有库存克数（非克单位先 convert_unit 换算）" } }, required: ["name"] } } },
+      { type: "function", function: { name: "update_training", description: "修改训练库并真正持久化（不是只口头建议）：用户说新增了器材/要增加动作/调整动作/换动作/删除动作/训练计划改动时调用。例：「增加哑铃弯举」「把坐姿哑铃推举改成站姿哑铃推举」「推日加一个动作」「我买了龙门架」", parameters: { type: "object", properties: { day: { type: "string", description: "训练日：推日/拉日/腿日" }, action: { type: "string", enum: ["add", "remove", "modify"], description: "add=新增动作，remove=删除动作，modify=修改动作" }, exercise: { type: "object", description: "动作信息（name 必须为 Keep 可搜索的同名动作）", properties: { name: { type: "string", description: "动作名（Keep实名）" }, target: { type: "string", description: "锻炼部位" }, sets: { type: "number", description: "组数" }, reps: { type: "string", description: "次数/次数范围" }, rest: { type: "string", description: "组间休息" }, beginnerWeight: { type: "string", description: "起始重量建议" }, tips: { type: "string", description: "要点提示" } } } }, required: ["day", "action", "exercise"] } } },
       { type: "function", function: { name: "query_ingredient_lib", description: "查询食材营养库（含用户上传商品），返回食材列表与营养/价格", parameters: { type: "object", properties: { category: { type: "string", description: "类别筛选：碳水主食/蛋白/蔬菜/脂肪/水果（可选）" } } } } },
       { type: "function", function: { name: "update_profile_setting", description: "更新个人基础参数（热量缺口/体重/体脂/每周运动时长/蛋白系数），修改后自动重新生成周配餐并联动看板。用户说缺口改/热量缺口/调低缺口/体重新/体脂新/运动时长改/调整参数时调用", parameters: { type: "object", properties: { calorieDeficit: { type: "number", description: "热量缺口大卡（谭师建议200-300）" }, weight: { type: "number", description: "体重kg" }, bodyFat: { type: "number", description: "体脂%" }, weekHours: { type: "string", description: "每周运动时长档位：2-3/4-5/6-7/8-9" }, proteinCoefficient: { type: "number", description: "蛋白系数g/kg（1.2-2.0）" } } } } }
     ];
@@ -3063,6 +3068,44 @@ let PRODUCT_LIBRARY = {
         case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
         case "weekly_review": return handleWeeklyReview();
         case "update_ingredient": return handleUpdateIngredient(args);
+        case "update_training": {
+          const uday = String(args.day || '').trim();
+          const uact = String(args.action || '').trim();
+          const uex = args.exercise || {};
+          const ukey = uday.includes('推') ? 'push' : uday.includes('拉') ? 'pull' : uday.includes('腿') ? 'legs' : null;
+          if (!ukey) return { success: false, message: "训练日需为 推日/拉日/腿日" };
+          const ulib = TRAINING_LIBRARY[ukey];
+          if (!ulib || !ulib.exercises) return { success: false, message: "训练库缺少" + uday + "的数据" };
+          const uname = String(uex.name || '').trim();
+          if (uact === 'add') {
+            if (!uname) return { success: false, message: "请提供动作名称（Keep可搜索的同名动作）" };
+            ulib.exercises.push({ id: 'custom_' + Date.now(), name: uname, target: String(uex.target || ''), sets: parseInt(uex.sets) || 3, reps: String(uex.reps || '12'), rest: String(uex.rest || '60秒'), beginnerWeight: String(uex.beginnerWeight || ''), advancedWeight: String(uex.advancedWeight || ''), steps: [], mistakes: [], tips: String(uex.tips || 'Keep搜索：' + uname) });
+            appData.trainingLibrary = JSON.parse(JSON.stringify(TRAINING_LIBRARY)); saveData();
+            if (appData.settings.gitToken) syncToCloud().catch(() => {});
+            return { success: true, message: "✅ 已将「" + uname + "」加入" + uday + "（共" + ulib.exercises.length + "个动作），训练计划已更新并保存" + (appData.settings.gitToken ? "，已同步云端" : "（未配置云端，仅存本地）") };
+          }
+          const uidx = ulib.exercises.findIndex(e => e.name === uname);
+          if (uidx < 0) return { success: false, message: uday + "训练库中没有「" + uname + "」" };
+          if (uact === 'remove') {
+            ulib.exercises.splice(uidx, 1);
+            appData.trainingLibrary = JSON.parse(JSON.stringify(TRAINING_LIBRARY)); saveData();
+            if (appData.settings.gitToken) syncToCloud().catch(() => {});
+            return { success: true, message: "✅ 已从" + uday + "移除「" + uname + "」，训练计划已更新" };
+          }
+          const uold = ulib.exercises[uidx];
+          ulib.exercises[uidx] = Object.assign({}, uold, {
+            target: String(uex.target || uold.target || ''),
+            sets: parseInt(uex.sets) || uold.sets,
+            reps: String(uex.reps || uold.reps || '12'),
+            rest: String(uex.rest || uold.rest || '60秒'),
+            beginnerWeight: String(uex.beginnerWeight || uold.beginnerWeight || ''),
+            advancedWeight: String(uex.advancedWeight || uold.advancedWeight || ''),
+            tips: String(uex.tips || uold.tips || '')
+          });
+          appData.trainingLibrary = JSON.parse(JSON.stringify(TRAINING_LIBRARY)); saveData();
+          if (appData.settings.gitToken) syncToCloud().catch(() => {});
+          return { success: true, message: "✅ 已更新" + uday + "的「" + uname + "」：目标" + ulib.exercises[uidx].target + " · " + ulib.exercises[uidx].sets + "组×" + ulib.exercises[uidx].reps + "次 · " + ulib.exercises[uidx].rest + " · 建议" + ulib.exercises[uidx].beginnerWeight };
+        }
         case "query_ingredient_lib": return handleQueryIngredientLib(args);
         case "update_profile_setting": return handleUpdateProfileSetting(args);
         case "query_plan_summary": return handleQueryPlanSummary();
@@ -3202,7 +3245,7 @@ let PRODUCT_LIBRARY = {
 
 【配餐模式 v2：周节点循环】
 1. 以周为节点：周初生成一周配餐计划（周一生成，存于 weeklyPlan），每天按计划吃，周末做周复盘（reviewWeekly：对比周初体重与当前体重，决定下周碳水调整）
-2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腹（三分化+腹肌）
+2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腿（三分化；周三/周日另加10分钟腹肌碎片）
 3. 训练日碳水=档位系数（高碳），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
@@ -3232,7 +3275,8 @@ let PRODUCT_LIBRARY = {
 - 训练分：推日（胸/肩/三头）、拉日（背/二头）、腿日、腹肌日，各约 45-60 分钟，组次 3-4组×12-15次
 - 器械仅：哑铃（可组杠铃）+哑铃凳+瑜伽垫；无龙门架/高位下拉/腿举机，不能用这些动作
 - 所有动作必须是 Keep 上能搜到的同名动作（如「坐姿哑铃推肩」「哑铃侧平举」「哑铃弯举」「哑铃罗马尼亚硬拉」），用户要在 Keep 里照着编排课程跟练
-- 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程`;
+- 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程
+- 用户告知新增/更换器材、增删改动作时，必须调用 update_training 真正写入训练库并持久化，不能只口头建议`;
 
 
         if (searchResults && searchResults.length > 0) {
@@ -3718,9 +3762,9 @@ let PRODUCT_LIBRARY = {
             </div>
             <div class="space-y-1.5 text-sm text-gray-600">
               <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf)} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
-              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po) + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
               <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu)} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
               <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di)} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
+              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po) + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
             </div>
           </div>`;
       });
@@ -3874,9 +3918,9 @@ let PRODUCT_LIBRARY = {
         </div>
         <div class="space-y-3">
           ${mealTitle('breakfast', '早餐')}
-          ${dayPlan && dayPlan.meals.postWorkout ? mealTitle('postWorkout', '练后餐 · 力量训练后30分钟内喝') : ''}
           ${mealTitle('lunch', '午餐')}
           ${mealTitle('dinner', '晚餐')}
+          ${dayPlan && dayPlan.meals.postWorkout ? mealTitle('postWorkout', '练后餐 · 力量训练后30分钟内喝（晚间力量训练后）') : ''}
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between">
               <h3 class="font-medium">手动记录</h3>
@@ -4483,8 +4527,7 @@ let PRODUCT_LIBRARY = {
 
     function init() {
       loadData();
-      // 回显历史对话（对话记忆持久化）
-      renderChatHistory();
+      // 聊天 UI 不回显历史（打开即干净对话框）；chatHistory 仍存储，AI 对话会带最近历史做上下文记忆
       // v2：首次打开自动生成周配餐计划（按当前体重+运动档位）
       if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
         try { generateWeeklyPlanV2(); } catch (e) { console.error("自动生成周计划失败", e); }
@@ -4503,7 +4546,7 @@ let PRODUCT_LIBRARY = {
         syncFromCloud().catch(() => {});
       }
       
-      if ((appData.chatHistory || []).length === 0 && appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
+      if (appData.bodyRecords.length === 0 && Object.keys(appData.foodRecords).length === 0) {
         setTimeout(() => {
           addMessage('assistant', `欢迎使用健身减脂智能体 v${VERSION} · 薄肌计划
 
