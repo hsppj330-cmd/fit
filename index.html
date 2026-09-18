@@ -1879,6 +1879,16 @@ let PRODUCT_LIBRARY = {
       return data;
     }
     
+    // v2.2.6c 本地时区日期（修复 UTC 跨日：凌晨 0-8 点打卡记错日期）
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+    function getTodayStr() {
+      const n = new Date();
+      return n.getFullYear() + '-' + pad2(n.getMonth() + 1) + '-' + pad2(n.getDate());
+    }
+    function toLocalStr(d) {
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
     function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
     function loadData() {
       let saved = localStorage.getItem(STORAGE_KEY);
@@ -2157,7 +2167,7 @@ let PRODUCT_LIBRARY = {
     // v2.2.6 实时热量缺口：总消耗 = 基准TDEE（训练日×1.45 已含计划训练消耗），
     // 训练打卡只作记录确认（trainBurn 保留展示），不再叠加，避免「1.45因子+打卡消耗」双重计算导致缺口虚高
     function computeDailyDeficit() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const tdee = getTodayTDEE();
       const trainBurn = appData.trainingBurnToday[today] || 0;
       const intake = calculateDailyIntake(today).calories;
@@ -2170,7 +2180,7 @@ let PRODUCT_LIBRARY = {
     // ========== 业务逻辑 ==========
     function recordBodyData(weight, bodyFat, extra) {
       extra = extra || {};
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const record = { date: today };
       if (weight) { appData.profile.weight = weight; record.weight = weight; }
       if (bodyFat) { appData.profile.bodyFat = bodyFat; record.bodyFat = bodyFat; }
@@ -2219,7 +2229,7 @@ let PRODUCT_LIBRARY = {
     }
     
     function recordSleep(hours) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       appData.sleepRecords.push({ date: today, totalHours: hours, deepSleepHours: Math.round(hours * 0.25 * 10) / 10, score: Math.min(100, Math.round(hours / 8 * 100)) });
       saveData();
       let tip = hours < 7 ? "睡眠不足，建议今天降低训练强度。" : "睡眠充足，今天训练状态会很好。";
@@ -2228,7 +2238,7 @@ let PRODUCT_LIBRARY = {
     
     function purchaseIngredient(name, amount, cost) {
       appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) + amount;
-      if (cost) appData.billRecords.push({ date: new Date().toISOString().split('T')[0], type: "食材采购", item: name, amount, cost });
+      if (cost) appData.billRecords.push({ date: getTodayStr(), type: "食材采购", item: name, amount, cost });
       saveData();
       return { success: true, message: `${name}入库${amount}g，当前库存：${Math.round(appData.ingredientStock[name])}g` };
     }
@@ -2273,7 +2283,7 @@ let PRODUCT_LIBRARY = {
         appData.mealStock[mealId]--;
       }
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       if (!appData.foodRecords[today]) appData.foodRecords[today] = { breakfast: [], lunch: [], dinner: [], snacks: [], cheat: false };
       appData.foodRecords[today][mealType].push({ mealId, name: meal.name, nutrition: { ...meal.nutrition } });
       saveData();
@@ -2559,7 +2569,7 @@ let PRODUCT_LIBRARY = {
       const dayTypes = { "周一": "push", "周二": "pull", "周三": "legs", "周四": "rest", "周五": "push", "周六": "pull", "周日": "legs" };
       const plan = {
         weekStart: getMonday(),
-        generatedAt: new Date().toISOString().split('T')[0],
+        generatedAt: getTodayStr(),
         weekStartWeight: appData.profile.weight,
         targets: getTanshiMacrosV2(),
         days: {}
@@ -2579,7 +2589,7 @@ let PRODUCT_LIBRARY = {
       const d = new Date();
       const day = d.getDay() || 7;
       d.setDate(d.getDate() - day + 1);
-      return d.toISOString().split('T')[0];
+      return toLocalStr(d);
     }
 
     // 周复盘：体重反馈 → 调整下周碳水（新体重重算）
@@ -2604,8 +2614,8 @@ let PRODUCT_LIBRARY = {
       for (let i = 0; i < 7; i++) {
         const d = new Date(ws);
         d.setDate(ws.getDate() + i);
-        const dateKey = d.toISOString().split('T')[0];
-        if (dateKey > new Date().toISOString().split('T')[0]) break;
+        const dateKey = toLocalStr(d);
+        if (dateKey > getTodayStr()) break;
         const di = calculateDailyIntake(dateKey);
         if (di.calories > 0) { wkKcal += di.calories; wkProtein += di.protein; wkDays++; }
       }
@@ -2616,7 +2626,7 @@ let PRODUCT_LIBRARY = {
       else if (delta <= -0.5) { action = "下降良好"; carbsAdjust = 0; }
       else if (delta <= 0.2) { action = "下降不明显或持平"; carbsAdjust = -15; }
       else { action = "体重上升"; carbsAdjust = -25; }
-      const record = { weekStart, startWeight, currentWeight, delta, fatDelta, avgKcal, avgProtein, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: new Date().toISOString().split('T')[0] };
+      const record = { weekStart, startWeight, currentWeight, delta, fatDelta, avgKcal, avgProtein, trainingCount, bodyCount, action, carbsAdjust, reviewedAt: getTodayStr() };
       if (!appData.weekReview) appData.weekReview = { history: [], lastReviewedWeek: null };
       appData.weekReview.history.push(record);
       appData.weekReview.lastReviewedWeek = weekStart;
@@ -2828,7 +2838,7 @@ let PRODUCT_LIBRARY = {
     function quickRecordTraining(type) {
       const training = TRAINING_LIBRARY[type];
       if (!training) return { success: false, message: "未知训练类型" };
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const record = {
         date: today, type, name: training.name,
         exercises: (training.exercises || []).map(e => ({ 
@@ -2847,7 +2857,7 @@ let PRODUCT_LIBRARY = {
 
     // ========== Keep 跟练打卡：记录实际训练时长/消耗并联动 ==========
     function recordWorkout(name, type, duration, calories) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const typeName = { push: "推日", pull: "拉日", legs: "腿日", cardio: "有氧", full_body: "全身训练" }[type] || type || "训练";
       const dur = parseFloat(duration) || 45;
       const kcal = parseFloat(calories) || 300;
@@ -3161,9 +3171,10 @@ let PRODUCT_LIBRARY = {
     const AI_TOOLS = [
       { type: "function", function: { name: "record_body", description: "记录今日体重、体脂及身体成分数据（体脂秤全量），自动更新个人参数、基础代谢、热量目标与看板。用户提到称重/体脂秤/体重/体脂/BMI/内脏脂肪/肌肉/水分/骨量/身体得分/身体年龄等时调用", parameters: { type: "object", properties: { weight: { type: "number", description: "体重，单位kg（可选）" }, bodyFat: { type: "number", description: "体脂率，单位%（可选）" }, bmi: { type: "number", description: "BMI（可选）" }, bmr: { type: "number", description: "基础代谢大卡/天（可选，实测值优先）" }, muscle: { type: "number", description: "肌肉量kg（可选）" }, visceralFat: { type: "number", description: "内脏脂肪等级（可选）" }, subcutaneousFat: { type: "number", description: "皮下脂肪%（可选）" }, protein: { type: "number", description: "蛋白质%（可选）" }, muscleRate: { type: "number", description: "骨骼肌率%（可选）" }, leanMass: { type: "number", description: "去脂体重kg（可选）" }, water: { type: "number", description: "水分%（可选）" }, boneMass: { type: "number", description: "骨量kg（可选）" }, bodyScore: { type: "number", description: "身体得分（可选）" }, bodyAge: { type: "number", description: "身体年龄岁（可选）" } } } } },
       { type: "function", function: { name: "record_sleep", description: "记录今日睡眠时长，含评分和建议。用户提到睡眠/睡觉/小时数时调用", parameters: { type: "object", properties: { hours: { type: "number", description: "睡眠小时数" } }, required: ["hours"] } } },
-      { type: "function", function: { name: "record_training", description: "记录完成一次训练（推日/拉日/腿日），自动累加训练消耗并上调今日热量目标。用户说练了/训练完成/推日/拉日/腿日时调用", parameters: { type: "object", properties: { type: { type: "string", enum: ["push", "pull", "legs"], description: "训练类型：push=推日(胸肩三头)，pull=拉日(背二头)，legs=腿日" } }, required: ["type"] } } },
+      { type: "function", function: { name: "record_training", description: "记录完成一次训练（推日/拉日/腿日）。训练日基准消耗已含训练，打卡仅作完成确认与训练记录（不重复叠加热量目标）。用户说练了/训练完成/推日/拉日/腿日时调用", parameters: { type: "object", properties: { type: { type: "string", enum: ["push", "pull", "legs"], description: "训练类型：push=推日(胸肩三头)，pull=拉日(背二头)，legs=腿日" } }, required: ["type"] } } },
       { type: "function", function: { name: "record_workout", description: "记录Keep跟练完成（用户发Keep训练记录截图或说跟练完/练完打卡）：记录训练名称/类型/时长/实际消耗，联动热量目标上调、练后蛋白质补充建议。用户发Keep/运动App训练截图或说跟练完成时调用", parameters: { type: "object", properties: { name: { type: "string", description: "课程/训练名称（可选）" }, type: { type: "string", enum: ["push", "pull", "legs", "cardio", "full_body"], description: "训练类型" }, duration: { type: "number", description: "训练时长分钟" }, calories: { type: "number", description: "实际消耗大卡" } } } } },
       { type: "function", function: { name: "eat_meal", description: "记录吃了某餐（早餐/A餐/B餐/C餐），扣减对应库存并计入今日摄入热量。用户说吃了/早餐/A餐/B餐/C餐时调用", parameters: { type: "object", properties: { mealName: { type: "string", description: "餐名：早餐 / A餐 / B餐 / C餐" } }, required: ["mealName"] } } },
+      { type: "function", function: { name: "record_custom_meal", description: "记录自由描述的餐食（非预设餐）：用户说「午餐150g鸡胸肉200g糙米」「早餐吃了燕麦和鸡蛋」「晚餐吃了什么什么」等带食物+克数的描述时调用，按食材营养估算后写入当日摄入并联动看板。注意：预设餐（早餐/A餐/B餐/C餐）用 eat_meal；餐食照片用截图识别", parameters: { type: "object", properties: { mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"], description: "餐次" }, foods: { type: "array", description: "食物列表", items: { type: "object", properties: { name: { type: "string", description: "食物/食材名称" }, grams: { type: "number", description: "重量克数（估算）" }, kcal: { type: "number", description: "热量千卡（估算）" }, protein: { type: "number", description: "蛋白质g（估算）" }, carbs: { type: "number", description: "碳水g（估算）" }, fat: { type: "number", description: "脂肪g（估算）" } } } } }, required: ["mealType", "foods"] } } },
       { type: "function", function: { name: "convert_unit", description: "食材单位换算：把 升/毫升/斤/公斤/罐/盒/袋/包/瓶 换算成克，或生熟重量换算。用户说买了1升/500毫升/2斤/1罐/1盒/多少克是几升/500克生XX煮熟多少克/熟重多少时，先调用本工具得到克数再入库或回答", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称（如：牛油果油）" }, value: { type: "number", description: "数量" }, fromUnit: { type: "string", description: "源单位：升/毫升/L/ml/斤/公斤/kg/克/g/罐/盒/袋/包/瓶/桶" }, toUnit: { type: "string", description: "目标单位：克/g；若做生熟换算填 熟（如：500克生鸡胸煮熟多少克 → value=500 fromUnit=克 toUnit=熟）" } }, required: ["name", "value", "fromUnit", "toUnit"] } } },
       { type: "function", function: { name: "purchase", description: "记录食材采购入库，增加食材库存并记账单。用户说买了/采购/到货/入库/XX到了XX时调用。注意：用户说的数量若不是克（升/毫升/斤/罐/盒/袋/包/瓶），必须先调用 convert_unit 换算成克再填入 amount（例：牛油果油到了1升 → convert_unit 得 910g）", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, amount: { type: "number", description: "数量（克，非克单位先 convert_unit 换算）" }, cost: { type: "number", description: "花费（元），可选" } }, required: ["name", "amount"] } } },
       { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
@@ -3180,7 +3191,7 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "update_ingredient", description: "更新食材库中某食材的价格/营养/库存（用户说某食材涨价了/多少钱/多少大卡/买回来多少时调用），无则新增。修改后配餐成本与采购自动联动。注意：stockGrams 填克数，用户说的非克单位（升/毫升/斤/罐/盒）先调用 convert_unit 换算", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, price: { type: "number", description: "价格元（可选）" }, unit: { type: "string", description: "计价单位如500g/1L（可选）" }, proteinPer100: { type: "number", description: "每100g蛋白质g（可选）" }, carbsPer100: { type: "number", description: "每100g碳水g（可选）" }, fatPer100: { type: "number", description: "每100g脂肪g（可选）" }, kcalPer100: { type: "number", description: "每100g热量kcal（可选）" }, stockGrams: { type: "number", description: "现有库存克数（非克单位先 convert_unit 换算）" } }, required: ["name"] } } },
       { type: "function", function: { name: "update_training", description: "修改训练库并真正持久化（不是只口头建议）：用户说新增了器材/要增加动作/调整动作/换动作/删除动作/训练计划改动时调用。例：「增加哑铃弯举」「把坐姿哑铃推举改成站姿哑铃推举」「推日加一个动作」「我买了龙门架」", parameters: { type: "object", properties: { day: { type: "string", description: "训练日：推日/拉日/腿日" }, action: { type: "string", enum: ["add", "remove", "modify"], description: "add=新增动作，remove=删除动作，modify=修改动作" }, exercise: { type: "object", description: "动作信息（name 必须为 Keep 可搜索的同名动作）", properties: { name: { type: "string", description: "动作名（Keep实名）" }, target: { type: "string", description: "锻炼部位" }, sets: { type: "number", description: "组数" }, reps: { type: "string", description: "次数/次数范围" }, rest: { type: "string", description: "组间休息" }, beginnerWeight: { type: "string", description: "起始重量建议" }, tips: { type: "string", description: "要点提示" } } } }, required: ["day", "action", "exercise"] } } },
       { type: "function", function: { name: "query_ingredient_lib", description: "查询食材营养库（含用户上传商品），返回食材列表与营养/价格", parameters: { type: "object", properties: { category: { type: "string", description: "类别筛选：碳水主食/蛋白/蔬菜/脂肪/水果（可选）" } } } } },
-      { type: "function", function: { name: "update_profile_setting", description: "更新个人基础参数（热量缺口/体重/体脂/每周运动时长/蛋白系数），修改后自动重新生成周配餐并联动看板。用户说缺口改/热量缺口/调低缺口/体重新/体脂新/运动时长改/调整参数时调用", parameters: { type: "object", properties: { calorieDeficit: { type: "number", description: "热量缺口大卡（谭师建议200-300）" }, weight: { type: "number", description: "体重kg" }, bodyFat: { type: "number", description: "体脂%" }, weekHours: { type: "string", description: "每周运动时长档位：2-3/4-5/6-7/8-9" }, proteinCoefficient: { type: "number", description: "蛋白系数g/kg（1.2-2.0）" }, carbMultiplier: { type: "number", description: "训练日碳水倍率g/kg（2.2-3.5；当前阶段2.5，复盘后可按需调回3.0）" } } } } }
+      { type: "function", function: { name: "update_profile_setting", description: "更新个人基础参数（热量缺口/体重/体脂/每周运动时长/蛋白系数），修改后自动重新生成周配餐并联动看板。用户说缺口改/热量缺口/调低缺口/体重新/体脂新/运动时长改/调整参数时调用", parameters: { type: "object", properties: { calorieDeficit: { type: "number", description: "热量缺口大卡（当前阶段安全区300-500）" }, weight: { type: "number", description: "体重kg" }, bodyFat: { type: "number", description: "体脂%" }, weekHours: { type: "string", description: "每周运动时长档位：2-3/4-5/6-7/8-9" }, proteinCoefficient: { type: "number", description: "蛋白系数g/kg（1.2-2.0）" }, carbMultiplier: { type: "number", description: "训练日碳水倍率g/kg（2.2-3.5；当前阶段2.5，复盘后可按需调回3.0）" } } } } }
     ];
 
     async function executeToolCall(name, args) {
@@ -3311,6 +3322,7 @@ let PRODUCT_LIBRARY = {
         case "generate_purchase_list": return handleGeneratePurchase();
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
+        case "record_custom_meal": return recordCustomMeal(args.mealType, args.foods);
         case "weekly_review": return handleWeeklyReview();
         case "update_ingredient": return handleUpdateIngredient(args);
         case "update_training": {
@@ -3363,23 +3375,31 @@ let PRODUCT_LIBRARY = {
       const p = appData.profile;
       const t = getTanshiMacrosV2();
       const rest = computeDayMacros('rest');
-      const dow = new Date().getDay();
-      const todayType = dow === 4 ? '休息日' : '训练日';
+      const todayType = getTodayType() === 'rest' ? '休息日' : '训练日';
       const target = getTodayTargetCalories();
-      const tdee = Math.round(p.bmr * 1.45);
-      const weekAvg = Math.round((t.calories * 6 + rest.calories) / 7);
+      const tdee = getTodayTDEE();
+      // 本周平均：优先用周计划实际7天（含练后餐），无则按 6训练+1休息 估算
       const weekPlan = appData.weeklyPlan;
+      let weekAvg = Math.round((t.calories * 6 + rest.calories) / 7);
+      if (weekPlan && weekPlan.days) {
+        const days = Object.keys(weekPlan.days);
+        if (days.length === 7) {
+          let sum = 0;
+          days.forEach(d => { const dd = weekPlan.days[d]; if (dd && dd.meals) { sum += ['breakfast','lunch','dinner','postWorkout'].reduce((a,k) => { const m = dd.meals[k]; return a + (m && m.sum ? (m.sum.calories||0) : 0); }, 0); } });
+          if (sum > 0) weekAvg = Math.round(sum / 7);
+        }
+      }
       let msg = "📊 本周配餐热量概览（按最新身体数据）\n";
       msg += "· 身体：体重 " + p.weight + "kg / 体脂 " + p.bodyFat + "% / 基础代谢 " + p.bmr + " 大卡\n";
       msg += "· 每周运动时长 " + p.weekHours + " 小时（谭师档位）\n\n";
       msg += "【碳水倍率】\n";
       msg += "· 训练日（推/拉/腿）：碳水 " + t.carbsK + "g/kg → " + t.carbs + "g\n";
-      msg += "· 休息日（周四）：2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
-      msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 1.0g/kg → " + t.fat + "g（全天固定）\n\n";
+      msg += "· 休息日：碳水 2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
+      msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 " + t.fatK + "g/kg → " + t.fat + "g（全天固定）\n\n";
       msg += "【热量缺口】\n";
-      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.45，含训练）\n";
+      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×" + (getTodayType() === 'rest' ? '1.25' : '1.45') + "，训练日含训练）\n";
       msg += "· 今日（" + todayType + "）目标 " + target + " 大卡 → 当日缺口约 " + Math.max(0, tdee - target) + " 大卡\n";
-      msg += "· 本周平均目标 " + weekAvg + " 大卡 → 平均缺口约 " + Math.max(0, tdee - weekAvg) + " 大卡（谭师建议温和缺口 200-300，保肌优先）\n";
+      msg += "· 本周平均目标 " + weekAvg + " 大卡 → 平均缺口约 " + Math.max(0, tdee - weekAvg) + " 大卡（当前阶段安全缺口 300-500，保肌优先）\n";
       if (weekPlan && weekPlan.weekStart) msg += "\n本周配餐起始日 " + weekPlan.weekStart + "（起始体重 " + weekPlan.weekStartWeight + "kg）";
       return { success: true, message: msg };
     }
@@ -3491,7 +3511,7 @@ let PRODUCT_LIBRARY = {
     async function callAI(prompt, imageBase64 = null, searchResults = null) {
       if (!appData.settings.apiUrl || !appData.settings.apiKey) return null;
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayStr();
         const daily = calculateDailyIntake(today);
         const target = getTodayTargetCalories();
         
@@ -3691,7 +3711,7 @@ let PRODUCT_LIBRARY = {
       document.getElementById('dash-today-target').textContent = getTodayTargetCalories();
       renderBodyComposition();
       // v2.2.4 体脂秤每日打卡状态（打开项引导）
-      const todayKey = new Date().toISOString().split('T')[0];
+      const todayKey = getTodayStr();
       const hasTodayBody = (appData.bodyRecords || []).some(r => r.date === todayKey);
       const stEl = document.getElementById('dash-checkin-status');
       const ntEl = document.getElementById('dash-checkin-note');
@@ -3729,8 +3749,8 @@ let PRODUCT_LIBRARY = {
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
-        const dateKey = d.toISOString().split('T')[0];
-        if (dateKey > new Date().toISOString().split('T')[0]) break;
+        const dateKey = toLocalStr(d);
+        if (dateKey > getTodayStr()) break;
         const di = calculateDailyIntake(dateKey);
         if (di.calories > 0) { wkKcal += di.calories; wkProtein += di.protein; wkDays++; }
       }
@@ -3759,7 +3779,7 @@ let PRODUCT_LIBRARY = {
     }
 
     function updateTodayMonitor() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const daily = calculateDailyIntake(today);
       const target = getTodayTargetCalories();
       const proteinTarget = getTodayProteinTarget();
@@ -4177,9 +4197,39 @@ let PRODUCT_LIBRARY = {
       addMessage('assistant', r.message);
     }
 
+    // v2.2.6e 自定义餐食记录（文字描述自由餐）：写入 mealRecords 并与看板摄入/宏量联动
+    function recordCustomMeal(mealType, foods) {
+      const today = getTodayStr();
+      const typeMap = { breakfast: "早餐", lunch: "午餐", dinner: "晚餐", snack: "加餐", snacks: "加餐" };
+      const typeLabel = typeMap[mealType] || "加餐";
+      if (!foods || !foods.length) return { success: false, message: "没有可记录的餐食信息，请描述吃了什么，例如「午餐150g鸡胸肉200g糙米西兰花」" };
+      if (!appData.mealRecords) appData.mealRecords = {};
+      if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
+      let sum = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+      const foodLines = [];
+      foods.forEach(f => {
+        const kcal = parseFloat(f.kcal) || 0, protein = parseFloat(f.protein) || 0, carbs = parseFloat(f.carbs) || 0, fat = parseFloat(f.fat) || 0;
+        sum.kcal += kcal; sum.protein += protein; sum.carbs += carbs; sum.fat += fat;
+        foodLines.push("· " + (f.name || "?") + (f.grams ? " " + f.grams + "g" : "") + " 约" + (kcal ? kcal + "kcal" : "热量未知"));
+      });
+      appData.mealRecords[today].push({
+        type: mealType === 'snack' ? 'snacks' : (typeMap[mealType] ? mealType : 'snacks'),
+        foods: foods.map(f => f.name + (f.grams ? " " + f.grams + "g" : "")).join("、"),
+        kcal: Math.round(sum.kcal), protein: Math.round(sum.protein), carbs: Math.round(sum.carbs), fat: Math.round(sum.fat),
+        at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      });
+      saveData();
+      const target = getTodayPlanMacros();
+      const intake = calculateDailyIntake(today);
+      const remain = target.calories - intake.calories;
+      try { renderDashboard(); } catch (e) {}
+      if (typeof renderDailyDiet === 'function') { try { renderDailyDiet(); } catch (e) {} }
+      return { success: true, message: "已记录" + typeLabel + "：\n" + foodLines.join("\n") + "\n合计：约" + Math.round(sum.kcal) + "kcal（蛋白" + Math.round(sum.protein) + "g / 碳水" + Math.round(sum.carbs) + "g / 脂肪" + Math.round(sum.fat) + "g）\n\n今日已摄入 " + Math.round(intake.calories) + " / " + target.calories + "kcal，剩余 " + Math.max(0, remain) + "kcal" };
+    }
+
     // 打卡本周计划中的一餐
     function recordPlannedMeal(mealKey) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       if (!dayPlan || !dayPlan.meals || !dayPlan.meals[mealKey]) { alert('本周配餐中该餐不存在，请先生成周餐'); return; }
@@ -4203,7 +4253,7 @@ let PRODUCT_LIBRARY = {
       if (!input) return;
       const parts = input.trim().split(/\s+/);
       if (parts.length < 3) { alert('格式：名称 克数 热量，如「苹果 200 100」'); return; }
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       if (!appData.mealRecords) appData.mealRecords = {};
       if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
       appData.mealRecords[today].push({
@@ -4217,7 +4267,7 @@ let PRODUCT_LIBRARY = {
     }
 
     function renderDailyDiet() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       const dow = new Date().getDay();
@@ -4519,7 +4569,7 @@ let PRODUCT_LIBRARY = {
       if (!item) { alert("该项不在当前采购清单中"); return; }
       const grams = item.packs * item.packWeight;
       appData.ingredientStock[name] = (appData.ingredientStock[name] || 0) + grams;
-      appData.billRecords.push({ date: new Date().toISOString().split('T')[0], type: "食材采购", item: name, amount: grams, cost: item.estimatedPrice });
+      appData.billRecords.push({ date: getTodayStr(), type: "食材采购", item: name, amount: grams, cost: item.estimatedPrice });
       saveData();
       renderDietView();
       renderDashboard();
@@ -4683,7 +4733,7 @@ let PRODUCT_LIBRARY = {
             return;
           }
           // 导入商品库
-          const today = new Date().toISOString().split('T')[0];
+          const today = getTodayStr();
           const imported = [], skipped = [];
           items.forEach(it => {
             const name = String(it.name || '').trim();
@@ -4764,7 +4814,7 @@ let PRODUCT_LIBRARY = {
                   kcal += toN(f.calories); protein += toN(f.protein); carbs += toN(f.carbs); fat += toN(f.fat);
                 });
                 if (kcal > 0) {
-                  const today = new Date().toISOString().split('T')[0];
+                  const today = getTodayStr();
                   if (!appData.mealRecords) appData.mealRecords = {};
                   if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
                   appData.mealRecords[today].push({
@@ -4842,7 +4892,7 @@ let PRODUCT_LIBRARY = {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `健身数据备份_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `健身数据备份_${getTodayStr()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
