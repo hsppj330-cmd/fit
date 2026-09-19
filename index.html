@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.49";
+    const VERSION = "2.2.50";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2583,10 +2583,14 @@ let PRODUCT_LIBRARY = {
       // 两种蔬菜各占一半热量，自动算克数
       const veg1Grams = Math.round(targetVegKcal / 2 / veg1KcalPer100 * 100);
       const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
-      // v2.2.47：鸡胸/琵琶腿/牛油果油按目标动态算
-      // 固定蛋白来源：早餐(鸡蛋+燕麦+牛奶+南瓜子) + 练后(蛋白粉)
-      const fixedProtein = breakfast.sum.protein + (postWorkout ? postWorkout.sum.protein : 0);
-      // 剩余蛋白目标 = 总目标蛋白 - 固定蛋白
+      // v2.2.50：鸡胸/琵琶腿按目标蛋白动态算——先扣掉所有非蛋白食材的蛋白
+      // 非蛋白食材：早餐 + 糙米 + 土豆 + 午餐蔬菜 + 西兰花 + 牛油果油 + 练后
+      const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
+      const fixedProteinFromCarbs = (riceInfo ? riceInfo.proteinPer100 * riceGrams / 100 : 0)
+        + (potatoInfo ? potatoInfo.proteinPer100 * potatoGrams / 100 : 0)
+        + lunchVeg.sum.protein + dinnerSide.sum.protein;
+      const fixedProtein = breakfast.sum.protein + fixedProteinFromCarbs + (postWorkout ? postWorkout.sum.protein : 0);
+      // 剩余蛋白目标 = 总目标蛋白 - 非蛋白食材贡献的蛋白
       const remainingProtein = Math.max(0, Math.round(macros.protein - fixedProtein));
       // 鸡胸提供 60% 剩余蛋白，琵琶腿提供 40%
       const chickenInfo = lib["鸡胸肉"], drumstickInfo = lib["琵琶腿"];
@@ -2595,8 +2599,6 @@ let PRODUCT_LIBRARY = {
       if (chickenInfo && chickenInfo.proteinPer100 > 0 && drumstickInfo && drumstickInfo.proteinPer100 > 0) {
         const chickenProteinPerG = chickenInfo.proteinPer100 / 100;
         const drumstickProteinPerG = drumstickInfo.proteinPer100 / 100;
-        // 总蛋白 = chickenGrams × chickenProteinPerG + drumstickGrams × drumstickProteinPerG = remainingProtein
-        // 按 6:4 比例分配：chickenGrams = 0.6 × remainingProtein / chickenProteinPerG
         chickenGrams = Math.round(0.6 * remainingProtein / chickenProteinPerG);
         drumstickGrams = Math.round(0.4 * remainingProtein / drumstickProteinPerG);
       }
