@@ -31,7 +31,7 @@
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
           <div>
             <h1 class="font-bold text-gray-800 text-base">健身减脂智能体</h1>
-            <p class="text-xs text-gray-400">v2.0 薄肌计划 · 周循环配餐</p>
+            <p class="text-xs text-gray-400">v<span id="app-version">2.0</span> 薄肌计划 · 周循环配餐</p>
           </div>
         </div>
         <div id="sync-status" class="flex items-center gap-1 text-xs text-gray-400">
@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.16";
+    const VERSION = "2.2.17";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5005,6 +5005,7 @@ let PRODUCT_LIBRARY = {
     }
 
     function init() {
+      document.getElementById("app-version").textContent = VERSION;
       loadData();
       // 聊天 UI 不回显历史（打开即干净对话框）；chatHistory 仍存储，AI 对话会带最近历史做上下文记忆
       // v2：首次打开自动生成周配餐计划（按当前体重+运动档位）
