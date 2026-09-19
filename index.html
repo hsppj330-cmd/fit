@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.15";
+    const VERSION = "2.2.16";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3399,8 +3399,13 @@ let PRODUCT_LIBRARY = {
             if (appData.settings.gitToken) syncToCloud().catch(() => {});
             return { success: true, message: "✅ 已将「" + uname + "」加入" + uday + "（共" + ulib.exercises.length + "个动作），训练计划已更新并保存" + (appData.settings.gitToken ? "，已同步云端" : "（未配置云端，仅存本地）") };
           }
-          const uidx = ulib.exercises.findIndex(e => e.name === uname);
-          if (uidx < 0) return { success: false, message: uday + "训练库中没有「" + uname + "」" };
+          let uidx = ulib.exercises.findIndex(e => e.name === uname);
+          if (uidx < 0) {
+            // v2.2.16：模糊匹配——AI传的动作名和库里的不完全一致时自动匹配
+            const fuzzy = ulib.exercises.findIndex(e => e.name.includes(uname) || uname.includes(e.name));
+            if (fuzzy >= 0) { uidx = fuzzy; }
+            else return { success: false, message: uday + "训练库中没有「" + uname + "」，现有动作：" + ulib.exercises.map(e => e.name).join("、") };
+          }
           if (uact === 'remove') {
             ulib.exercises.splice(uidx, 1);
             appData.trainingLibrary = JSON.parse(JSON.stringify(TRAINING_LIBRARY)); saveData();
