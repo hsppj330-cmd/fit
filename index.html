@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.20";
+    const VERSION = "2.2.21";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1909,6 +1909,12 @@ let PRODUCT_LIBRARY = {
       }
       // 器械过滤：本地库/云端库可能被旧版本AI加入绳索下压等需龙门架动作，一律清理并持久化
       sanitizeTrainingEquipment(TRAINING_LIBRARY);
+      // v2.2.21：兜底——如果localStorage里apiKey为空，用代码内嵌的默认值
+      if (!appData.settings.apiKey) appData.settings.apiKey = DEFAULT_DATA.settings.apiKey;
+      if (!appData.settings.gitToken) appData.settings.gitToken = DEFAULT_DATA.settings.gitToken;
+      if (!appData.settings.apiUrl) appData.settings.apiUrl = DEFAULT_DATA.settings.apiUrl;
+      if (!appData.settings.model) appData.settings.model = DEFAULT_DATA.settings.model;
+      if (!appData.settings.gistId) appData.settings.gistId = DEFAULT_DATA.settings.gistId;
       saveData();
     }
     
