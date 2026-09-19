@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.30";
+    const VERSION = "2.2.31";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3018,13 +3018,19 @@ let PRODUCT_LIBRARY = {
       // 实时替换食材（没买到A用B / 把A换成B / A替代B）→ 全周配餐/采购/成本联动
       // v2.2.11：类别词本地兜底（不依赖AI），"午餐蔬菜改为X"/"午餐的蔬菜改为X"直接映射到具体食材名
       // v2.2.15：允许"的"字（午餐的蔬菜/晚餐的蔬菜）
-      const catMap = { "午餐的?蔬菜": "上海青", "晚餐的?蔬菜": "西兰花", "午餐的?另一蔬菜": "大青椒", "午餐的?主食": "三色糙米", "晚餐的?主食": "土豆", "午餐的?蛋白": "鸡胸肉", "晚餐的?蛋白": "琵琶腿" };
+      const catMap = { "午餐的?蔬菜": ["上海青", "大青椒"], "晚餐的?蔬菜": "西兰花", "午餐的?主食": "三色糙米", "晚餐的?主食": "土豆", "午餐的?蛋白": "鸡胸肉", "晚餐的?蛋白": "琵琶腿" };
       let catHit = null;
       for (const k of Object.keys(catMap)) {
         const m = text.match(new RegExp(k + "\\s*(?:改为|换成|换成了|改成|调整为|换为)\\s*([^\\s,，。.？?！!、]+)"));
-        if (m) { catHit = { oldName: catMap[k], newName: m[1].trim() }; break; }
+        if (m) {
+          const newName = m[1].trim();
+          const oldNames = Array.isArray(catMap[k]) ? catMap[k] : [catMap[k]];
+          // v2.2.31：午餐蔬菜改为X，同时替换所有蔬菜
+          catHit = { type: "replace_ingredient_multi", args: { oldNames: oldNames, newName: newName } };
+          break;
+        }
       }
-      if (catHit) return { type: "replace_ingredient", args: catHit };
+      if (catHit) return catHit;
 
       const rep1 = text.match(/(?:把)?([\u4e00-\u9fa5A-Za-z0-9]+?)\s*(?:换成|替代|代替)\s*(?:了)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/);
       const rep2 = text.match(/(?:没有|没买到|买不到)([\u4e00-\u9fa5A-Za-z0-9]+?)[，,。]?\s*(?:用|换)([\u4e00-\u9fa5A-Za-z0-9]+)/);
@@ -3304,6 +3310,31 @@ let PRODUCT_LIBRARY = {
           saveData();
           const lib = getIngredientLib()[name] || {};
           return { success: true, message: "✅ " + name + " 已设为" + channel + "采购（" + (lib.perPrice || lib.price ? '参考价 ' + (lib.perPrice || lib.price) + '元/' + (lib.unit || '500g') : '按商品库价格') + "）。采购清单已按渠道分组，重新配餐或刷新采购清单即可看到。" };
+        }
+        case "replace_ingredient_multi": {
+          // 一次替换多个食材为同一个新食材
+          const oldNames = args.oldNames || [];
+          const newName = args.newName;
+          const rlib = getIngredientLib();
+          // 检查新食材是否在库里
+          if (!rlib[newName]) {
+            const libKeys = Object.keys(rlib);
+            const fuzzy = libKeys.find(k => k.includes(newName) || newName.includes(k));
+            if (fuzzy) return executeToolCall("replace_ingredient_multi", { oldNames: oldNames, newName: fuzzy });
+            return { success: false, message: "食材库没有「" + newName + "」" };
+          }
+          let replaced = [];
+          for (const oldN of oldNames) {
+            appData.ingredientSwaps[oldN] = newName;
+            replaced.push(oldN);
+          }
+          const keepStart = appData.weeklyPlan && appData.weeklyPlan.startDate;
+          generateWeeklyPlanV2();
+          if (keepStart) appData.weeklyPlan.startDate = keepStart;
+          saveData();
+          const mon = appData.weeklyPlan.days["周一"].meals;
+          const rfmt = m => m ? m.items.map(i => i.name + i.grams + 'g').join('+') + '（' + m.sum.calories + 'kcal/' + m.sum.protein + 'g蛋白）' : '无';
+          return { success: true, message: "✅ 已把" + replaced.join("、") + "都替换为「" + newName + "」，全周配餐、采购、成本已联动重算\n\n周一餐单：\n早餐：" + rfmt(mon.breakfast) + "\n午餐：" + rfmt(mon.lunch) + "\n晚餐：" + rfmt(mon.dinner) + "\n练后：" + rfmt(mon.postWorkout) };
         }
         case "replace_ingredient": {
           // v2.2.12：食材别名规范化（口语→库名）
