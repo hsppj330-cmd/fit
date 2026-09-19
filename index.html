@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.22";
+    const VERSION = "2.2.23";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1807,8 +1807,8 @@ let PRODUCT_LIBRARY = {
       weeklyPlan: null,        // { weekStart, days:{周一:{dayType,meals:{breakfast,lunch,dinner}}}, targets, generatedAt }
       weekReview: { history: [], lastReviewedWeek: null },  // 周复盘历史
       settings: {
-        apiUrl: "https://api.agnes-" + "ai.cn/v1",
-        apiKey: "sk-" + "VUs19r6DtaNODLzbkShIQ7S4fnWuDot2WeNQWzFpPwH5fmlE",
+        apiUrl: "https://apihub.agnes-" + "ai.com/v1",
+        apiKey: "sk-" + "juQkM0zGw4h4WCKoIMAAdhaGdxf1trUFFQ9YemN6J60nKN83",
         model: "agnes-2.5-flash",
         searchUrl: "",
         searchKey: "",
@@ -4767,8 +4767,7 @@ let PRODUCT_LIBRARY = {
         saveData();
       } else {
         setTimeout(() => {
-          const debug = "【调试】apiKey=" + (appData.settings.apiKey ? appData.settings.apiKey.substring(0,8)+"..." : "空") + " apiUrl=" + (appData.settings.apiUrl || "空") + " model=" + (appData.settings.model || "空");
-          const fallbackMsg = "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～\n\n" + debug;
+          const fallbackMsg = "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～";
           addMessage('assistant', fallbackMsg);
           (appData.chatHistory = appData.chatHistory || []).push({ role: "assistant", content: fallbackMsg });
           saveData();
