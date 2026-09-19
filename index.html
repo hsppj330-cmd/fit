@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.12";
+    const VERSION = "2.2.13";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2498,6 +2498,19 @@ let PRODUCT_LIBRARY = {
         // 实时食材替换：用户在对话里说「上海青换成小水白菜」后，全局生效（配餐/采购/成本联动）
         const realName = (appData.ingredientSwaps && appData.ingredientSwaps[name]) || name;
         const info = lib[realName];
+        // v2.2.13：同名合并（上海青和大青椒都换成西芹时合并成一份，不重复显示）
+        const existing = out.find(x => x.name === realName && !x.missing);
+        if (existing) {
+          existing.grams += grams;
+          const li = lib[existing.name];
+          if (li) {
+            existing.kcal = Math.round(li.kcalPer100 * existing.grams / 100);
+            existing.protein = Math.round(li.proteinPer100 * existing.grams / 100 * 10) / 10;
+            existing.carbs = Math.round(li.carbsPer100 * existing.grams / 100 * 10) / 10;
+            existing.fat = Math.round(li.fatPer100 * existing.grams / 100 * 10) / 10;
+          }
+          return;
+        }
         if (!info) { out.push({ name: realName, grams, kcal: 0, protein: 0, carbs: 0, fat: 0, category: "缺失", missing: true }); return; }
         out.push({
           name: realName, grams, category: info.category,
