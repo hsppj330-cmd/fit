@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.13";
+    const VERSION = "2.2.14";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3315,9 +3315,22 @@ let PRODUCT_LIBRARY = {
           };
           const oldName = normalize(args.oldName);
           const newName = normalize(args.newName);
-          const rlib = getIngredientLib();
+          let rlib = getIngredientLib();
           if (!oldName || !newName || oldName === newName) return { success: false, message: "请提供要替换的食材名和替换成什么食材（如：上海青换成小水白菜）" };
           if (!rlib[oldName]) return { success: false, message: "食材库没有「" + oldName + "」" };
+          // v2.2.14：rlib 里没有但 PRODUCT_LIBRARY 里有（云端同步可能没合并营养数据），临时补进 rlib
+          if (!rlib[newName] && PRODUCT_LIBRARY && PRODUCT_LIBRARY[newName]) {
+            const p = PRODUCT_LIBRARY[newName];
+            const np = p.nutritionPer100 || {};
+            rlib[newName] = {
+              category: p.category || "蔬菜",
+              kcalPer100: np.calories || 0, proteinPer100: np.protein || 0,
+              carbsPer100: np.carbs || 0, fatPer100: np.fat || 0,
+              price: p.perPrice || p.price || 0,
+              unit: p.unit || "500g", storage: p.storage || "常温",
+              fromProduct: true
+            };
+          }
           if (!rlib[newName]) {
             // v2.2.12：模糊匹配——库里找包含 newName 或被 newName 包含的
             const libKeys = Object.keys(rlib);
