@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.50";
+    const VERSION = "2.2.51";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2602,8 +2602,15 @@ let PRODUCT_LIBRARY = {
         chickenGrams = Math.round(0.6 * remainingProtein / chickenProteinPerG);
         drumstickGrams = Math.round(0.4 * remainingProtein / drumstickProteinPerG);
       }
-      // 脂肪：固定脂肪来源 = 早餐(燕麦+鸡蛋+牛奶+南瓜子) + 午餐蔬菜
-      const fixedFat = breakfast.sum.fat + lunchVeg.sum.fat + dinnerSide.sum.fat;
+      // v2.2.51：脂肪动态算——扣掉所有其他食材的脂肪（除牛油果油外）
+      // 其他食材：早餐 + 糙米 + 鸡胸 + 午餐蔬菜 + 西兰花 + 琵琶腿 + 练后
+      const fixedFat = breakfast.sum.fat 
+        + (riceInfo ? riceInfo.fatPer100 * riceGrams / 100 : 0)
+        + lunchVeg.sum.fat
+        + (chickenInfo ? chickenInfo.fatPer100 * chickenGrams / 100 : 0)
+        + dinnerSide.sum.fat
+        + (drumstickInfo ? drumstickInfo.fatPer100 * drumstickGrams / 100 : 0)
+        + (postWorkout ? postWorkout.sum.fat : 0);
       const remainingFat = Math.max(0, Math.round(macros.fat - fixedFat));
       // 剩余脂肪全由牛油果油提供
       const oilInfo = lib["牛油果油"];
