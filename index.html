@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.43";
+    const VERSION = "2.2.44";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2428,7 +2428,7 @@ let PRODUCT_LIBRARY = {
       let carbsK, proteinK, fatK;
       if (hw === '2-3') { carbsK = 2.2; proteinK = 1.4; fatK = 0.8; }
       else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.8; }
-      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.7; fatK = 0.8; }
+      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.88; fatK = 0.8; }
       else { carbsK = 3.5; proteinK = 1.8; fatK = 0.8; }
       // v2.2.5 训练日碳水倍率覆盖（设置页/对话可调；当前阶段 2.5）
       if (appData.profile.carbOverrideK) carbsK = parseFloat(appData.profile.carbOverrideK);
@@ -4296,12 +4296,12 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3 border-l-4 border-emerald-500">
               <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（每份熟重克数 · 7份）</div>
               <div class="grid grid-cols-2 gap-2 mt-1">
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日（6天）</div><div>熟糙米饭 <b>263g</b> + 熟鸡胸 <b>83g</b> + 炒蔬菜 <b>140g</b> + 牛油果油 14g</div></div>
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日（1天）</div><div>熟糙米饭 <b>130g</b> + 熟鸡胸 <b>96g</b> + 炒蔬菜 <b>140g</b> + 牛油果油 12g</div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日（6天）</div><div>熟土豆 <b>257g</b> + 卤鸡腿去皮 <b>57g</b> + 水煮西兰花 <b>225g</b></div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日（1天）</div><div>熟土豆 <b>180g</b> + 卤鸡腿去皮 <b>93g</b> + 水煮西兰花 <b>225g</b></div></div>
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日</div><div>从「本周配餐」看周一午餐实际克数</div></div>
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日</div><div>从「本周配餐」看周四午餐实际克数</div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日</div><div>从「本周配餐」看周一晚餐实际克数</div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日</div><div>从「本周配餐」看周四晚餐实际克数</div></div>
               </div>
-              <div class="text-xs text-gray-500 mt-2">闭合校验：熟饭 263×6+130×1=1708g ≈ 1705g；熟鸡胸 83×6+96×1=594g ≈ 591g；蔬菜 140×7=980g ✓；土豆 257×6+180×1=1722g ≈ 1719g；腿肉 57×6+93×1=435g ✓；西兰花 225×7=1575g ✓；油 14×6+12×1=96g ✓</div>
+              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
