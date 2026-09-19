@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.35";
+    const VERSION = "2.2.36";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3329,9 +3329,9 @@ let PRODUCT_LIBRARY = {
             appData.ingredientSwaps[oldN] = newName;
             replaced.push(oldN);
           }
-          const keepStart = appData.weeklyPlan && appData.weeklyPlan.startDate;
-          generateWeeklyPlanV2();
-          if (keepStart) appData.weeklyPlan.startDate = keepStart;
+          // v2.2.36：只换蔬菜名，不重新生成整个配餐（保持糙米/鸡胸肉克数不变）
+          // 重新渲染界面让交换生效
+          renderDashboard(); renderTrainingView(); renderDietView();
           saveData();
           const mon = appData.weeklyPlan.days["周一"].meals;
           const rfmt = m => m ? m.items.map(i => i.name + i.grams + 'g').join('+') + '（' + m.sum.calories + 'kcal/' + m.sum.protein + 'g蛋白）' : '无';
