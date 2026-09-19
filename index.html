@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.34";
+    const VERSION = "2.2.35";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3030,7 +3030,7 @@ let PRODUCT_LIBRARY = {
           break;
         }
       }
-      if (catHit) { alert("本地兜底匹配: " + JSON.stringify(catHit)); return catHit; }
+      if (catHit) return catHit;
 
       const rep1 = text.match(/(?:把)?([\u4e00-\u9fa5A-Za-z0-9]+?)\s*(?:换成|替代|代替)\s*(?:了)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/);
       const rep2 = text.match(/(?:没有|没买到|买不到)([\u4e00-\u9fa5A-Za-z0-9]+?)[，,。]?\s*(?:用|换)([\u4e00-\u9fa5A-Za-z0-9]+)/);
@@ -3072,6 +3072,7 @@ let PRODUCT_LIBRARY = {
         case "weekly_review": return handleWeeklyReview();
         case "query_stock": return handleQueryStock();
         case "update_profile_setting": return handleUpdateProfileSetting((cmd && cmd.args) || {});
+        case "replace_ingredient_multi": return executeToolCall("replace_ingredient_multi", cmd.args);
         case "record_cardio": {
           const mins = parseInt((cmd && cmd.args && cmd.args.minutes) || 20);
           const kcal = Math.round(mins * 10);  // 66kg 中速跳绳约 10kcal/分钟
