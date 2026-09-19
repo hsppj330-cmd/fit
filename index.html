@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.42";
+    const VERSION = "2.2.43";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4160,6 +4160,31 @@ let PRODUCT_LIBRARY = {
       // v2.2.9：午餐蔬菜名动态读（用户替换后跟着变），默认上海青
       const lunchVegName = (appData.ingredientSwaps && appData.ingredientSwaps["上海青"]) || "上海青";
       const lunchVeg2Name = (appData.ingredientSwaps && appData.ingredientSwaps["大青椒"]) || "大青椒";
+      // v2.2.41：周备餐总克数动态计算（从周配餐数据汇总7天生重）
+      let weekRiceRaw = 0, weekChickenRaw = 0, weekVeg1Raw = 0, weekVeg2Raw = 0, weekOilLunch = 0;
+      let weekPotatoRaw = 0, weekDrumstickRaw = 0, weekBroccoliRaw = 0;
+      for (const dayName of dayOrder) {
+        const day = plan.days[dayName];
+        if (!day || !day.meals) continue;
+        const lunch = day.meals.lunch;
+        if (lunch && lunch.items) {
+          for (const it of lunch.items) {
+            if (it.name === "三色糙米") weekRiceRaw += it.grams;
+            else if (it.name === "鸡胸肉") weekChickenRaw += it.grams;
+            else if (it.name === lunchVegName) weekVeg1Raw += it.grams;
+            else if (it.name === lunchVeg2Name) weekVeg2Raw += it.grams;
+            else if (it.name === "牛油果油") weekOilLunch += it.grams;
+          }
+        }
+        const dinner = day.meals.dinner;
+        if (dinner && dinner.items) {
+          for (const it of dinner.items) {
+            if (it.name === "土豆") weekPotatoRaw += it.grams;
+            else if (it.name === "琵琶腿") weekDrumstickRaw += it.grams;
+            else if (it.name === "西兰花") weekBroccoliRaw += it.grams;
+          }
+        }
+      }
       // 实时倍率：取第一个训练日与休息日的「三餐+练后实际摄入」÷ 体重（真实入口口径）
       const weight = plan.weekStartWeight || appData.profile.weight || 66;
       const sumDayMacros = (day) => {
