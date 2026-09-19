@@ -269,6 +269,7 @@
                 <p class="text-xs text-gray-400 mt-1">当前 2.5：把缺口拉到 300-500 安全区；复盘见肌肉迟滞再调回 3.0</p>
               </div>
               <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
+              <button onclick="hardRefresh()" class="w-full bg-orange-500 text-white py-2.5 rounded-lg font-medium mt-2">🔄 强制刷新（更新后用）</button>
             </div>
           </div>
           
@@ -371,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.29";
+    const VERSION = "2.2.30";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4701,6 +4702,11 @@ let PRODUCT_LIBRARY = {
       document.getElementById('setting-git-token').value = appData.settings.gitToken;
     }
     
+    function hardRefresh() {
+      if (confirm("强制刷新会清除缓存并重新加载最新版本，确定吗？")) {
+        location.href = location.pathname + "?v=" + Date.now() + location.hash;
+      }
+    }
     function saveProfile() {
       appData.profile.weight = parseFloat(document.getElementById('setting-weight').value) || 70;
       appData.profile.bodyFat = parseFloat(document.getElementById('setting-bodyfat').value) || 20;
