@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.45";
+    const VERSION = "2.2.46";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4296,10 +4296,10 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3 border-l-4 border-emerald-500">
               <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（每份熟重克数 · 7份）</div>
               <div class="grid grid-cols-2 gap-2 mt-1">
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日</div><div>${plan.days['周一'].meals.lunch.items.map(i => i.name + ' ' + i.grams + 'g').join(' + ')}</div></div>
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日</div><div>${plan.days['周四'].meals.lunch.items.map(i => i.name + ' ' + i.grams + 'g').join(' + ')}</div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日</div><div>${plan.days['周一'].meals.dinner.items.map(i => i.name + ' ' + i.grams + 'g').join(' + ')}</div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日</div><div>${plan.days['周四'].meals.dinner.items.map(i => i.name + ' ' + i.grams + 'g').join(' + ')}</div></div>
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日（熟重）</div><div>${plan.days['周一'].meals.lunch.items.map(i => i.name + '(熟) ' + i.grams + 'g').join(' + ')}</div></div>
+                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日（熟重）</div><div>${plan.days['周四'].meals.lunch.items.map(i => i.name + '(熟) ' + i.grams + 'g').join(' + ')}</div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日（熟重）</div><div>${plan.days['周一'].meals.dinner.items.map(i => i.name + '(熟) ' + i.grams + 'g').join(' + ')}</div></div>
+                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日（熟重）</div><div>${plan.days['周四'].meals.dinner.items.map(i => i.name + '(熟) ' + i.grams + 'g').join(' + ')}</div></div>
               </div>
               <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）</div>
             </div>
