@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.25";
+    const VERSION = "2.2.26";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1909,12 +1909,12 @@ let PRODUCT_LIBRARY = {
       }
       // 器械过滤：本地库/云端库可能被旧版本AI加入绳索下压等需龙门架动作，一律清理并持久化
       sanitizeTrainingEquipment(TRAINING_LIBRARY);
-      // v2.2.21：兜底——如果localStorage里apiKey为空，用代码内嵌的默认值
-      if (!appData.settings.apiKey) appData.settings.apiKey = DEFAULT_DATA.settings.apiKey;
-      if (!appData.settings.gitToken) appData.settings.gitToken = DEFAULT_DATA.settings.gitToken;
-      if (!appData.settings.apiUrl) appData.settings.apiUrl = DEFAULT_DATA.settings.apiUrl;
-      if (!appData.settings.model) appData.settings.model = DEFAULT_DATA.settings.model;
-      if (!appData.settings.gistId) appData.settings.gistId = DEFAULT_DATA.settings.gistId;
+      // v2.2.26：强制覆盖——确保用最新API配置（不管localStorage旧值）
+      appData.settings.apiKey = DEFAULT_DATA.settings.apiKey;
+      appData.settings.gitToken = DEFAULT_DATA.settings.gitToken;
+      appData.settings.apiUrl = DEFAULT_DATA.settings.apiUrl;
+      appData.settings.model = DEFAULT_DATA.settings.model;
+      appData.settings.gistId = DEFAULT_DATA.settings.gistId;
       saveData();
     }
     
@@ -4767,7 +4767,7 @@ let PRODUCT_LIBRARY = {
         saveData();
       } else {
         setTimeout(() => {
-          const fallbackMsg = "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～" + "\n\n【调试】apiKey=" + (appData.settings.apiKey ? appData.settings.apiKey.substring(0,10)+"..." : "空") + " apiUrl=" + (appData.settings.apiUrl || "空") + (window._aiError ? "\n【错误】" + window._aiError : "");
+          const fallbackMsg = "收到～你可以试试这些指令：\n\n• 「体重72kg体脂18%」记录身体数据\n• 「睡了7.5小时」记录睡眠\n• 「吃了早餐」记录早餐\n• 「生成周计划」生成训练+饮食方案\n• 「生成采购清单」算出要买的食材\n• 「练了推日」记录训练，自动上调热量目标\n\n配置API密钥后可智能对话和截图识别～";
           addMessage('assistant', fallbackMsg);
           (appData.chatHistory = appData.chatHistory || []).push({ role: "assistant", content: fallbackMsg });
           saveData();
