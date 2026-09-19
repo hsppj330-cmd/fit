@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.36";
+    const VERSION = "2.2.37";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2573,7 +2573,17 @@ let PRODUCT_LIBRARY = {
           potatoGrams = Math.round(starchCarbs * 0.4 / potatoInfo.carbsPer100 * 100);
         }
       }
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], ["上海青", 100], ["大青椒", 100], ["牛油果油", isRest ? 12 : 14]], lib);
+      // v2.2.37：午餐蔬菜动态克数——换蔬菜后按新蔬菜热量调整克数，保持蔬菜总热量≈37kcal
+      const lunchVeg1Name = (appData.ingredientSwaps && appData.ingredientSwaps["上海青"]) || "上海青";
+      const lunchVeg2Name = (appData.ingredientSwaps && appData.ingredientSwaps["大青椒"]) || "大青椒";
+      // 原来蔬菜总热量 ≈ 上海青100g(15kcal) + 大青椒100g(22kcal) = 37kcal
+      const targetVegKcal = 37;
+      const veg1KcalPer100 = (lib[lunchVeg1Name] && lib[lunchVeg1Name].kcalPer100) || 15;
+      const veg2KcalPer100 = (lib[lunchVeg2Name] && lib[lunchVeg2Name].kcalPer100) || 22;
+      // 两种蔬菜各占一半热量，自动算克数
+      const veg1Grams = Math.round(targetVegKcal / 2 / veg1KcalPer100 * 100);
+      const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", isRest ? 12 : 14]], lib);
       const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
       return { breakfast, lunch, dinner, postWorkout };
     }
