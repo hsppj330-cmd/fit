@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.51";
+    const VERSION = "2.2.52";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3682,10 +3682,10 @@ let PRODUCT_LIBRARY = {
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
 4. 当前固定三餐体系（v2.1+，用户定制；配餐营养=熟后口径，采购清单和商品库=生重口径）：
    - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
-   - 午餐（周备餐冷冻）：三色糙米（训练日105g/休息日52g 生干重）+鸡胸肉（训练日110g/休息日128g）+上海青100g+大青椒100g+牛油果油（训练日14g/休息日12g，炒菜用，油脂集中在早/午）
-   - 晚餐（清淡无油）：土豆（训练日285g/休息日200g）+琵琶腿（训练日95g/休息日155g，去皮食用）+西兰花250g
+   - 午餐（周备餐冷冻）：糙米+鸡胸+蔬菜+牛油果油（克数按目标碳水/蛋白/脂肪动态计算，不是固定值）
+   - 晚餐（清淡无油）：土豆+琵琶腿+西兰花（克数同上动态计算）
    - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（一勺，约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
-   - 生熟换算：可调 convert_unit（如鸡胸生500g→熟375g 系数0.75、琵琶腿系数0.6、糙米干→熟饭×2.2）
+   - 生熟换算：鸡胸生→熟×0.75、琵琶腿生→熟×0.6、糙米干→熟饭×2.5、土豆生→熟×0.9
 5. 用户说「重新配餐/根据新身体数据重新配餐/按今早体测重新算/按最新体重调整下周吃什么」→ 必须先调 update_profile_setting 把最新体重/体脂写入 profile（体重体脂来自用户刚说的或最近一次体测记录），再调 generate_week_plan_v2 强制重算覆盖本周计划；说「复盘」→ 调 weekly_review
 5b. 用户说「根据新的身体数据制定新的周配餐计划」「按我刚测的数据重新配」这类话，不要只回复"本周已存在"，必须实际调 update_profile_setting + generate_week_plan_v2 两步执行
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
@@ -4255,7 +4255,7 @@ let PRODUCT_LIBRARY = {
           <div class="mt-2 bg-white/15 rounded-xl px-3 py-2 text-xs leading-relaxed">
             <div class="font-medium opacity-95">📊 当前实际倍率（按 ${weight}kg 体重）</div>
             <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 ${plan.targets.carbsK} / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
-            <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / 1.7 / 0.8）</div>
+            <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
           </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
         </div>
