@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.18";
+    const VERSION = "2.2.19";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5006,7 +5006,8 @@ let PRODUCT_LIBRARY = {
 
     function init() {
       document.getElementById("app-version").textContent = VERSION;
-      // v2.2.18：从 URL hash 自动读取配置（收藏链接即可，无需每次输入）
+      loadData();
+      // v2.2.18：从 URL hash 自动读取配置（loadData之后，避免被localStorage旧值覆盖）
       const hash = location.hash || '';
       if (hash) {
         const params = new URLSearchParams(hash.slice(1));
@@ -5017,7 +5018,6 @@ let PRODUCT_LIBRARY = {
         if (params.get('gistId')) appData.settings.gistId = params.get('gistId');
         if (params.get('apiKey') || params.get('gitToken')) saveData();
       }
-      loadData();
       // 聊天 UI 不回显历史（打开即干净对话框）；chatHistory 仍存储，AI 对话会带最近历史做上下文记忆
       // v2：首次打开自动生成周配餐计划（按当前体重+运动档位）
       if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
