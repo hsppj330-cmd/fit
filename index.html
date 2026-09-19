@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.26";
+    const VERSION = "2.2.27";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3667,7 +3667,9 @@ let PRODUCT_LIBRARY = {
         for (let round = 0; round < 4; round++) {
           const payload = { model: appData.settings.model || "agnes-v1", messages, stream: false };
           if (useTools) payload.tools = AI_TOOLS;
-          const res = await fetch(appData.settings.apiUrl + "/chat/completions", {
+          const apiBase = appData.settings.apiUrl;
+          const proxyUrl = apiBase.startsWith("https://") ? "https://corsproxy.io/?" + encodeURIComponent(apiBase) : apiBase;
+          const res = await fetch(proxyUrl + "/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + appData.settings.apiKey },
             body: JSON.stringify(payload)
