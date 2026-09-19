@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.48";
+    const VERSION = "2.2.49";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4453,6 +4453,8 @@ let PRODUCT_LIBRARY = {
       const leftKcal = Math.max(0, target.calories - daily.calories);
       const mealTitle = (key, label) => {
         const meal = dayPlan ? dayPlan.meals[key] : null;
+        // v2.2.49：午餐/晚餐显示熟重，早餐/练后显示生重
+        const isCookedMeal = (key === 'lunch' || key === 'dinner');
         if (meal) {
           return `
             <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -4460,7 +4462,7 @@ let PRODUCT_LIBRARY = {
                 <h3 class="font-medium">${label}</h3>
                 <button class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg" onclick="recordPlannedMeal('${key}')">这餐吃了</button>
               </div>
-              <div class="text-sm text-gray-600 space-y-0.5">${meal.items.map(it => '<div>· ' + it.name + ' ' + it.grams + 'g（' + it.kcal + 'kcal）</div>').join('')}</div>
+              <div class="text-sm text-gray-600 space-y-0.5">${meal.items.map(it => { const showG = isCookedMeal ? (cookedWeightGrams(it.name, it.grams) || it.grams) : it.grams; return '<div>· ' + it.name + ' ' + showG + 'g（' + it.kcal + 'kcal）</div>'; }).join('')}</div>
               <div class="text-xs text-gray-400 mt-2">合计 ${meal.sum.calories}kcal · 蛋白${meal.sum.protein}g · 碳水${meal.sum.carbs}g · 脂肪${meal.sum.fat}g${meal.cost ? ' · 约' + meal.cost + '元' : ''}</div>
             </div>`;
         }
