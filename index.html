@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.31";
+    const VERSION = "2.2.34";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3030,7 +3030,7 @@ let PRODUCT_LIBRARY = {
           break;
         }
       }
-      if (catHit) return catHit;
+      if (catHit) { alert("本地兜底匹配: " + JSON.stringify(catHit)); return catHit; }
 
       const rep1 = text.match(/(?:把)?([\u4e00-\u9fa5A-Za-z0-9]+?)\s*(?:换成|替代|代替)\s*(?:了)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/);
       const rep2 = text.match(/(?:没有|没买到|买不到)([\u4e00-\u9fa5A-Za-z0-9]+?)[，,。]?\s*(?:用|换)([\u4e00-\u9fa5A-Za-z0-9]+)/);
@@ -4773,6 +4773,7 @@ let PRODUCT_LIBRARY = {
       saveData();
       
       const cmd = parseCommand(text);
+      console.log("parseCommand:", text, "=>", cmd);
       if (cmd) {
         const result = await executeCommand(cmd);
         if (result && result.success) {
