@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.46";
+    const VERSION = "2.2.47";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2583,8 +2583,34 @@ let PRODUCT_LIBRARY = {
       // 两种蔬菜各占一半热量，自动算克数
       const veg1Grams = Math.round(targetVegKcal / 2 / veg1KcalPer100 * 100);
       const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", isRest ? 128 : 110], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", isRest ? 12 : 14]], lib);
-      const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", isRest ? 155 : 95], ["西兰花", 250]], lib);
+      // v2.2.47：鸡胸/琵琶腿/牛油果油按目标动态算
+      // 固定蛋白来源：早餐(鸡蛋+燕麦+牛奶+南瓜子) + 练后(蛋白粉)
+      const fixedProtein = breakfast.sum.protein + (postWorkout ? postWorkout.sum.protein : 0);
+      // 剩余蛋白目标 = 总目标蛋白 - 固定蛋白
+      const remainingProtein = Math.max(0, Math.round(macros.protein - fixedProtein));
+      // 鸡胸提供 60% 剩余蛋白，琵琶腿提供 40%
+      const chickenInfo = lib["鸡胸肉"], drumstickInfo = lib["琵琶腿"];
+      let chickenGrams = isRest ? 128 : 110;
+      let drumstickGrams = isRest ? 155 : 95;
+      if (chickenInfo && chickenInfo.proteinPer100 > 0 && drumstickInfo && drumstickInfo.proteinPer100 > 0) {
+        const chickenProteinPerG = chickenInfo.proteinPer100 / 100;
+        const drumstickProteinPerG = drumstickInfo.proteinPer100 / 100;
+        // 总蛋白 = chickenGrams × chickenProteinPerG + drumstickGrams × drumstickProteinPerG = remainingProtein
+        // 按 6:4 比例分配：chickenGrams = 0.6 × remainingProtein / chickenProteinPerG
+        chickenGrams = Math.round(0.6 * remainingProtein / chickenProteinPerG);
+        drumstickGrams = Math.round(0.4 * remainingProtein / drumstickProteinPerG);
+      }
+      // 脂肪：固定脂肪来源 = 早餐(燕麦+鸡蛋+牛奶+南瓜子) + 午餐蔬菜
+      const fixedFat = breakfast.sum.fat + lunchVeg.sum.fat + dinnerSide.sum.fat;
+      const remainingFat = Math.max(0, Math.round(macros.fat - fixedFat));
+      // 剩余脂肪全由牛油果油提供
+      const oilInfo = lib["牛油果油"];
+      let oilGrams = isRest ? 12 : 14;
+      if (oilInfo && oilInfo.fatPer100 > 0) {
+        oilGrams = Math.round(remainingFat / (oilInfo.fatPer100 / 100));
+      }
+      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", chickenGrams], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", oilGrams]], lib);
+      const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", drumstickGrams], ["西兰花", 250]], lib);
       return { breakfast, lunch, dinner, postWorkout };
     }
 
