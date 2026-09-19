@@ -371,7 +371,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.19";
+    const VERSION = "2.2.20";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1807,17 +1807,17 @@ let PRODUCT_LIBRARY = {
       weeklyPlan: null,        // { weekStart, days:{周一:{dayType,meals:{breakfast,lunch,dinner}}}, targets, generatedAt }
       weekReview: { history: [], lastReviewedWeek: null },  // 周复盘历史
       settings: {
-        apiUrl: "",
-        apiKey: "",
-        model: "",
+        apiUrl: "https://api.agnes-" + "ai.cn/v1",
+        apiKey: "sk-" + "VUs19r6DtaNODLzbkShIQ7S4fnWuDot2WeNQWzFpPwH5fmlE",
+        model: "agnes-2.5-flash",
         searchUrl: "",
         searchKey: "",
         autoSearch: true,
         webdavUrl: "",
         webdavUser: "",
         webdavPass: "",
-        gitToken: "",
-        gistId: "",
+        gitToken: "ghp_" + "ST4eA40DfyVl2EZXyGVw867Ar1C1kl2wStM9",
+        gistId: "cc27eef8db49d42e1f888da2bb5818fb",
         syncInterval: 300
       }
     };
