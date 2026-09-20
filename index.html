@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.3.5";
+    const VERSION = "2.3.7";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4194,7 +4194,66 @@ let PRODUCT_LIBRARY = {
       renderDashboard();
     }
     
+    // v2.3.6: calendar + override
+    function renderCalendar() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      document.getElementById('cal-month-label').textContent = year + '年' + (month + 1) + '月';
+      const firstDay = new Date(year, month, 1);
+      const startDow = firstDay.getDay() || 7;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dowType = (dow) => {
+        if (dow === 1) return 'push';
+        if (dow === 2) return 'rest';
+        if (dow === 3) return 'pull';
+        if (dow === 4) return 'rest';
+        if (dow === 5) return 'legs';
+        if (dow === 6) return 'abs';
+        return 'rest';
+      };
+      const overrides = appData.trainingDayOverrides || {};
+      let html = '';
+      for (let i = 1; i < startDow; i++) html += '<div></div>';
+      const todayStr = now.toISOString().slice(0, 10);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        const dow = ((startDow - 1 + d - 1) % 7) + 1;
+        let type = dowType(dow);
+        if (overrides[dateStr]) type = overrides[dateStr];
+        const isToday = dateStr === todayStr;
+        const isFuture = dateStr > todayStr;
+        let bg = 'bg-gray-100 text-gray-600';
+        let label = '休';
+        if (type === 'push' || type === 'pull' || type === 'legs') {
+          bg = 'bg-blue-500 text-white';
+          label = type === 'push' ? '推' : (type === 'pull' ? '拉' : '腿');
+        } else if (type === 'abs') {
+          bg = 'bg-purple-500 text-white';
+          label = '腹';
+        }
+        html += '<div class="aspect-square flex flex-col items-center justify-center rounded-lg text-xs ' + bg + ' ' + (isToday ? 'ring-2 ring-green-500 ring-offset-1' : '') + ' ' + (isFuture ? 'cursor-pointer hover:opacity-80' : '') + '" onclick="toggleDayType(\'' + dateStr + '\')"><div class="font-medium">' + d + '</div><div class="text-[10px] opacity-90">' + label + '</div></div>';
+      }
+      document.getElementById('calendar-grid').innerHTML = html;
+    }
+    function toggleDayType(dateStr) {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      if (dateStr < todayStr) { alert('过去的日子不能调整'); return; }
+      appData.trainingDayOverrides = appData.trainingDayOverrides || {};
+      const d = new Date(dateStr);
+      const dow = (d.getDay() || 7);
+      const dowTypeMap = { 1:'push', 2:'rest', 3:'pull', 4:'rest', 5:'legs', 6:'abs', 7:'rest' };
+      const currentType = appData.trainingDayOverrides[dateStr] || dowTypeMap[dow];
+      const newType = (currentType === 'rest') ? 'push' : 'rest';
+      appData.trainingDayOverrides[dateStr] = newType;
+      saveData();
+      renderCalendar();
+      alert((newType === 'rest' ? '已临时改为休息' : '已临时改为训练') + ': ' + dateStr);
+    }
+
     function renderDietView() {
+      if (document.getElementById('calendar-grid')) renderCalendar();
       const html = `
         <div class="mb-4">
           <div class="flex bg-gray-100 rounded-lg p-1">
@@ -4304,6 +4363,23 @@ let PRODUCT_LIBRARY = {
             <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
           </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
+        </div>
+        <div class="mb-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-base">📅 训练日历</h3>
+            <div class="text-xs text-gray-500" id="cal-month-label"></div>
+          </div>
+          <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
+            <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+          <div class="flex gap-3 mt-3 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span>推/拉/腿</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span>腹肌</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-gray-200 rounded"></span>休息</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">点日期可临时切换训练/休息（只影响当天，不改周计划）</p>
         </div>
         <div class="mb-4 grid grid-cols-2 gap-2">
           <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button>
