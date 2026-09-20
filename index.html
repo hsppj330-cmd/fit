@@ -250,23 +250,36 @@
                 <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
               </div>
               <div>
-                <label class="text-sm text-gray-600">每周运动时长（决定蛋白/脂肪，谭师系数）</label>
-                <select id="setting-week-hours" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                  <option value="2-3">2-3 小时：蛋白 1.4 · 脂肪 0.8</option>
-                  <option value="4-5">4-5 小时：蛋白 1.6 · 脂肪 0.8</option>
-                  <option value="6-7">6-7 小时：蛋白 1.88 · 脂肪 0.8</option>
-                  <option value="8-9">8-9 小时：蛋白 1.8 · 脂肪 0.8</option>
+                <label class="text-sm text-gray-600">基础代谢 BMR（体脂秤实测）</label>
+                <input type="number" id="setting-bmr" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="1447">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">日常活动系数</label>
+                <select id="setting-activity" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                  <option value="1.2">1.2（久坐为主，每天&le;5000步）</option>
+                  <option value="1.35">1.35（日常走动，5000-8000步）</option>
+                  <option value="1.5">1.5（活动较多，8000步+）</option>
                 </select>
               </div>
               <div>
-                <label class="text-sm text-gray-600">训练日碳水倍率 (g/kg)</label>
-                <select id="setting-carb-multiplier" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                  <option value="2.2">2.2（缺口最大，谨慎）</option>
-                  <option value="2.5">2.5（当前阶段：缺口 300-500 安全区）</option>
-                  <option value="3.0">3.0（谭师 6-7h 档标准）</option>
-                  <option value="3.5">3.5（高训练量/增肌期）</option>
+                <label class="text-sm text-gray-600">单次训练时长（分钟）</label>
+                <input type="number" id="setting-training-mins" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="60">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">训练强度（MET）</label>
+                <select id="setting-training-met" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                  <option value="4">4（轻强度）</option>
+                  <option value="6">6（中等强度，推荐）</option>
+                  <option value="8">8（高强度）</option>
                 </select>
-                <p class="text-xs text-gray-400 mt-1">当前 2.5：把缺口拉到 300-500 安全区；复盘见肌肉迟滞再调回 3.0</p>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">训练日热量缺口（大卡）</label>
+                <input type="number" id="setting-train-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="400">
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">休息日热量缺口（大卡）</label>
+                <input type="number" id="setting-rest-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="600">
               </div>
               <button onclick="saveProfile()" class="w-full bg-blue-500 text-white py-2.5 rounded-lg font-medium mt-2">保存参数</button>
               <button onclick="hardRefresh()" class="w-full bg-orange-500 text-white py-2.5 rounded-lg font-medium mt-2">🔄 强制刷新（更新后用）</button>
@@ -372,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.3.0";
+    const VERSION = "2.3.3";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4833,13 +4846,18 @@ let PRODUCT_LIBRARY = {
     }
     
     function renderSettingsView() {
-      document.getElementById('setting-weight').value = appData.profile.weight;
-      document.getElementById('setting-bodyfat').value = appData.profile.bodyFat;
-      document.getElementById('setting-target-fat').value = appData.profile.targetBodyFat;
-      document.getElementById('setting-protein').value = appData.profile.proteinCoefficient;
-      document.getElementById('setting-deficit').value = appData.profile.calorieDeficit;
-      document.getElementById('setting-week-hours').value = appData.profile.weekHours || '6-7';
-      document.getElementById('setting-carb-multiplier').value = String(appData.profile.carbOverrideK || 2.5);
+      document.getElementById('setting-weight').value = appData.profile.weight || 65;
+      document.getElementById('setting-bodyfat').value = appData.profile.bodyFat || 20;
+      document.getElementById('setting-target-fat').value = appData.profile.targetBodyFat || 15;
+      document.getElementById('setting-protein').value = appData.profile.proteinCoefficient || 1.6;
+      document.getElementById('setting-deficit').value = appData.profile.calorieDeficit || 400;
+      // v2.3.2：凯圣王参数
+      document.getElementById('setting-bmr').value = appData.profile.bmr || 1447;
+      document.getElementById('setting-activity').value = String(appData.profile.activityFactor || 1.2);
+      document.getElementById('setting-training-mins').value = appData.profile.trainingMinutes || 60;
+      document.getElementById('setting-training-met').value = String(appData.profile.trainingMET || 6);
+      document.getElementById('setting-train-deficit').value = appData.profile.trainDeficit || 400;
+      document.getElementById('setting-rest-deficit').value = appData.profile.restDeficit || 600;
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
       document.getElementById('setting-apikey').value = appData.settings.apiKey;
       document.getElementById('setting-model').value = appData.settings.model;
@@ -4853,16 +4871,20 @@ let PRODUCT_LIBRARY = {
       }
     }
     function saveProfile() {
-      appData.profile.weight = parseFloat(document.getElementById('setting-weight').value) || 70;
+      appData.profile.weight = parseFloat(document.getElementById('setting-weight').value) || 65;
       appData.profile.bodyFat = parseFloat(document.getElementById('setting-bodyfat').value) || 20;
       appData.profile.targetBodyFat = parseFloat(document.getElementById('setting-target-fat').value) || 15;
-      appData.profile.proteinCoefficient = parseFloat(document.getElementById('setting-protein').value) || 1.8;
-      appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 500;
-      appData.profile.weekHours = document.getElementById('setting-week-hours').value || '6-7';
-      appData.profile.carbOverrideK = parseFloat(document.getElementById('setting-carb-multiplier').value) || 2.5;
+      appData.profile.proteinCoefficient = parseFloat(document.getElementById('setting-protein').value) || 1.6;
+      appData.profile.calorieDeficit = parseFloat(document.getElementById('setting-deficit').value) || 400;
+      // v2.3.1：凯圣王参数
+      appData.profile.bmr = parseFloat(document.getElementById('setting-bmr').value) || 1447;
+      appData.profile.activityFactor = parseFloat(document.getElementById('setting-activity').value) || 1.2;
+      appData.profile.trainingMinutes = parseFloat(document.getElementById('setting-training-mins').value) || 60;
+      appData.profile.trainingMET = parseFloat(document.getElementById('setting-training-met').value) || 6;
+      appData.profile.trainDeficit = parseFloat(document.getElementById('setting-train-deficit').value) || 400;
+      appData.profile.restDeficit = parseFloat(document.getElementById('setting-rest-deficit').value) || 600;
       // 参数变化 → 重新生成周配餐
       if (appData.weeklyPlan && appData.weeklyPlan.days) generateWeeklyPlanV2();
-      appData.profile.bmr = Math.round(88.362 + (13.397 * appData.profile.weight) + (4.799 * 175) - (5.677 * 25));
       
       appData.settings.searchUrl = "";
       appData.settings.searchKey = "";
