@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.3.7";
+    const VERSION = "2.3.8";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4269,6 +4269,8 @@ let PRODUCT_LIBRARY = {
         <div id="diet-products" class="diet-panel hidden">${renderProductLibrary()}</div>
       `;
       document.getElementById('view-diet').innerHTML = html;
+      // v2.3.8: html 插入后再渲染日历
+      if (document.getElementById('calendar-grid')) renderCalendar();
     }
 
     function switchDietTab(tab) {
