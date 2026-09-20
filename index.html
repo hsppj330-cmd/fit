@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.3";
+    const VERSION = "2.4.4";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5060,7 +5060,7 @@ let PRODUCT_LIBRARY = {
         }
         addMessage('assistant', "📸 正在识别图片类型...");
         // 第一步：判断图片类型
-        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可（判别优先级从高到低）：\n1-体脂秤/身体成分检测结果页截图（Keep、小米、华为等体脂秤APP结果页，特征：页面包含体重/体脂率/BMI/基础代谢/肌肉量/骨量/水分/蛋白质/内脏脂肪等数据条目列表或环形进度图，可能带身体剪影图或色块评分表）——只要图片里出现体脂率、BMI、基础代谢这类身体成分数据条目，无论页面还有没有其他元素，一律归为1；\n2-食材/饮品/补剂/商品截图（买菜APP、商品详情页、营养标签、超市小票、补剂瓶身等）；\n3-Keep/运动App的训练记录或运动完成截图（含训练名称、时长、消耗热量）；\n5-餐食照片（正在吃或将吃的食物、外卖、自己做的饭、减脂餐摆盘、饮料杯等实拍吃喝场景，不含数据表格）；\n4-其他类型图片", e.target.result);
+        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可（判别优先级从高到低）：\n1-体脂秤/身体成分检测结果页截图（Keep、小米、华为等体脂秤APP结果页，特征：页面包含体重/体脂率/BMI/基础代谢/肌肉量/骨量/水分/蛋白质/内脏脂肪等数据条目列表或环形进度图，可能带身体剪影图或色块评分表）——只要图片里出现体脂率、BMI、基础代谢这类身体成分数据条目，无论页面还有没有其他元素，一律归为1；\n2-食材/饮品/补剂/商品截图（电商/买菜APP商品详情页，特征：有商品大图+品牌名+价格+规格/重量，如大米/牛奶/鸡胸肉/橄榄油的商品页）；\n3-Keep/运动App的训练记录或运动完成截图（特征：有训练动作列表/课程名/训练时长/消耗热量的统计页，不是商品页）；\n5-餐食照片（正在吃或将吃的食物实拍，如做好的减脂餐摆盘，不是电商商品页）；\n4-其他类型图片", e.target.result);
         let typeNum = classify ? (String(classify).match(/[12345]/) || [])[0] : null;
         // v2.2.6f 兜底：非体脂秤分类时复判一次，只要含身体成分数据就按体脂秤处理（防误判为餐食/商品）
         if (typeNum && typeNum !== '1') {
@@ -5071,7 +5071,7 @@ let PRODUCT_LIBRARY = {
         if (typeNum === '2') {
           // ===== 商品截图（食材/饮品/补剂）：识别 → 导入商品库 + 营养/财务参考，不入库存 =====
           addMessage('assistant', "🛒 正在识别商品信息...");
-          const result = await callAI("请识别这张商品/食材/饮品/补剂截图，用JSON数组返回（不要输出其他文字）：[{\"name\":\"商品中文名\",\"brand\":\"品牌，无则null\",\"spec\":\"规格如200mL*24盒/箱\",\"unit\":\"计价基准单位如盒/瓶/500g/250ml\",\"weight\":\"重量或容量数字（500g→500，200mL→200，1kg→1000），无则null\",\"price\":\"整件价格元\",\"perPrice\":\"折合单价元（如每盒1.54元），无则null\",\"nutritionPer100\":{\"calories\":\"每100g或100mL热量千卡，能量表单位kJ需除以4.18换算\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"},\"category\":\"食材/饮品/补剂\"}]。识别不准确宁可null，不要编造。", e.target.result);
+          const result = await callAI("这是电商/买菜APP的商品详情页截图。请识别这个商品，用JSON数组返回（不要输出其他文字）：[{\"name\":\"商品中文名（如：长粒香米/纯牛奶/鸡胸肉）\",\"brand\":\"品牌（如：十月稻田/新希望），无则null\",\"spec\":\"规格（如：5kg/袋）\",\"unit\":\"计价基准单位（如：500g/1L/盒）\",\"weight\":\"整件重量或容量数字（5kg→5000，500g→500），无则null\",\"price\":\"整件价格元（券后价）\",\"perPrice\":\"折合每500g或每500ml价格元，无则null\",\"nutritionPer100\":{\"calories\":\"每100g或100ml热量千卡（包装上有营养成分表就用表上的，没有就填null不要猜）\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"},\"category\":\"食材/饮品/补剂\"}]。注意：这是商品页，不是餐食照片，不是训练记录。营养成分表没有的字段填null，不要编造。", e.target.result);
           let items = [];
           const arrMatch = result ? result.match(/\[[\s\S]*\]/) : null;
           if (arrMatch) {
