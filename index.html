@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#3b82f6">
-  <title>健身减脂智能体 v2.0 薄肌计划</title>
+  <title>健身减脂智能体 v2.4.5 薄肌计划</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.5";
+    const VERSION = "2.4.6";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5117,7 +5117,7 @@ let PRODUCT_LIBRARY = {
             addMessage('assistant', "🔍 正在查询「" + needNutritionLookup.join("、") + "」的营养成分...");
             for (const nm of needNutritionLookup) {
               try {
-                const nutrResult = await callAI("请查询「" + nm + "」每100g（或100ml）的营养成分，用JSON返回（不要其他文字）：{"calories":热量kcal,"protein":蛋白质g,"carbs":碳水g,"fat":脂肪g}。用常见食材标准数据，不要编造。", null);
+                const nutrResult = await callAI("请查询「" + nm + "」每100g（或100ml）的营养成分，用JSON返回（不要其他文字）：{\"calories\":热量kcal,\"protein\":蛋白质g,\"carbs\":碳水g,\"fat\":脂肪g}。用常见食材标准数据，不要编造。", null);
                 const nutrMatch = nutrResult ? nutrResult.match(/\{[\s\S]*\}/) : null;
                 if (nutrMatch) {
                   const nutr = JSON.parse(nutrMatch[0]);
