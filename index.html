@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.3.4";
+    const VERSION = "2.3.5";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2160,9 +2160,9 @@ let PRODUCT_LIBRARY = {
         }, { carbs: 0, protein: 0, fat: 0, calories: 0 });
         return { carbs: Math.round(sum.carbs), protein: Math.round(sum.protein), fat: Math.round(sum.fat), calories: Math.round(sum.calories) };
       }
-      const dow = new Date().getDay();
-      const dayType = dow === 4 ? 'rest' : 'push';
-      return computeDayMacros(dayType);
+      const dn = ['周日','周一','周二','周三','周四','周五','周六'];
+      const dt = {'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'};
+      return computeDayMacros(dt[dn[new Date().getDay()]] || 'rest');
     }
     function getTodayTargetCalories() {
       // v2.2.6：今日目标 = 当日配餐实际热量（训练日 1622 / 休息日 1484），缺口由 TDEE−目标自然体现
@@ -2181,7 +2181,7 @@ let PRODUCT_LIBRARY = {
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const plan = appData.weeklyPlan;
       if (plan && plan.days && plan.days[dayName]) return plan.days[dayName].dayType;
-      return new Date().getDay() === 4 ? 'rest' : 'push';
+      const dn=['周日','周一','周二','周三','周四','周五','周六']; const dt={'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'}; return dt[dn[new Date().getDay()]] || 'rest';
     }
     function getTodayTDEE() {
       const bmr = appData.profile.bmr || 1462;
@@ -4072,7 +4072,7 @@ let PRODUCT_LIBRARY = {
     
     function renderTrainingView() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "legs" };
+      const trainingMap = { 1: "push", 2: "rest", 3: "pull", 4: "rest", 5: "legs", 6: "abs", 0: "rest" };
       const todayType = trainingMap[dayIndex];
       
       let html = '';
@@ -4186,7 +4186,7 @@ let PRODUCT_LIBRARY = {
     
     function completeTraining() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "pull", 3: "legs", 4: "rest", 5: "push", 6: "pull", 0: "legs" };
+      const trainingMap = { 1: "push", 2: "rest", 3: "pull", 4: "rest", 5: "legs", 6: "abs", 0: "rest" };
       const type = trainingMap[dayIndex];
       if (!type || type === 'rest') { alert("今天是休息日哦"); return; }
       const result = quickRecordTraining(type);
@@ -4500,7 +4500,7 @@ let PRODUCT_LIBRARY = {
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       const dow = new Date().getDay();
-      const dayType = dayPlan ? dayPlan.dayType : (dow === 4 ? 'rest' : 'push');
+      const dayType = dayPlan ? dayPlan.dayType : (function() { const dn=['周日','周一','周二','周三','周四','周五','周六']; const dt={'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'}; return dt[dn[new Date().getDay()]] || 'rest'; })();
       // v2.2.6：目标 = 当天配餐实际宏量（含练后餐），与「吃满配餐」完全一致
       const target = getTodayPlanMacros();
       const daily = calculateDailyIntake(today);
