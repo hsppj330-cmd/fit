@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.59";
+    const VERSION = "2.3.0";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1782,17 +1782,21 @@ let PRODUCT_LIBRARY = {
       phase: "薄肌",           // 目标阶段：薄肌（减脂保肌·线条优先）
       profile: { 
         gender: "男", 
-        weight: 66, 
-        bodyFat: 20.2, 
-        targetWeight: 62, 
+        weight: 65.05, 
+        bodyFat: 19.9, 
+        targetWeight: 60, 
         targetBodyFat: 15, 
-        height: 175,   // 身高cm（公式兜底用，Keep实测bmr优先）
-        age: 25,       // 年龄（公式兜底用）
-        bmr: 1462, 
-        proteinCoefficient: 1.8, 
-        calorieDeficit: 300,   // 谭师温和缺口 200-300
-        weekHours: "6-7",      // 每周运动时长档位：2-3 / 4-5 / 6-7 / 8-9
-        trainingDays: ["周一","周二","周三","周五","周六","周日"]
+        height: 170,   // 身高cm
+        age: 24,       // 年龄
+        bmr: 1447,     // 体脂秤实测
+        activityFactor: 1.2,  // 活动系数：久坐1.2/日常走动1.35/活动较多1.5
+        trainingMET: 6,       // 训练强度：轻4/中6/高8
+        trainingMinutes: 60,  // 单次训练分钟
+        trainDeficit: 400,    // 训练日缺口
+        restDeficit: 600,     // 休息日缺口
+        proteinCoefficient: 1.6, 
+        weekHours: "3次",     // 每周3练三分化
+        trainingDays: ["周一","周三","周五","周六"]  // 推/拉/腿/腹
       },
       bodyRecords: [],
       sleepRecords: [],
@@ -2421,35 +2425,52 @@ let PRODUCT_LIBRARY = {
     }
 
     // 谭师宏量系数（按每周运动时长分档）
+    // v2.3.0：凯圣王算法——BMR×活动系数→加训练消耗→定盈余/缺口
     function getTanshiMacrosV2() {
-      const w = appData.profile.weight || 66;
-      const isFemale = appData.profile.gender === '女';
-      const hw = appData.profile.weekHours || '6-7';
-      let carbsK, proteinK, fatK;
-      if (hw === '2-3') { carbsK = 2.2; proteinK = 1.4; fatK = 0.8; }
-      else if (hw === '4-5') { carbsK = 2.5; proteinK = 1.6; fatK = 0.8; }
-      else if (hw === '6-7') { carbsK = 3.0; proteinK = 1.88; fatK = 0.8; }
-      else { carbsK = 3.5; proteinK = 1.8; fatK = 0.8; }
-      // v2.2.5 训练日碳水倍率覆盖（设置页/对话可调；当前阶段 2.5）
-      if (appData.profile.carbOverrideK) carbsK = parseFloat(appData.profile.carbOverrideK);
-      if (isFemale) { carbsK = Math.round(carbsK * 0.9 * 10) / 10; fatK = Math.round((fatK + 0.15) * 10) / 10; }
+      const w = appData.profile.weight || 65;
+      const bmr = appData.profile.bmr || 1447;           // 体脂秤实测
+      const af = appData.profile.activityFactor || 1.2;  // 活动系数：久坐1.2/日常走动1.35/活动较多1.5
+      const met = appData.profile.trainingMET || 6;     // 训练强度：轻4/中6/高8
+      const mins = appData.profile.trainingMinutes || 60;
+      // 休息日消耗 = BMR × 活动系数
+      const restBurn = Math.round(bmr * af);
+      // 训练消耗 = MET × 3.5 × 体重 ÷ 200 × 分钟
+      const trainBurn = Math.round(met * 3.5 * w / 200 * mins);
+      // 训练日消耗 = 休息日消耗 + 训练消耗
+      const totalTrainBurn = restBurn + trainBurn;
+      // 训练日缺口 400，休息日缺口 600
+      const trainDeficit = appData.profile.trainDeficit || 400;
+      const restDeficit = appData.profile.restDeficit || 600;
+      const trainCal = totalTrainBurn - trainDeficit;
+      const restCal = restBurn - restDeficit;
+      // 蛋白 1.6g/kg，脂肪 0.8g/kg（固定）
+      const proteinK = 1.6, fatK = 0.8;
+      const protein = Math.round(w * proteinK);
+      const fat = Math.round(w * fatK);
+      // 碳水根据热量目标反推
+      const trainCarbs = Math.round((trainCal - protein * 4 - fat * 9) / 4);
+      const restCarbs = Math.round((restCal - protein * 4 - fat * 9) / 4);
       return {
-        carbs: Math.round(w * carbsK), protein: Math.round(w * proteinK), fat: Math.round(w * fatK),
-        carbsK, proteinK, fatK, weight: w,
-        calories: Math.round(w * carbsK * 4 + w * proteinK * 4 + w * fatK * 9)
+        carbs: trainCarbs, protein: protein, fat: fat,
+        carbsK: trainCarbs / w, proteinK, fatK, weight: w,
+        calories: trainCal,
+        restCal, restCarbs,
+        trainBurn: totalTrainBurn, restBurn, trainingBurn: trainBurn,
+        trainDeficit, restDeficit
       };
     }
 
-    // 训练日/休息日宏量：训练日=档位碳水；休息日=2.2g/kg 低碳；腹肌日=2.5g/kg
+    // v2.3.0：训练日/休息日分开算热量——训练日=凯圣王训练日目标；休息日=休息日目标
     function computeDayMacros(dayType) {
       const base = getTanshiMacrosV2();
-      const w = appData.profile.weight || 66;
-      let carbsK;
-      if (dayType === 'rest') carbsK = 2.2;
-      else if (dayType === 'abs') carbsK = 2.5;
-      else carbsK = base.carbsK;
-      const carbs = Math.round(w * carbsK);
-      return { carbs, protein: base.protein, fat: base.fat, calories: carbs * 4 + base.protein * 4 + base.fat * 9, carbsK };
+      if (dayType === 'rest') {
+        return { carbs: base.restCarbs, protein: base.protein, fat: base.fat, calories: base.restCal, carbsK: base.restCarbs / base.weight };
+      } else if (dayType === 'abs') {
+        // 腹肌日按休息日算（不做力量训练）
+        return { carbs: Math.round(base.restCarbs * 1.1), protein: base.protein, fat: base.fat, calories: Math.round(base.restCal * 1.1), carbsK: base.restCarbs * 1.1 / base.weight };
+      } else {
+        return { carbs: base.carbs, protein: base.protein, fat: base.fat, calories: base.calories, carbsK: base.carbsK };
+      }
     }
 
     function sumMacros(items) {
@@ -2634,7 +2655,7 @@ let PRODUCT_LIBRARY = {
 
     // 周配餐计划：推/拉/腿/休/推/拉/腹
     function generateWeeklyPlanV2() {
-      const dayTypes = { "周一": "push", "周二": "pull", "周三": "legs", "周四": "rest", "周五": "push", "周六": "pull", "周日": "legs" };
+      const dayTypes = { "周一": "push", "周二": "rest", "周三": "pull", "周四": "rest", "周五": "legs", "周六": "abs", "周日": "rest" };
       const plan = {
         weekStart: getMonday(),
         generatedAt: getTodayStr(),
