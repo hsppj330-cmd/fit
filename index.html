@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.11";
+    const VERSION = "2.4.12";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4347,6 +4347,17 @@ let PRODUCT_LIBRARY = {
       const lunchVegName = (appData.ingredientSwaps && appData.ingredientSwaps["上海青"]) || "上海青";
       const lunchVeg2Name = (appData.ingredientSwaps && appData.ingredientSwaps["大青椒"]) || "大青椒";
       // v2.2.41：周备餐总克数动态计算（从周配餐数据汇总7天生重）
+      // v2.4.12：自动识别主食名称和生熟换算系数
+      let mainGrainName = "三色糙米", riceYield = 2.5;
+      // 从周配餐第一天午餐找主食
+      const firstDayLunch = plan.days[dayOrder[0]] && plan.days[dayOrder[0]].meals && plan.days[dayOrder[0]].meals.lunch;
+      if (firstDayLunch && firstDayLunch.items) {
+        const grainItem = firstDayLunch.items.find(it => it.name === "三色糙米" || it.name === "长粒香米" || it.name.includes("米"));
+        if (grainItem) {
+          mainGrainName = grainItem.name;
+          riceYield = grainItem.name === "长粒香米" ? 2.3 : 2.5;
+        }
+      }
       let weekRiceRaw = 0, weekChickenRaw = 0, weekVeg1Raw = 0, weekVeg2Raw = 0, weekOilLunch = 0;
       let weekPotatoRaw = 0, weekDrumstickRaw = 0, weekBroccoliRaw = 0;
       for (const dayName of dayOrder) {
@@ -4355,7 +4366,7 @@ let PRODUCT_LIBRARY = {
         const lunch = day.meals.lunch;
         if (lunch && lunch.items) {
           for (const it of lunch.items) {
-            if (it.name === "三色糙米") weekRiceRaw += it.grams;
+            if (it.name === "三色糙米" || it.name === "长粒香米") weekRiceRaw += it.grams;
             else if (it.name === "鸡胸肉") weekChickenRaw += it.grams;
             else if (it.name === lunchVegName) weekVeg1Raw += it.grams;
             else if (it.name === lunchVeg2Name) weekVeg2Raw += it.grams;
@@ -4472,10 +4483,10 @@ let PRODUCT_LIBRARY = {
               <div class="text-xs text-gray-500 mt-1">取出后加南瓜子仁10g + 巴西莓粉5g（替代蓝莓），配纯牛奶250ml喝</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
-              <div class="font-medium text-blue-700 mb-1">🍚 Step 1 · 主食：三色糙米（周生重 ${weekRiceRaw}g → 熟饭约 ${Math.round(weekRiceRaw * 2.5)}g）</div>
-              <div>① 称出生糙米 ${weekRiceRaw}g → 淘洗后清水浸泡 30 分钟</div>
+              <div class="font-medium text-blue-700 mb-1">🍚 Step 1 · 主食：${mainGrainName}（周生重 ${weekRiceRaw}g → 熟饭约 ${Math.round(weekRiceRaw * riceYield)}g）</div>
+              <div>① 称出${mainGrainName} ${weekRiceRaw}g → 淘洗后清水浸泡 30 分钟</div>
               <div>② 加水量约 1:1.6（米面齐平再高约1指）→ 电饭煲煮熟 → 打散晾凉备用</div>
-              <div class="text-xs text-gray-500 mt-1">熟饭共约 ${Math.round(weekRiceRaw * 2.5)}g；组装时每份按下方「组装表」取熟饭克数</div>
+              <div class="text-xs text-gray-500 mt-1">熟饭共约 ${Math.round(weekRiceRaw * riceYield)}g；组装时每份按下方「组装表」取熟饭克数</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
               <div class="font-medium text-blue-700 mb-1">🥩 Step 2 · 鸡胸肉：周生重 ${weekChickenRaw}g → 熟 ${Math.round(weekChickenRaw * 0.75)}g（腌制+炒制）</div>
