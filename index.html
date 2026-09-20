@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.7";
+    const VERSION = "2.4.8";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5082,7 +5082,8 @@ let PRODUCT_LIBRARY = {
             } catch (e) { console.error("商品JSON解析失败", e); }
           }
           if (items.length === 0) {
-            addMessage('assistant', "未能从这张图片中识别出商品。\n\n· 想了解营养：直接说「脱脂牛奶的热量」\n· 想记录采购：说「买了脱脂牛奶24盒36块」");
+            console.error("商品识别失败，AI原始返回：", result);
+            addMessage('assistant', "⚠️ 商品识别完成，但提取JSON失败。\n\nAI原始返回：\n" + (result || "(空)") + "\n\n请手动告诉我商品名和价格，比如：「买了长粒香米5kg33.7元」");
             return;
           }
           // 导入商品库
