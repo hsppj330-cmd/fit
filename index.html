@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.53";
+    const VERSION = "2.2.54";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2556,11 +2556,23 @@ let PRODUCT_LIBRARY = {
       // v2.2.3：蛋带壳60g(可食53g) + 练后乳清30g一勺：训练日≈碳200/蛋124/脂54/热1761（1.88g/kg蛋白）；休息日≈碳144/蛋113/脂53/热1484
       // v2.2.5：训练日主食按目标碳水反推（糙米60% + 土豆40% 分担主食碳），carbOverrideK=2.5 时自动减主食、缺口拉至300-500；
       //         休息日低碳固定（糙米52/土豆200）不受影响；carbOverrideK 未设(=3.0档)时保持原克数
-      const lunchVeg = buildMeal([["上海青", 100], ["大青椒", 100]], lib);
+      // v2.2.54：先确定新蔬菜名+克数，再 buildMeal，再算 fixedProtein（顺序修正）
       const dinnerSide = buildMeal([["西兰花", 250]], lib);
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 30]], lib)  // 一勺30g（用户实测）
         : null;
+      // v2.2.37：午餐蔬菜动态克数——换蔬菜后按新蔬菜热量调整克数，保持蔬菜总热量≈37kcal
+      const lunchVeg1Name = (appData.ingredientSwaps && appData.ingredientSwaps["上海青"]) || "上海青";
+      const lunchVeg2Name = (appData.ingredientSwaps && appData.ingredientSwaps["大青椒"]) || "大青椒";
+      // 原来蔬菜总热量 ≈ 上海青100g(15kcal) + 大青椒100g(22kcal) = 37kcal
+      const targetVegKcal = 37;
+      const veg1KcalPer100 = (lib[lunchVeg1Name] && lib[lunchVeg1Name].kcalPer100) || 15;
+      const veg2KcalPer100 = (lib[lunchVeg2Name] && lib[lunchVeg2Name].kcalPer100) || 22;
+      // 两种蔬菜各占一半热量，自动算克数
+      const veg1Grams = Math.round(targetVegKcal / 2 / veg1KcalPer100 * 100);
+      const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
+      // 用新蔬菜 buildMeal，算 fixedProtein 时用新蔬菜的营养
+      const lunchVeg = buildMeal([[lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams]], lib);
       let riceGrams = isRest ? 52 : 105;
       let potatoGrams = isRest ? 200 : 285;
       if (!isRest && macros.carbsK && macros.carbsK < 3.0) {
@@ -2573,16 +2585,6 @@ let PRODUCT_LIBRARY = {
           potatoGrams = Math.round(starchCarbs * 0.4 / potatoInfo.carbsPer100 * 100);
         }
       }
-      // v2.2.37：午餐蔬菜动态克数——换蔬菜后按新蔬菜热量调整克数，保持蔬菜总热量≈37kcal
-      const lunchVeg1Name = (appData.ingredientSwaps && appData.ingredientSwaps["上海青"]) || "上海青";
-      const lunchVeg2Name = (appData.ingredientSwaps && appData.ingredientSwaps["大青椒"]) || "大青椒";
-      // 原来蔬菜总热量 ≈ 上海青100g(15kcal) + 大青椒100g(22kcal) = 37kcal
-      const targetVegKcal = 37;
-      const veg1KcalPer100 = (lib[lunchVeg1Name] && lib[lunchVeg1Name].kcalPer100) || 15;
-      const veg2KcalPer100 = (lib[lunchVeg2Name] && lib[lunchVeg2Name].kcalPer100) || 22;
-      // 两种蔬菜各占一半热量，自动算克数
-      const veg1Grams = Math.round(targetVegKcal / 2 / veg1KcalPer100 * 100);
-      const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
       // v2.2.50：鸡胸/琵琶腿按目标蛋白动态算——先扣掉所有非蛋白食材的蛋白
       // 非蛋白食材：早餐 + 糙米 + 土豆 + 午餐蔬菜 + 西兰花 + 牛油果油 + 练后
       const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
