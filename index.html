@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.3.9";
+    const VERSION = "2.4.0";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1806,8 +1806,8 @@ let PRODUCT_LIBRARY = {
         trainingMET: 6,       // 训练强度：轻4/中6/高8
         trainingMinutes: 60,  // 单次训练分钟
         trainDeficit: 400,    // 训练日缺口
-        restDeficit: 600,     // 休息日缺口
-        proteinCoefficient: 1.6, 
+        restDeficit: 500,     // 休息日缺口
+        proteinCoefficient: 1.8, 
         weekHours: "3次",     // 每周3练三分化
         trainingDays: ["周一","周三","周五","周六"]  // 推/拉/腿/腹
       },
@@ -2453,11 +2453,11 @@ let PRODUCT_LIBRARY = {
       const totalTrainBurn = restBurn + trainBurn;
       // 训练日缺口 400，休息日缺口 600
       const trainDeficit = appData.profile.trainDeficit || 400;
-      const restDeficit = appData.profile.restDeficit || 600;
+      const restDeficit = appData.profile.restDeficit || 500;
       const trainCal = totalTrainBurn - trainDeficit;
       const restCal = restBurn - restDeficit;
-      // 蛋白 1.6g/kg，脂肪 0.8g/kg（固定）
-      const proteinK = 1.6, fatK = 0.8;
+      // 蛋白 1.8g/kg，脂肪 0.8g/kg（固定）
+      const proteinK = appData.profile.proteinCoefficient || 1.8, fatK = 0.8;
       const protein = Math.round(w * proteinK);
       const fat = Math.round(w * fatK);
       // 碳水根据热量目标反推
@@ -2608,9 +2608,20 @@ let PRODUCT_LIBRARY = {
       const veg2Grams = Math.round(targetVegKcal / 2 / veg2KcalPer100 * 100);
       // 用新蔬菜 buildMeal，算 fixedProtein 时用新蔬菜的营养
       const lunchVeg = buildMeal([[lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams]], lib);
-      // v2.3.4：先定鸡胸/琵琶腿（固定，不随碳水变化），再定主食
-      // 固定蛋白来源：早餐 + 蔬菜 + 练后
-      const fixedProtein = breakfast.sum.protein + lunchVeg.sum.protein + dinnerSide.sum.protein + (postWorkout ? postWorkout.sum.protein : 0);
+      // v2.4.0：顺序修正——先定主食（按碳水目标反推），再定蛋白（把主食蛋白算进去）
+      const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
+      let riceGrams = isRest ? 52 : 105;
+      let potatoGrams = isRest ? 200 : 285;
+      if (riceInfo && potatoInfo && riceInfo.carbsPer100 > 0 && potatoInfo.carbsPer100 > 0) {
+        const fixedCarbs = breakfast.sum.carbs + lunchVeg.sum.carbs + dinnerSide.sum.carbs + (postWorkout ? postWorkout.sum.carbs : 0);
+        const starchCarbs = Math.max(40, Math.round(macros.carbs - fixedCarbs));
+        riceGrams = Math.round(starchCarbs * 0.6 / riceInfo.carbsPer100 * 100);
+        potatoGrams = Math.round(starchCarbs * 0.4 / potatoInfo.carbsPer100 * 100);
+      }
+      // 固定蛋白来源：早餐 + 蔬菜 + 练后 + 主食（糙米/土豆）
+      const riceProtein = (riceInfo && riceGrams) ? riceInfo.proteinPer100 * riceGrams / 100 : 0;
+      const potatoProtein = (potatoInfo && potatoGrams) ? potatoInfo.proteinPer100 * potatoGrams / 100 : 0;
+      const fixedProtein = breakfast.sum.protein + lunchVeg.sum.protein + dinnerSide.sum.protein + (postWorkout ? postWorkout.sum.protein : 0) + riceProtein + potatoProtein;
       // 剩余蛋白 = 总目标蛋白 - 固定蛋白
       const remainingProtein = Math.max(0, Math.round(macros.protein - fixedProtein));
       // 鸡胸提供 60% 剩余蛋白，琵琶腿提供 40%（生重，训练日和休息日一样）
@@ -2622,16 +2633,6 @@ let PRODUCT_LIBRARY = {
         const drumstickProteinPerG = drumstickInfo.proteinPer100 / 100;
         chickenGrams = Math.round(0.6 * remainingProtein / chickenProteinPerG);
         drumstickGrams = Math.round(0.4 * remainingProtein / drumstickProteinPerG);
-      }
-      // 再定主食（按碳水目标反推）
-      const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
-      let riceGrams = isRest ? 52 : 105;
-      let potatoGrams = isRest ? 200 : 285;
-      if (riceInfo && potatoInfo && riceInfo.carbsPer100 > 0 && potatoInfo.carbsPer100 > 0) {
-        const fixedCarbs = breakfast.sum.carbs + lunchVeg.sum.carbs + dinnerSide.sum.carbs + (postWorkout ? postWorkout.sum.carbs : 0);
-        const starchCarbs = Math.max(40, Math.round(macros.carbs - fixedCarbs));
-        riceGrams = Math.round(starchCarbs * 0.6 / riceInfo.carbsPer100 * 100);
-        potatoGrams = Math.round(starchCarbs * 0.4 / potatoInfo.carbsPer100 * 100);
       }
       // v2.2.51：脂肪动态算——扣掉所有其他食材的脂肪（除牛油果油外）
       // 其他食材：早餐 + 糙米 + 鸡胸 + 午餐蔬菜 + 西兰花 + 琵琶腿 + 练后
