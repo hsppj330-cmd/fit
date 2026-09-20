@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.52";
+    const VERSION = "2.2.53";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3063,7 +3063,14 @@ let PRODUCT_LIBRARY = {
       // 实时替换食材（没买到A用B / 把A换成B / A替代B）→ 全周配餐/采购/成本联动
       // v2.2.11：类别词本地兜底（不依赖AI），"午餐蔬菜改为X"/"午餐的蔬菜改为X"直接映射到具体食材名
       // v2.2.15：允许"的"字（午餐的蔬菜/晚餐的蔬菜）
-      const catMap = { "午餐的?蔬菜": ["上海青", "大青椒"], "晚餐的?蔬菜": "西兰花", "午餐的?主食": "三色糙米", "晚餐的?主食": "土豆", "午餐的?蛋白": "鸡胸肉", "晚餐的?蛋白": "琵琶腿" };
+      // v2.2.53：动态获取当前午餐蔬菜名，不写死上海青+大青椒
+      function getCurrentLunchVegs() {
+        const mon = appData.weeklyPlan && appData.weeklyPlan.days && appData.weeklyPlan.days["周一"];
+        if (!mon || !mon.meals || !mon.meals.lunch) return ["上海青", "大青椒"];
+        const vegs = mon.meals.lunch.items.filter(it => it.category === "蔬菜" && !it.missing).map(it => it.name);
+        return vegs.length > 0 ? vegs : ["上海青", "大青椒"];
+      }
+      const catMap = { "午餐的?蔬菜": getCurrentLunchVegs(), "晚餐的?蔬菜": "西兰花", "午餐的?主食": "三色糙米", "晚餐的?主食": "土豆", "午餐的?蛋白": "鸡胸肉", "晚餐的?蛋白": "琵琶腿" };
       let catHit = null;
       for (const k of Object.keys(catMap)) {
         const m = text.match(new RegExp(k + "\\s*(?:改为|换成|换成了|改成|调整为|换为)\\s*([^\\s,，。.？?！!、]+)"));
