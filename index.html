@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.10";
+    const VERSION = "2.4.11";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1197,6 +1197,24 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     let PERSONAL_RULES = JSON.parse(JSON.stringify(DEFAULT_RULES));
     // 商品库（用户上传商品截图导入：食材/饮品/补剂，含规格价格营养）
 let PRODUCT_LIBRARY = {
+"长粒香米": {
+"brand": "十月稻田",
+"product": "十月稻田长粒香米",
+"spec": "5kg/袋",
+"price": 33.7,
+"perPrice": 3.37,
+"unit": "500g",
+"category": "主食",
+"storage": "常温",
+"source": "多多买菜",
+"nutritionPer100": {
+"calories": 350,
+"protein": 7.0,
+"carbs": 77.0,
+"fat": 0.8
+},
+"detail": "东北长粒香米，双层真空包装，米粒纤长饱满油亮。生米每100g约350kcal/蛋白7g/碳水77g/脂肪0.8g；煮熟后约130kcal/100g。"
+},
 "鸡胸肉": {
 "brand": "圣农",
 "product": "圣农冷冻鸡胸肉（去皮鸡大胸）",
