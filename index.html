@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.4";
+    const VERSION = "2.4.5";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5088,24 +5088,50 @@ let PRODUCT_LIBRARY = {
           // 导入商品库
           const today = getTodayStr();
           const imported = [], skipped = [];
+          const needNutritionLookup = [];
           items.forEach(it => {
             const name = String(it.name || '').trim();
             if (!name) { return; }
             const np = it.nutritionPer100 || {};
             const toNum = (v) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; };
+            const cal = toNum(np.calories);
+            const pro = toNum(np.protein);
+            const carb = toNum(np.carbs);
+            const fat = toNum(np.fat);
             PRODUCT_LIBRARY[name] = {
               brand: String(it.brand || ''), spec: String(it.spec || ''),
               unit: String(it.unit || '500g'),
               weight: toNum(it.weight), price: toNum(it.price), perPrice: toNum(it.perPrice),
-              nutritionPer100: {
-                calories: toNum(np.calories), protein: toNum(np.protein),
-                carbs: toNum(np.carbs), fat: toNum(np.fat)
-              },
+              nutritionPer100: { calories: cal, protein: pro, carbs: carb, fat: fat },
               category: String(it.category || '其他'),
               addedDate: today
             };
             imported.push(name);
+            // 如果营养数据不全，加入待查询列表
+            if (cal === null || pro === null || carb === null || fat === null) {
+              needNutritionLookup.push(name);
+            }
           });
+          // v2.4.5：自动补全营养数据（AI 查询常见食材营养成分）
+          if (needNutritionLookup.length > 0) {
+            addMessage('assistant', "🔍 正在查询「" + needNutritionLookup.join("、") + "」的营养成分...");
+            for (const nm of needNutritionLookup) {
+              try {
+                const nutrResult = await callAI("请查询「" + nm + "」每100g（或100ml）的营养成分，用JSON返回（不要其他文字）：{"calories":热量kcal,"protein":蛋白质g,"carbs":碳水g,"fat":脂肪g}。用常见食材标准数据，不要编造。", null);
+                const nutrMatch = nutrResult ? nutrResult.match(/\{[\s\S]*\}/) : null;
+                if (nutrMatch) {
+                  const nutr = JSON.parse(nutrMatch[0]);
+                  const p = PRODUCT_LIBRARY[nm];
+                  if (p) {
+                    if (p.nutritionPer100.calories === null && nutr.calories) p.nutritionPer100.calories = Math.round(nutr.calories);
+                    if (p.nutritionPer100.protein === null && nutr.protein) p.nutritionPer100.protein = Math.round(nutr.protein * 10) / 10;
+                    if (p.nutritionPer100.carbs === null && nutr.carbs) p.nutritionPer100.carbs = Math.round(nutr.carbs * 10) / 10;
+                    if (p.nutritionPer100.fat === null && nutr.fat) p.nutritionPer100.fat = Math.round(nutr.fat * 10) / 10;
+                  }
+                }
+              } catch (e) { console.error("营养查询失败", nm, e); }
+            }
+          }
           // 与价格库联动：同品类更新价格参考
           const priceUpdates = [];
           items.forEach(it => {
