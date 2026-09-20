@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.54";
+    const VERSION = "2.2.55";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3379,8 +3379,16 @@ let PRODUCT_LIBRARY = {
             return { success: false, message: "食材库没有「" + newName + "」" };
           }
           let replaced = [];
+          // v2.2.55：反向追踪——所有 swaps 的 value 等于 oldN 的，都改成 newN
           for (const oldN of oldNames) {
+            // 直接替换
             appData.ingredientSwaps[oldN] = newName;
+            // 反向追踪：如果某个 swaps 的 value 是 oldN，也改成 newN
+            for (const k of Object.keys(appData.ingredientSwaps)) {
+              if (appData.ingredientSwaps[k] === oldN) {
+                appData.ingredientSwaps[k] = newName;
+              }
+            }
             replaced.push(oldN);
           }
           // v2.2.38：重新生成配餐，但 buildMeal 里蔬菜克数已动态计算，糙米/鸡胸肉克数不变
