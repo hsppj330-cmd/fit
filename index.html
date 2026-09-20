@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.12";
+    const VERSION = "2.4.13";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2528,6 +2528,7 @@ let PRODUCT_LIBRARY = {
       "三文鱼": { cooked: 0.85, note: "煎" },
       "虾仁": { cooked: 0.9, note: "煮/炒" },
       "三色糙米": { cooked: 2.5, note: "干米→熟饭（1:2.5，联网核实）" },
+      "长粒香米": { cooked: 2.3, note: "干米→熟饭（1:2.3，白米比糙米吸水少）" },
       "燕麦片": { cooked: 3.0, note: "干→粥" },
       "西瓜红蜜薯": { cooked: 0.85, note: "烤/蒸" },
       "土豆": { cooked: 0.9, note: "煮/蒸" },
@@ -2635,7 +2636,9 @@ let PRODUCT_LIBRARY = {
       // 用新蔬菜 buildMeal，算 fixedProtein 时用新蔬菜的营养
       const lunchVeg = buildMeal([[lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams]], lib);
       // v2.4.0：顺序修正——先定主食（按碳水目标反推），再定蛋白（把主食蛋白算进去）
-      const riceInfo = lib["三色糙米"], potatoInfo = lib["土豆"];
+      // v2.4.13：主食动态读取（支持替换糙米→长粒香米等）
+      const riceName = (appData.ingredientSwaps && appData.ingredientSwaps["三色糙米"]) || "三色糙米";
+      const riceInfo = lib[riceName], potatoInfo = lib["土豆"];
       let riceGrams = isRest ? 52 : 105;
       let potatoGrams = isRest ? 200 : 285;
       if (riceInfo && potatoInfo && riceInfo.carbsPer100 > 0 && potatoInfo.carbsPer100 > 0) {
@@ -2676,7 +2679,7 @@ let PRODUCT_LIBRARY = {
       if (oilInfo && oilInfo.fatPer100 > 0) {
         oilGrams = Math.round(remainingFat / (oilInfo.fatPer100 / 100));
       }
-      const lunch = buildMeal([["三色糙米", riceGrams], ["鸡胸肉", chickenGrams], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", oilGrams]], lib);
+      const lunch = buildMeal([[riceName, riceGrams], ["鸡胸肉", chickenGrams], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", oilGrams]], lib);
       const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", drumstickGrams], ["西兰花", 250]], lib);
       return { breakfast, lunch, dinner, postWorkout };
     }
