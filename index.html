@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.0";
+    const VERSION = "2.4.2";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2184,9 +2184,17 @@ let PRODUCT_LIBRARY = {
       const dn=['周日','周一','周二','周三','周四','周五','周六']; const dt={'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'}; return dt[dn[new Date().getDay()]] || 'rest';
     }
     function getTodayTDEE() {
-      const bmr = appData.profile.bmr || 1462;
-      const factor = getTodayType() === 'rest' ? 1.25 : 1.45;
-      return Math.round(bmr * factor);
+      const bmr = appData.profile.bmr || 1447;
+      const af = appData.profile.activityFactor || 1.2;
+      const met = appData.profile.trainingMET || 6;
+      const mins = appData.profile.trainingMinutes || 60;
+      const w = appData.profile.weight || 65;
+      const dayType = getTodayType();
+      const restBurn = Math.round(bmr * af);
+      if (dayType === 'rest' || dayType === 'abs') return restBurn;
+      // 训练日 = 休息日消耗 + 训练消耗
+      const trainBurn = Math.round(met * 3.5 * w / 200 * mins);
+      return restBurn + trainBurn;
     }
     // v2.2.6 实时热量缺口：总消耗 = 基准TDEE（训练日×1.45 已含计划训练消耗），
     // 训练打卡只作记录确认（trainBurn 保留展示），不再叠加，避免「1.45因子+打卡消耗」双重计算导致缺口虚高
@@ -4367,7 +4375,7 @@ let PRODUCT_LIBRARY = {
           <div class="text-xs opacity-90 mt-1">一周食材参考成本约 ${weekCost.toFixed(1)} 元（按商品库现价）</div>
           <div class="mt-2 bg-white/15 rounded-xl px-3 py-2 text-xs leading-relaxed">
             <div class="font-medium opacity-95">📊 当前实际倍率（按 ${weight}kg 体重）</div>
-            <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 ${plan.targets.carbsK} / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
+            <div class="opacity-90 mt-0.5">训练日：碳水 <b>${(trainMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(trainMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(trainMacros.fat/weight).toFixed(1)}g/kg</b>（目标 ${(plan.targets.carbsK||0).toFixed(1)} / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
             <div class="opacity-90">休息日：碳水 <b>${(restMacros.carbs/weight).toFixed(1)}g/kg</b> · 蛋白 <b>${(restMacros.protein/weight).toFixed(1)}g/kg</b> · 脂肪 <b>${(restMacros.fat/weight).toFixed(1)}g/kg</b>（目标 2.2 / ${plan.targets.proteinK} / ${plan.targets.fatK}）</div>
           </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
