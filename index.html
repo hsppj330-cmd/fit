@@ -254,7 +254,7 @@
                 <select id="setting-week-hours" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
                   <option value="2-3">2-3 小时：蛋白 1.4 · 脂肪 0.8</option>
                   <option value="4-5">4-5 小时：蛋白 1.6 · 脂肪 0.8</option>
-                  <option value="6-7">6-7 小时：蛋白 1.7 · 脂肪 0.8</option>
+                  <option value="6-7">6-7 小时：蛋白 1.88 · 脂肪 0.8</option>
                   <option value="8-9">8-9 小时：蛋白 1.8 · 脂肪 0.8</option>
                 </select>
               </div>
@@ -372,7 +372,7 @@
   </div>
 
   <script>
-    const VERSION = "2.2.58";
+    const VERSION = "2.2.59";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3711,7 +3711,7 @@ let PRODUCT_LIBRARY = {
 【谭师减脂方法论（回答减脂/饮食问题时优先参考）】
 1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持；薄肌阶段优先保肌肉、看线条与体脂而非体重
 2. 温和缺口：热量缺口 200-300 大卡更保肌肉（用户当前缺口 ${appData.profile.calorieDeficit} 大卡，若觉乏力/易怒/训练欲望低，建议调低到 200-300）
-3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.8；6-7h → 3.0/1.7/0.8；8-9h → 3.5/1.8/0.8（女生碳水略低、脂肪+0.15-0.2）
+3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.8；6-7h → 3.0/1.88/0.8；8-9h → 3.5/1.8/0.8（女生碳水略低、脂肪+0.15-0.2）
 4. 训练日碳水用当前倍率（默认2.5）；休息日 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
 5. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳；碳水下降明显→保持，不明显→减15-20g，上升→减25g
 6. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
