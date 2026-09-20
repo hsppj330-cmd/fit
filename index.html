@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.9";
+    const VERSION = "2.4.10";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3801,11 +3801,15 @@ let PRODUCT_LIBRARY = {
         for (let round = 0; round < 4; round++) {
           const payload = { model: appData.settings.model || "agnes-v1", messages, stream: false };
           if (useTools) payload.tools = AI_TOOLS;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
           const res = await fetch(appData.settings.apiUrl + "/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + appData.settings.apiKey },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
           const data = await res.json();
           if (data.error) { window._aiError = "API错误: " + (data.error.message || JSON.stringify(data.error)); return null; }
           const msg = data.choices?.[0]?.message;
@@ -5046,7 +5050,7 @@ let PRODUCT_LIBRARY = {
     }
     
     // v2.4.9：压缩图片（防止太大导致API请求失败）
-    function compressImage(base64, maxWidth = 1024, quality = 0.7) {
+    function compressImage(base64, maxWidth = 800, quality = 0.6) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = function() {
