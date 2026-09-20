@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.6";
+    const VERSION = "2.4.7";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5258,7 +5258,9 @@ let PRODUCT_LIBRARY = {
             addMessage('assistant', "识别失败，请手动输入数据，比如直接说「体重66kg体脂20.2%」");
           }
         } else {
-          addMessage('assistant', "这张图片无法识别。\n\n· 体测：上传Keep体脂秤截图，或说「体重66kg体脂20.2%」\n· 商品：上传多多买菜/美团买菜/商品详情截图\n· 训练打卡：上传Keep训练完成截图\n· 餐食记录：上传餐食照片，或说「午餐150g鸡胸肉200g糙米」");
+          const err = window._aiError || "未知错误（API未配置或请求失败）";
+          addMessage('assistant', "❌ 图片识别失败：" + err + "\n\n· 体测：上传Keep体脂秤截图\n· 商品：上传多多买菜商品详情截图\n· 训练打卡：上传Keep训练完成截图\n· 餐食记录：上传餐食照片");
+          console.error("图片识别失败，callAI返回：", classify, "错误：", window._aiError);
         }
       };
       reader.readAsDataURL(file);
