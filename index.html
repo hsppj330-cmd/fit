@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.17";
+    const VERSION = "2.4.18";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2722,6 +2722,12 @@ let PRODUCT_LIBRARY = {
         plan.days[day] = { dayType, macros, meals };
       });
       appData.weeklyPlan = plan;
+      // v2.4.18：生成周配餐后自动入库（高碳3天 + 低碳4天）
+      if (!appData.mealStock) appData.mealStock = {};
+      appData.mealStock['lunch_train'] = 3;
+      appData.mealStock['dinner_train'] = 3;
+      appData.mealStock['lunch_rest'] = 4;
+      appData.mealStock['dinner_rest'] = 4;
       saveData();
       return plan;
     }
@@ -4534,14 +4540,20 @@ let PRODUCT_LIBRARY = {
               <div class="text-xs text-gray-500 mt-1">卤汁盐≈${Math.round(weekDrumstickRaw / 100 * 0.5)}g/周（生抽+老抽隐形盐，全量计入）</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-emerald-500">
-              <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（每份熟重克数 · 7份）</div>
-              <div class="grid grid-cols-2 gap-2 mt-1">
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 训练日（熟重）</div><div>${plan.days['周一'].meals.lunch.items.map(i => i.name + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div></div>
-                <div class="bg-blue-50 rounded-lg p-2"><div class="text-xs text-blue-700 font-medium">午餐 · 休息日（熟重）</div><div>${plan.days['周四'].meals.lunch.items.map(i => i.name + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 训练日（熟重）</div><div>${plan.days['周一'].meals.dinner.items.map(i => i.name + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div></div>
-                <div class="bg-purple-50 rounded-lg p-2"><div class="text-xs text-purple-700 font-medium">晚餐 · 休息日（熟重）</div><div>${plan.days['周四'].meals.dinner.items.map(i => i.name + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div></div>
+              <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（每份熟重克数）</div>
+              <div class="space-y-2 mt-1">
+                <div class="bg-blue-50 rounded-lg p-2">
+                  <div class="text-xs text-blue-700 font-medium mb-1">【高碳餐 · 训练日 · 3份】</div>
+                  <div class="text-xs mb-1">午餐：${plan.days['周一'].meals.lunch.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs">晚餐：${plan.days['周一'].meals.dinner.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-2">
+                  <div class="text-xs text-gray-700 font-medium mb-1">【低碳餐 · 休息日 · 4份】</div>
+                  <div class="text-xs mb-1">午餐：${plan.days['周四'].meals.lunch.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs">晚餐：${plan.days['周四'].meals.dinner.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                </div>
               </div>
-              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）</div>
+              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；高碳餐 = 训练日吃，低碳餐 = 休息日/腹肌日吃</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
@@ -4631,6 +4643,15 @@ let PRODUCT_LIBRARY = {
         kcal: meal.sum.calories, protein: meal.sum.protein, carbs: meal.sum.carbs, fat: meal.sum.fat,
         at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
       });
+      // v2.4.18：午晚餐扣库存（高碳/低碳）
+      if ((mealKey === 'lunch' || mealKey === 'dinner') && dayPlan.dayType) {
+        const isTrainDay = ['push', 'pull', 'legs'].includes(dayPlan.dayType);
+        const stockKey = mealKey + '_' + (isTrainDay ? 'train' : 'rest');
+        if (!appData.mealStock) appData.mealStock = {};
+        if (appData.mealStock[stockKey] > 0) {
+          appData.mealStock[stockKey]--;
+        }
+      }
       saveData();
       renderDailyDiet();
       addMessage('assistant', '已打卡' + (mealKey === 'breakfast' ? '早餐' : mealKey === 'lunch' ? '午餐' : '晚餐') + '：' + meal.sum.calories + 'kcal / 蛋白' + meal.sum.protein + 'g，看板已联动');
@@ -4669,11 +4690,15 @@ let PRODUCT_LIBRARY = {
         const meal = dayPlan ? dayPlan.meals[key] : null;
         // v2.2.49：午餐/晚餐显示熟重，早餐/练后显示生重
         const isCookedMeal = (key === 'lunch' || key === 'dinner');
+        // v2.4.18：午晚餐显示剩余库存份数
+        const isTrainDay = ['push', 'pull', 'legs'].includes(dayType);
+        const stockKey = isCookedMeal ? (key + '_' + (isTrainDay ? 'train' : 'rest')) : null;
+        const stockLeft = stockKey ? (appData.mealStock && appData.mealStock[stockKey] !== undefined ? appData.mealStock[stockKey] : 0) : null;
         if (meal) {
           return `
             <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div class="flex items-center justify-between mb-2">
-                <h3 class="font-medium">${label}</h3>
+                <h3 class="font-medium">${label}${stockLeft !== null ? ' <span class="text-xs font-normal text-gray-500">(剩 ' + stockLeft + ' 份)</span>' : ''}</h3>
                 <button class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg" onclick="recordPlannedMeal('${key}')">这餐吃了</button>
               </div>
               <div class="text-sm text-gray-600 space-y-0.5">${meal.items.map(it => { const showG = isCookedMeal ? (cookedWeightGrams(it.name, it.grams) || it.grams) : it.grams; return '<div>· ' + it.name + ' ' + showG + 'g（' + it.kcal + 'kcal）</div>'; }).join('')}</div>
@@ -4683,7 +4708,7 @@ let PRODUCT_LIBRARY = {
         return `
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-2">
-              <h3 class="font-medium">${label}</h3>
+              <h3 class="font-medium">${label}${stockLeft !== null ? ' <span class="text-xs font-normal text-gray-500">(剩 ' + stockLeft + ' 份)</span>' : ''}</h3>
               <span class="text-xs text-gray-400">暂无计划</span>
             </div>
             <p class="text-sm text-gray-500">先到「本周配餐」生成计划，或直接对我说「生成周餐」</p>
