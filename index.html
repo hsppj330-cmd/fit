@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.15";
+    const VERSION = "2.4.16";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2627,7 +2627,9 @@ let PRODUCT_LIBRARY = {
       // v2.2.5：训练日主食按目标碳水反推（糙米60% + 土豆40% 分担主食碳），carbOverrideK=2.5 时自动减主食、缺口拉至300-500；
       //         休息日低碳固定（糙米52/土豆200）不受影响；carbOverrideK 未设(=3.0档)时保持原克数
       // v2.2.54：先确定新蔬菜名+克数，再 buildMeal，再算 fixedProtein（顺序修正）
-      const dinnerSide = buildMeal([["西兰花", 250]], lib);
+      // v2.4.16：晚餐蔬菜动态读取（支持替换西兰花→其他）
+      const dinnerVegName = (appData.ingredientSwaps && appData.ingredientSwaps["西兰花"]) || "西兰花";
+      const dinnerSide = buildMeal([[dinnerVegName, 250]], lib);
       const postWorkout = (dayType && dayType !== 'rest')
         ? buildMeal([["乳清蛋白粉", 30]], lib)  // 一勺30g（用户实测）
         : null;
@@ -2646,7 +2648,9 @@ let PRODUCT_LIBRARY = {
       // v2.4.0：顺序修正——先定主食（按碳水目标反推），再定蛋白（把主食蛋白算进去）
       // v2.4.13：主食动态读取（支持替换糙米→长粒香米等）
       const riceName = (appData.ingredientSwaps && appData.ingredientSwaps["三色糙米"]) || "三色糙米";
-      const riceInfo = lib[riceName], potatoInfo = lib["土豆"];
+      // v2.4.16：晚餐主食动态读取（支持替换土豆→红薯等）
+      const dinnerStapleName = (appData.ingredientSwaps && appData.ingredientSwaps["土豆"]) || "土豆";
+      const riceInfo = lib[riceName], potatoInfo = lib[dinnerStapleName];
       let riceGrams = isRest ? 52 : 105;
       let potatoGrams = isRest ? 200 : 285;
       if (riceInfo && potatoInfo && riceInfo.carbsPer100 > 0 && potatoInfo.carbsPer100 > 0) {
@@ -2662,7 +2666,10 @@ let PRODUCT_LIBRARY = {
       // 剩余蛋白 = 总目标蛋白 - 固定蛋白
       const remainingProtein = Math.max(0, Math.round(macros.protein - fixedProtein));
       // 鸡胸提供 60% 剩余蛋白，琵琶腿提供 40%（生重，训练日和休息日一样）
-      const chickenInfo = lib["鸡胸肉"], drumstickInfo = lib["琵琶腿"];
+      // v2.4.16：蛋白来源动态读取（支持替换鸡胸/琵琶腿→其他）
+      const lunchProteinName = (appData.ingredientSwaps && appData.ingredientSwaps["鸡胸肉"]) || "鸡胸肉";
+      const dinnerProteinName = (appData.ingredientSwaps && appData.ingredientSwaps["琵琶腿"]) || "琵琶腿";
+      const chickenInfo = lib[lunchProteinName], drumstickInfo = lib[dinnerProteinName];
       let chickenGrams = 110;  // 默认值
       let drumstickGrams = 95;
       if (chickenInfo && chickenInfo.proteinPer100 > 0 && drumstickInfo && drumstickInfo.proteinPer100 > 0) {
@@ -2687,8 +2694,8 @@ let PRODUCT_LIBRARY = {
       if (oilInfo && oilInfo.fatPer100 > 0) {
         oilGrams = Math.round(remainingFat / (oilInfo.fatPer100 / 100));
       }
-      const lunch = buildMeal([[riceName, riceGrams], ["鸡胸肉", chickenGrams], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", oilGrams]], lib);
-      const dinner = buildMeal([["土豆", potatoGrams], ["琵琶腿", drumstickGrams], ["西兰花", 250]], lib);
+      const lunch = buildMeal([[riceName, riceGrams], [lunchProteinName, chickenGrams], [lunchVeg1Name, veg1Grams], [lunchVeg2Name, veg2Grams], ["牛油果油", oilGrams]], lib);
+      const dinner = buildMeal([[dinnerStapleName, potatoGrams], [dinnerProteinName, drumstickGrams], [dinnerVegName, 250]], lib);
       return { breakfast, lunch, dinner, postWorkout };
     }
 
@@ -4369,6 +4376,11 @@ let PRODUCT_LIBRARY = {
           riceYield = grainItem.name === "长粒香米" ? 2.3 : 2.5;
         }
       }
+      // v2.4.16：周备餐统计动态读取（考虑 ingredientSwaps 替换后的实际食材名）
+      const effLunchProtein = (appData.ingredientSwaps && appData.ingredientSwaps["鸡胸肉"]) || "鸡胸肉";
+      const effDinnerStaple = (appData.ingredientSwaps && appData.ingredientSwaps["土豆"]) || "土豆";
+      const effDinnerProtein = (appData.ingredientSwaps && appData.ingredientSwaps["琵琶腿"]) || "琵琶腿";
+      const effDinnerVeg = (appData.ingredientSwaps && appData.ingredientSwaps["西兰花"]) || "西兰花";
       let weekRiceRaw = 0, weekChickenRaw = 0, weekVeg1Raw = 0, weekVeg2Raw = 0, weekOilLunch = 0;
       let weekPotatoRaw = 0, weekDrumstickRaw = 0, weekBroccoliRaw = 0;
       for (const dayName of dayOrder) {
@@ -4378,7 +4390,7 @@ let PRODUCT_LIBRARY = {
         if (lunch && lunch.items) {
           for (const it of lunch.items) {
             if (it.name === "三色糙米" || it.name === "长粒香米") weekRiceRaw += it.grams;
-            else if (it.name === "鸡胸肉") weekChickenRaw += it.grams;
+            else if (it.name === effLunchProtein) weekChickenRaw += it.grams;
             else if (it.name === lunchVegName) weekVeg1Raw += it.grams;
             else if (it.name === lunchVeg2Name) weekVeg2Raw += it.grams;
             else if (it.name === "牛油果油") weekOilLunch += it.grams;
@@ -4387,9 +4399,9 @@ let PRODUCT_LIBRARY = {
         const dinner = day.meals.dinner;
         if (dinner && dinner.items) {
           for (const it of dinner.items) {
-            if (it.name === "土豆") weekPotatoRaw += it.grams;
-            else if (it.name === "琵琶腿") weekDrumstickRaw += it.grams;
-            else if (it.name === "西兰花") weekBroccoliRaw += it.grams;
+            if (it.name === effDinnerStaple) weekPotatoRaw += it.grams;
+            else if (it.name === effDinnerProtein) weekDrumstickRaw += it.grams;
+            else if (it.name === effDinnerVeg) weekBroccoliRaw += it.grams;
           }
         }
       }
