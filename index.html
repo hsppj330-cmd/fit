@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.24";
+    const VERSION = "2.4.25";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4275,6 +4275,20 @@ let PRODUCT_LIBRARY = {
     }
     
     // v2.3.6: calendar + override
+    let calendarEditMode = false;  // v2.4.25: 日历编辑模式（默认锁定，防止误触）
+    
+    function toggleCalendarEdit() {
+      calendarEditMode = !calendarEditMode;
+      const btn = document.getElementById('cal-edit-btn');
+      if (btn) {
+        btn.textContent = calendarEditMode ? '✅ 完成' : '✏️ 编辑';
+        btn.className = calendarEditMode 
+          ? 'text-xs px-2 py-1 rounded-md bg-green-500 text-white hover:bg-green-600 font-medium'
+          : 'text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium';
+      }
+      renderCalendar();  // 重新渲染，更新视觉提示
+    }
+    
     function renderCalendar() {
       const now = new Date();
       const year = now.getFullYear();
@@ -4317,11 +4331,15 @@ let PRODUCT_LIBRARY = {
         // 有氧日加🔥标记
         const hasCardio = cardioDays.includes(dow);
         const cardioBadge = hasCardio ? '<div class="text-[8px] opacity-80">🔥3000</div>' : '';
-        html += '<div class="aspect-square flex flex-col items-center justify-center rounded-lg text-xs ' + bg + ' ' + (isToday ? 'ring-2 ring-green-500 ring-offset-1' : '') + ' ' + (isFuture ? 'cursor-pointer hover:opacity-80' : '') + '" onclick="toggleDayType(\'' + dateStr + '\')"><div class="font-medium">' + d + '</div><div class="text-[10px] opacity-90">' + label + '</div>' + cardioBadge + '</div>';
+        // 编辑模式下未来日期可点击，加边框提示；非编辑模式锁定，防止误触
+        const clickable = isFuture && calendarEditMode;
+        const editHint = calendarEditMode && isFuture ? 'ring-1 ring-dashed ring-yellow-400' : '';
+        html += '<div class="aspect-square flex flex-col items-center justify-center rounded-lg text-xs ' + bg + ' ' + (isToday ? 'ring-2 ring-green-500 ring-offset-1' : '') + ' ' + editHint + ' ' + (clickable ? 'cursor-pointer hover:opacity-80' : 'cursor-default') + '" onclick="' + (clickable ? 'toggleDayType(\'' + dateStr + '\')' : '') + '"><div class="font-medium">' + d + '</div><div class="text-[10px] opacity-90">' + label + '</div>' + cardioBadge + '</div>';
       }
       document.getElementById('calendar-grid').innerHTML = html;
     }
     function toggleDayType(dateStr) {
+      if (!calendarEditMode) { alert('请先点击右上角「编辑」按钮，再调整日期'); return; }
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
       if (dateStr < todayStr) { alert('过去的日子不能调整'); return; }
@@ -4472,7 +4490,10 @@ let PRODUCT_LIBRARY = {
         <div class="mb-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-bold text-base">📅 训练日历</h3>
-            <div class="text-xs text-gray-500" id="cal-month-label"></div>
+            <div class="flex items-center gap-2">
+              <div class="text-xs text-gray-500" id="cal-month-label"></div>
+              <button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>
+            </div>
           </div>
           <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
             <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
@@ -4485,7 +4506,7 @@ let PRODUCT_LIBRARY = {
             <span class="flex items-center gap-1">🔥3000</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
           </div>
-          <p class="text-xs text-gray-400 mt-2">周一/三/五早上空腹跳绳 30min/3000个；点日期可临时切换训练/休息</p>
+          <p class="text-xs text-gray-400 mt-2">周一/三/五早上空腹跳绳 30min/3000个；点击右上角「编辑」后可临时切换训练/休息</p>
         </div>
         <div class="mb-4 grid grid-cols-2 gap-2">
           <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button>
