@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.23";
+    const VERSION = "2.4.24";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4551,7 +4551,7 @@ let PRODUCT_LIBRARY = {
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-purple-500">
               <div class="font-medium text-purple-700 mb-1">🍗 Step 4 · 晚餐：卤鸡腿 + 土豆 + 西兰花（无油清淡）</div>
-              <div>① 卤琵琶腿：${weekDrumstickRaw}g → 冷水下锅焯水2分钟 → 换水加卤水：卤料包1袋 + 生抽 ${Math.round(weekDrumstickRaw / 100 * 2)}g + 老抽 ${Math.round(weekDrumstickRaw / 100)}g + 料酒 ${Math.round(weekDrumstickRaw / 100)}g + 姜片 10g + 葱段 → 大火烧开转小火卤 25 分钟，关火焖 10 分钟 → 去皮食用（熟肉约 ${Math.round(weekDrumstickRaw * 0.6)}g）</div>
+              <div>① 卤琵琶腿（带皮带骨）：${weekDrumstickRaw}g → 冷水下锅焯水2分钟 → 换水加卤水：卤料包1袋 + 生抽 ${Math.round(weekDrumstickRaw / 100 * 2)}g + 老抽 ${Math.round(weekDrumstickRaw / 100)}g + 料酒 ${Math.round(weekDrumstickRaw / 100)}g + 姜片 10g + 葱段 → 大火烧开转小火卤 25 分钟，关火焖 10 分钟 → 捞出晾凉后**去皮去骨**，得到纯熟鸡腿肉约 ${Math.round(weekDrumstickRaw * 0.5)}g（组装时用纯肉克重）</div>
               <div>② 土豆：${weekPotatoRaw}g 洗净（可去皮）→ 水煮/蒸 20 分钟至筷子能插透（熟约 ${Math.round(weekPotatoRaw * 0.9)}g）</div>
               <div>③ 西兰花：${weekBroccoliRaw}g 掰小朵 → 沸水焯 2 分钟（熟约 ${Math.round(weekBroccoliRaw * 0.9)}g，不加油）</div>
               <div class="text-xs text-gray-500 mt-1">卤汁盐≈${Math.round(weekDrumstickRaw / 100 * 0.5)}g/周（生抽+老抽隐形盐，全量计入）</div>
@@ -4561,13 +4561,13 @@ let PRODUCT_LIBRARY = {
               <div class="space-y-2 mt-1">
                 <div class="bg-blue-50 rounded-lg p-2">
                   <div class="text-xs text-blue-700 font-medium mb-1">【高碳餐 · 训练日 · 3份】</div>
-                  <div class="text-xs mb-1">午餐：${plan.days['周一'].meals.lunch.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
-                  <div class="text-xs">晚餐：${plan.days['周一'].meals.dinner.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs mb-1">午餐：${plan.days['周一'].meals.lunch.items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs">晚餐：${plan.days['周一'].meals.dinner.items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-2">
                   <div class="text-xs text-gray-700 font-medium mb-1">【低碳餐 · 休息日 · 4份】</div>
-                  <div class="text-xs mb-1">午餐：${plan.days['周四'].meals.lunch.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
-                  <div class="text-xs">晚餐：${plan.days['周四'].meals.dinner.items.map(i => i.name + '(熟) ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs mb-1">午餐：${plan.days['周四'].meals.lunch.items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
+                  <div class="text-xs">晚餐：${plan.days['周四'].meals.dinner.items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ')}</div>
                 </div>
               </div>
               <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；高碳餐 = 训练日吃，低碳餐 = 休息日/腹肌日吃</div>
