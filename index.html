@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.19";
+    const VERSION = "2.4.20";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2481,11 +2481,13 @@ let PRODUCT_LIBRARY = {
       const mins = appData.profile.trainingMinutes || 60;
       // 休息日消耗 = BMR × 活动系数
       const restBurn = Math.round(bmr * af);
-      // 训练消耗 = MET × 3.5 × 体重 ÷ 200 × 分钟
+      // 力量训练消耗 = MET × 3.5 × 体重 ÷ 200 × 分钟
       const trainBurn = Math.round(met * 3.5 * w / 200 * mins);
-      // 训练日消耗 = 休息日消耗 + 训练消耗
-      const totalTrainBurn = restBurn + trainBurn;
-      // 训练日缺口 400，休息日缺口 600
+      // v2.4.20：跳绳有氧消耗（周一/三/五早上 30分钟，MET 10）
+      const aerobicBurn = Math.round(10 * 3.5 * w / 200 * 30);  // 约340kcal
+      // 训练日消耗 = 休息日消耗 + 力量训练消耗 + 有氧消耗
+      const totalTrainBurn = restBurn + trainBurn + aerobicBurn;
+      // 训练日缺口 400，休息日缺口 400
       const trainDeficit = appData.profile.trainDeficit || 400;
       const restDeficit = appData.profile.restDeficit || 400;
       const trainCal = totalTrainBurn - trainDeficit;
@@ -2502,7 +2504,7 @@ let PRODUCT_LIBRARY = {
         carbsK: trainCarbs / w, proteinK, fatK, weight: w,
         calories: trainCal,
         restCal, restCarbs,
-        trainBurn: totalTrainBurn, restBurn, trainingBurn: trainBurn,
+        trainBurn: totalTrainBurn, restBurn, trainingBurn: trainBurn, aerobicBurn,
         trainDeficit, restDeficit
       };
     }
