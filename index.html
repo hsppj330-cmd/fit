@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.18";
+    const VERSION = "2.4.19";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2722,12 +2722,7 @@ let PRODUCT_LIBRARY = {
         plan.days[day] = { dayType, macros, meals };
       });
       appData.weeklyPlan = plan;
-      // v2.4.18：生成周配餐后自动入库（高碳3天 + 低碳4天）
-      if (!appData.mealStock) appData.mealStock = {};
-      appData.mealStock['lunch_train'] = 3;
-      appData.mealStock['dinner_train'] = 3;
-      appData.mealStock['lunch_rest'] = 4;
-      appData.mealStock['dinner_rest'] = 4;
+      // v2.4.19：去掉自动入库，改成手动（用户备餐后自己点入库）
       saveData();
       return plan;
     }
@@ -4564,6 +4559,25 @@ let PRODUCT_LIBRARY = {
               <div class="mt-1">🛢️ <b>油脂集中早/午：</b>早餐0油 + 午餐14g（训练日）/12g（休息日，炒鸡胸+炒菜+淋）+ 晚餐0油，符合「油脂集中在早午、晚餐清淡」</div>
               <div class="mt-1">❄️ 冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
             </div>
+            <!-- v2.4.19：手动入库区域 -->
+            <div class="bg-blue-50 rounded-xl p-3">
+              <div class="font-medium text-blue-700 mb-2">📦 备餐完成 → 手动入库</div>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="bg-white rounded-lg p-2">
+                  <div class="text-xs text-gray-500 mb-1">高碳餐（训练日）</div>
+                  <div class="text-sm">午餐：<span id="stock-lunch-train">${appData.mealStock?.lunch_train || 0}</span> 份</div>
+                  <div class="text-sm mb-2">晚餐：<span id="stock-dinner-train">${appData.mealStock?.dinner_train || 0}</span> 份</div>
+                  <button class="text-xs bg-blue-500 text-white px-2 py-1 rounded" onclick="manualStockIn('train')">+ 入库</button>
+                </div>
+                <div class="bg-white rounded-lg p-2">
+                  <div class="text-xs text-gray-500 mb-1">低碳餐（休息日）</div>
+                  <div class="text-sm">午餐：<span id="stock-lunch-rest">${appData.mealStock?.lunch_rest || 0}</span> 份</div>
+                  <div class="text-sm mb-2">晚餐：<span id="stock-dinner-rest">${appData.mealStock?.dinner_rest || 0}</span> 份</div>
+                  <button class="text-xs bg-gray-500 text-white px-2 py-1 rounded" onclick="manualStockIn('rest')">+ 入库</button>
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 mt-2">备餐完成后点入库，入库后每天吃会自动扣库存</div>
+            </div>
           </div>
         </div>`;
       if (appData.weekReview && appData.weekReview.history && appData.weekReview.history.length) {
@@ -4628,6 +4642,22 @@ let PRODUCT_LIBRARY = {
     }
 
     // 打卡本周计划中的一餐
+    // v2.4.19：手动入库（用户备餐后自己点）
+    function manualStockIn(type) {
+      if (!appData.mealStock) appData.mealStock = {};
+      const lunchKey = 'lunch_' + type;
+      const dinnerKey = 'dinner_' + type;
+      const lunchCount = prompt('高碳午餐入库几份？（输入数字）', '3');
+      if (lunchCount === null) return;
+      const dinnerCount = prompt('高碳晚餐入库几份？（输入数字）', '3');
+      if (dinnerCount === null) return;
+      appData.mealStock[lunchKey] = (appData.mealStock[lunchKey] || 0) + parseInt(lunchCount);
+      appData.mealStock[dinnerKey] = (appData.mealStock[dinnerKey] || 0) + parseInt(dinnerCount);
+      saveData();
+      renderDietView();
+      addMessage('assistant', `✅ 入库完成：${type === 'train' ? '高碳餐' : '低碳餐'} 午餐 +${lunchCount}份，晚餐 +${dinnerCount}份\n当前库存：午餐 ${appData.mealStock[lunchKey]} 份，晚餐 ${appData.mealStock[dinnerKey]} 份`);
+    }
+
     function recordPlannedMeal(mealKey) {
       const today = getTodayStr();
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
