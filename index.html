@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.16";
+    const VERSION = "2.4.17";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4321,7 +4321,9 @@ let PRODUCT_LIBRARY = {
           <div class="flex bg-gray-100 rounded-lg p-1">
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm" data-tab="daily" onclick="switchDietTab('daily')">每日饮食</button>
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="week" onclick="switchDietTab('week')">本周配餐</button>
+            <!-- v2.4.17: 隐藏周采购tab（用户不需要，保留库存和商品库即可）
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="purchase" onclick="switchDietTab('purchase')">周采购</button>
+            -->
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="products" onclick="switchDietTab('products')">商品库</button>
           </div>
         </div>
