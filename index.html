@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.14";
+    const VERSION = "2.4.15";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1911,6 +1911,14 @@ let PRODUCT_LIBRARY = {
           data.weeklyPlan = null;   // 触发按新倍率重建周配餐
         }
         data.dataVersion = 8;
+      }
+      if (data.dataVersion < 9) {
+        // v2.4.14：休息日缺口从500降到400（避免休息日碳水过低）
+        if (!data.profile.restDeficit || data.profile.restDeficit === 500) {
+          data.profile.restDeficit = 400;
+          data.weeklyPlan = null;   // 触发重新生成周配餐
+        }
+        data.dataVersion = 9;
       }
       return data;
     }
