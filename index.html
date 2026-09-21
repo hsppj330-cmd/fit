@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.20";
+    const VERSION = "2.4.21";
     const DATA_VERSION = 7;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4520,7 +4520,7 @@ let PRODUCT_LIBRARY = {
               <div class="font-medium text-blue-700 mb-1">🥩 Step 2 · 鸡胸肉：周生重 ${weekChickenRaw}g → 熟 ${Math.round(weekChickenRaw * 0.75)}g（腌制+炒制）</div>
               <div>① 称出生鸡胸 ${weekChickenRaw}g → 切条（约2cm粗）</div>
               <div>② 腌制（按 ${weekChickenRaw}g/500g 缩放）：生抽 ${Math.round(weekChickenRaw / 500 * 10)}g + 蚝油 ${Math.round(weekChickenRaw / 500 * 5)}g + 料酒 ${Math.round(weekChickenRaw / 500 * 5)}g + 盐 ${Math.round(weekChickenRaw / 500 * 3)}g + 玉米淀粉 ${Math.round(weekChickenRaw / 500 * 10)}g + 黑胡椒 ${Math.round(weekChickenRaw / 500 * 2)}g，抓匀冷藏 30 分钟以上</div>
-              <div>③ 炒制用油：牛油果油 ${Math.round(weekOilLunch * 0.7)}g → 中大火分 2-3 批炒熟（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
+              <div>③ 炒制：分 3 批炒熟，每批用油 ${Math.round(weekOilLunch * 0.7 / 3)}g（共 ${Math.round(weekOilLunch * 0.7)}g）→ 中大火每批炒至变色熟透（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
               <div class="text-xs text-gray-500 mt-1">注：炒鸡胸油已含在周采购牛油果油内</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
