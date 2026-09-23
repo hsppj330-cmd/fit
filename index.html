@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.27";
+    const VERSION = "2.4.28";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3362,6 +3362,7 @@ let PRODUCT_LIBRARY = {
       { type: "function", function: { name: "record_workout", description: "记录Keep跟练完成（用户发Keep训练记录截图或说跟练完/练完打卡）：记录训练名称/类型/时长/实际消耗，联动热量目标上调、练后蛋白质补充建议。用户发Keep/运动App训练截图或说跟练完成时调用", parameters: { type: "object", properties: { name: { type: "string", description: "课程/训练名称（可选）" }, type: { type: "string", enum: ["push", "pull", "legs", "cardio", "full_body"], description: "训练类型" }, duration: { type: "number", description: "训练时长分钟" }, calories: { type: "number", description: "实际消耗大卡" } } } } },
       { type: "function", function: { name: "eat_meal", description: "记录吃了某餐（早餐/A餐/B餐/C餐），扣减对应库存并计入今日摄入热量。用户说吃了/早餐/A餐/B餐/C餐时调用", parameters: { type: "object", properties: { mealName: { type: "string", description: "餐名：早餐 / A餐 / B餐 / C餐" } }, required: ["mealName"] } } },
       { type: "function", function: { name: "record_custom_meal", description: "记录自由描述的餐食（非预设餐）：用户说「午餐150g鸡胸肉200g糙米」「早餐吃了燕麦和鸡蛋」「晚餐吃了什么什么」等带食物+克数的描述时调用，按食材营养估算后写入当日摄入并联动看板。注意：预设餐（早餐/A餐/B餐/C餐）用 eat_meal；餐食照片用截图识别", parameters: { type: "object", properties: { mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"], description: "餐次" }, foods: { type: "array", description: "食物列表", items: { type: "object", properties: { name: { type: "string", description: "食物/食材名称" }, grams: { type: "number", description: "重量克数（估算）" }, kcal: { type: "number", description: "热量千卡（估算）" }, protein: { type: "number", description: "蛋白质g（估算）" }, carbs: { type: "number", description: "碳水g（估算）" }, fat: { type: "number", description: "脂肪g（估算）" } } } } }, required: ["mealType", "foods"] } } },
+      { type: "function", function: { name: "clear_today_meals", description: "清空今天所有已记录的饮食/餐食数据（mealRecords），用于误操作后重置。用户说「清空今天饮食」「重置今天摄入」「删掉今天吃的」时调用", parameters: { type: "object", properties: { confirm: { type: "boolean", description: "确认清空，必须为true" } }, required: ["confirm"] } } },
       { type: "function", function: { name: "convert_unit", description: "食材单位换算：把 升/毫升/斤/公斤/罐/盒/袋/包/瓶 换算成克，或生熟重量换算。用户说买了1升/500毫升/2斤/1罐/1盒/多少克是几升/500克生XX煮熟多少克/熟重多少时，先调用本工具得到克数再入库或回答", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称（如：牛油果油）" }, value: { type: "number", description: "数量" }, fromUnit: { type: "string", description: "源单位：升/毫升/L/ml/斤/公斤/kg/克/g/罐/盒/袋/包/瓶/桶" }, toUnit: { type: "string", description: "目标单位：克/g；若做生熟换算填 熟（如：500克生鸡胸煮熟多少克 → value=500 fromUnit=克 toUnit=熟）" } }, required: ["name", "value", "fromUnit", "toUnit"] } } },
       { type: "function", function: { name: "purchase", description: "记录食材采购入库，增加食材库存并记账单。用户说买了/采购/到货/入库/XX到了XX时调用。注意：用户说的数量若不是克（升/毫升/斤/罐/盒/袋/包/瓶），必须先调用 convert_unit 换算成克再填入 amount（例：牛油果油到了1升 → convert_unit 得 910g）", parameters: { type: "object", properties: { name: { type: "string", description: "食材名称" }, amount: { type: "number", description: "数量（克，非克单位先 convert_unit 换算）" }, cost: { type: "number", description: "花费（元），可选" } }, required: ["name", "amount"] } } },
       { type: "function", function: { name: "query_stock", description: "查询当前食材库存与成品餐库存", parameters: { type: "object", properties: {} } } },
@@ -3580,6 +3581,7 @@ let PRODUCT_LIBRARY = {
         case "generate_week_plan": return handleGenerateWeekPlan();
         case "generate_week_plan_v2": return handleGenerateWeekPlanV2();
         case "record_custom_meal": return recordCustomMeal(args.mealType, args.foods);
+        case "clear_today_meals": return clearTodayMeals(args.confirm);
         case "weekly_review": return handleWeeklyReview();
         case "update_ingredient": return handleUpdateIngredient(args);
         case "update_training": {
@@ -4682,6 +4684,18 @@ let PRODUCT_LIBRARY = {
       try { renderDashboard(); } catch (e) {}
       if (typeof renderDailyDiet === 'function') { try { renderDailyDiet(); } catch (e) {} }
       return { success: true, message: "已记录" + typeLabel + "：\n" + foodLines.join("\n") + "\n合计：约" + Math.round(sum.kcal) + "kcal（蛋白" + Math.round(sum.protein) + "g / 碳水" + Math.round(sum.carbs) + "g / 脂肪" + Math.round(sum.fat) + "g）\n\n今日已摄入 " + Math.round(intake.calories) + " / " + target.calories + "kcal，剩余 " + Math.max(0, remain) + "kcal" };
+    }
+
+    // v2.4.28：清空今天所有饮食记录（误操作后重置）
+    function clearTodayMeals(confirm) {
+      if (!confirm) return { success: false, message: "需要确认才能清空" };
+      const today = getTodayStr();
+      const count = (appData.mealRecords && appData.mealRecords[today]) ? appData.mealRecords[today].length : 0;
+      if (appData.mealRecords) appData.mealRecords[today] = [];
+      saveData();
+      try { renderDashboard(); } catch (e) {}
+      try { renderDailyDiet(); } catch (e) {}
+      return { success: true, message: "已清空今天的 " + count + " 条饮食记录，今日摄入已重置为 0。可以重新打卡了。" };
     }
 
     // 打卡本周计划中的一餐
