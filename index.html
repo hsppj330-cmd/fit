@@ -386,7 +386,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.34";
+    const VERSION = "2.4.35";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2299,15 +2299,31 @@ let PRODUCT_LIBRARY = {
     // ========== 业务逻辑 ==========
     function recordBodyData(weight, bodyFat, extra) {
       extra = extra || {};
+      // v2.4.35 防御：合理范围校验，防AI误识别（如训练截图被当体脂秤）写入离谱数据
+      const clean = function(v, min, max, label) {
+        if (v === undefined || v === null || v === '') return undefined;
+        const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+        if (isNaN(n) || n < min || n > max) { console.warn('recordBodyData 丢弃不合理' + (label || '') + '值:', v); return undefined; }
+        return n;
+      };
+      weight = clean(weight, 30, 200, '体重kg');
+      bodyFat = clean(bodyFat, 3, 60, '体脂%');
+      if (weight === undefined && bodyFat === undefined) {
+        return { success: false, message: "数据不在合理范围（体重30-200kg / 体脂3-60%），疑似误识别，已拒绝写入。请确认为体脂秤截图后重试，或直接说「体重66kg体脂20.2%」" };
+      }
       const today = getTodayStr();
       const record = { date: today };
       if (weight) { appData.profile.weight = weight; record.weight = weight; }
       if (bodyFat) { appData.profile.bodyFat = bodyFat; record.bodyFat = bodyFat; }
       // 身体成分扩展字段（Keep 体脂秤全量）
       const fields = ['bmi','bmr','muscle','visceralFat','subcutaneousFat','protein','muscleRate','leanMass','water','boneMass','bodyScore','bodyAge'];
+      const fieldRange = { bmi: [10,60], bmr: [800,3000], muscle: [10,100], visceralFat: [1,30], subcutaneousFat: [3,60], protein: [3,30], muscleRate: [10,60], leanMass: [20,150], water: [30,80], boneMass: [1,10], bodyScore: [30,100], bodyAge: [10,100] };
       fields.forEach(f => {
         if (extra[f] !== undefined && extra[f] !== null && extra[f] !== '' && !isNaN(parseFloat(extra[f]))) {
-          record[f] = parseFloat(extra[f]);
+          const n = parseFloat(extra[f]);
+          const r = fieldRange[f] || [0, 100000];
+          if (n >= r[0] && n <= r[1]) record[f] = n;
+          else console.warn('recordBodyData 丢弃不合理', f, extra[f]);
         }
       });
       // 基础代谢：优先实测值（Keep），其次公式估算
@@ -5353,11 +5369,16 @@ let PRODUCT_LIBRARY = {
         }
         addMessage('assistant', "📸 正在识别图片类型...");
         // 第一步：判断图片类型
-        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可（判别优先级从高到低）：\n1-体脂秤/身体成分检测结果页截图（特征：页面包含体重/体脂率/BMI/基础代谢/肌肉量/骨量/水分/蛋白质/内脏脂肪等身体成分数据条目或环形进度图）——只要出现体脂率、BMI、基础代谢这类身体成分数据，一律归为1；\n2-Keep/运动App训练记录或运动完成截图（特征：有「千卡/大卡」消耗数字、训练时长、心率、跳绳个数/跑步公里数/配速等运动数据统计，可能有心率图、运动数据表格，页面顶部有课程名或运动类型如「跳绳」「跑步」「力量训练」）——注意：这是运动记录页，不是商品页，即使页面有数字也不要归为商品；\n3-电商/买菜APP商品详情页截图（特征：有商品大图+品牌名+价格+规格/重量+「加入购物车」「立即购买」按钮，如大米/牛奶/鸡胸肉/橄榄油的商品页）——必须有价格和购买按钮才归为3；\n4-餐食照片（正在吃或将吃的食物实拍，如做好的减脂餐摆盘）；\n5-其他类型图片", e.target.result);
+        const classify = await callAI("判断这张图片属于哪一类，只回复一个数字即可（判别要点，优先级从高到低）：\n2-Keep/运动App训练记录或运动完成截图（特征：有训练时长、消耗「千卡/大卡」、心率或平均心率、跳绳个数、跑步公里数/配速、组数次数等运动数据，页面顶部常有课程名或运动类型如「跳绳」「跑步」「力量训练」「训练完成」，可能有心率曲线图或运动数据表格）——只要出现训练时长/心率/跳绳个数/课程名/运动类型这些运动记录特征就归为2，即使页面有数字也不要归为其他类；\n1-体脂秤/身体成分检测结果页截图（特征：页面明确出现「体脂率」「BMI」「基础代谢」「身体得分」等身体成分指标名称及对应数值，通常是体脂秤App测量结果页，有身体成分数据条目或环形进度图）——必须明确出现体脂率或BMI或基础代谢这类身体成分指标字样才归为1，只有消耗数字/心率/时长不归为1；\n3-电商/买菜APP商品详情页截图（特征：商品大图+品牌名+价格+规格/重量+「加入购物车」「立即购买」按钮）——必须有价格和购买按钮才归为3；\n4-餐食照片（正在吃或将吃的食物实拍，如做好的减脂餐摆盘）；\n5-其他类型图片", e.target.result);
         let typeNum = classify ? (String(classify).match(/[12345]/) || [])[0] : null;
-        // v2.2.6f 兜底：非体脂秤分类时复判一次，只要含身体成分数据就按体脂秤处理（防误判为餐食/商品）
-        if (typeNum && typeNum !== '1') {
-          const confirmCls = await callAI("只回复一个数字：这张图片里是否出现体重/体脂率/BMI/基础代谢/肌肉量/骨量/水分/蛋白质/内脏脂肪等身体成分数据条目或环形进度图？是回复1，不是回复0", e.target.result);
+        // v2.4.35 双向复判：
+        // ① 已判为体脂秤(1) → 反向确认是否有训练记录特征，有则改为2（防训练截图误写身体数据）
+        // ② 非体脂秤 → 确认是否明确含身体成分指标，有则改为1（防漏判）
+        if (typeNum === '1') {
+          const confirmTrain = await callAI("只回复一个数字：这张图片里是否出现训练时长/消耗千卡/心率或平均心率/跳绳个数/跑步公里数/配速/「训练完成」或课程名等运动训练记录特征？是回复1，不是回复0", e.target.result);
+          if (String(confirmTrain || '').replace(/[^01]/g, '') === '1') typeNum = '2';
+        } else if (typeNum && typeNum !== '1') {
+          const confirmCls = await callAI("只回复一个数字：这张图片里是否明确出现「体脂率」「BMI」「基础代谢」或「身体得分」等身体成分指标名称及对应数值？是回复1，不是回复0", e.target.result);
           const cf = String(confirmCls || '').replace(/[^01]/g, '');
           if (cf === '1') typeNum = '1';
         }
@@ -5539,9 +5560,15 @@ let PRODUCT_LIBRARY = {
                     }
                   }
                   const r = recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf, extra);
-                  renderDashboard();
-                  addMessage('assistant', "📸 已识别并记录：" + r.message + "\n已同步更新看板·身体成分");
-                  recorded = true;
+                  if (r && r.success === false) {
+                    // v2.4.35：数据不合理被拒绝（如训练截图被误判为体脂秤），不更新看板
+                    addMessage('assistant', "⚠️ " + r.message + "\n\n如果这是训练/跳绳记录截图，请重新上传或直接说「跳绳30分钟」/「拉日练完了45分钟320大卡」打卡。");
+                    recorded = true;
+                  } else {
+                    renderDashboard();
+                    addMessage('assistant', "📸 已识别并记录：" + r.message + "\n已同步更新看板·身体成分");
+                    recorded = true;
+                  }
                 }
               } catch (e) { console.error("识别JSON解析失败", e); }
             }
