@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.30";
+    const VERSION = "2.4.31";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4241,7 +4241,7 @@ let PRODUCT_LIBRARY = {
               <div class="flex items-center justify-between cursor-pointer" onclick="toggleExerciseDetail(${idx})">
                 <div>
                   <h3 class="font-semibold">${ex.name}</h3>
-                  <p class="text-sm text-gray-500">${ex.target} · ${ex.sets}组 × ${ex.reps}次 · 休息${ex.rest}${meta.equip ? ' · ' + meta.equip : ''}</p>
+                  <p class="text-sm text-gray-500">${ex.target} · ${ex.sets}组 × ${ex.reps}次 · <span class="text-orange-600 font-medium">⏱️组休${ex.rest}</span>${meta.equip ? ' · ' + meta.equip : ''}</p>
                   <p class="text-xs text-blue-500 mt-1">参考：入门${ex.beginnerWeight} / 进阶${ex.advancedWeight}${meta.kcal ? ' · 约' + meta.kcal + 'kcal/10分钟' : ''}</p>
                 </div>
                 <div class="text-gray-400">
@@ -4249,6 +4249,13 @@ let PRODUCT_LIBRARY = {
                 </div>
               </div>
               <div id="exercise-detail-${idx}" class="hidden mt-4 pt-4 border-t border-gray-100">
+                <div class="bg-orange-50 rounded-lg p-3 mb-4 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-orange-500 text-lg">⏱️</span>
+                    <span class="text-sm font-medium text-orange-800">组间休息</span>
+                  </div>
+                  <span class="text-lg font-bold text-orange-600">${ex.rest || '60秒'}</span>
+                </div>
                 ${ex.steps ? `
                 <div class="grid grid-cols-3 gap-2 mb-4">
                   ${ex.steps.map(step => `
