@@ -385,8 +385,8 @@
   </div>
 
   <script>
-    const VERSION = "2.4.31";
-    const DATA_VERSION = 11;
+    const VERSION = "2.4.32";
+    const DATA_VERSION = 12;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
     
@@ -395,7 +395,7 @@
   push: {
     name: "推日",
     muscles: "胸、肩中束、三头",
-    calories: 420,
+    calories: 220,
     exercises: [
       {
         id: "barbell_bench_press",
@@ -521,7 +521,7 @@
   pull: {
     name: "拉日",
     muscles: "背、肩后束、二头",
-    calories: 400,
+    calories: 200,
     exercises: [
       {
         id: "bent_row",
@@ -647,7 +647,7 @@
   legs: {
     name: "腿日",
     muscles: "股四头、腘绳、臀",
-    calories: 450,
+    calories: 250,
     exercises: [
       {
         id: "barbell_squat",
@@ -1847,7 +1847,7 @@ let PRODUCT_LIBRARY = {
         age: 24,       // 年龄
         bmr: 1447,     // 体脂秤实测
         activityFactor: 1.2,  // 活动系数：久坐1.2/日常走动1.35/活动较多1.5
-        trainingMET: 6,       // 训练强度：轻4/中6/高8
+        trainingMET: 3.2,       // 训练强度（含组间休息）：初学3/中4/高5，Keep实测拉日约188-200
         trainingMinutes: 60,  // 单次训练分钟
         trainDeficit: 500,    // 训练日缺口
         restDeficit: 400,     // 休息日缺口（碳水不低于100g，更科学）
@@ -1965,6 +1965,14 @@ let PRODUCT_LIBRARY = {
           data.weeklyPlan = null;   // 触发重新生成周配餐
         }
         data.dataVersion = 11;
+      }
+      if (data.dataVersion < 12) {
+        // v2.4.32：训练消耗MET从6降到3.2（Keep实测拉日约188-200大卡，原400偏高一倍）
+        if (data.profile.trainingMET && data.profile.trainingMET >= 5) {
+          data.profile.trainingMET = 3.2;
+          data.weeklyPlan = null;   // 触发重新生成周配餐
+        }
+        data.dataVersion = 12;
       }
       return data;
     }
@@ -2258,7 +2266,7 @@ let PRODUCT_LIBRARY = {
     function getTodayTDEE() {
       const bmr = appData.profile.bmr || 1447;
       const af = appData.profile.activityFactor || 1.2;
-      const met = appData.profile.trainingMET || 6;
+      const met = appData.profile.trainingMET || 3.2;
       const mins = appData.profile.trainingMinutes || 60;
       const w = appData.profile.weight || 65;
       const dayType = getTodayType();
@@ -2523,7 +2531,7 @@ let PRODUCT_LIBRARY = {
       const w = appData.profile.weight || 65;
       const bmr = appData.profile.bmr || 1447;           // 体脂秤实测
       const af = appData.profile.activityFactor || 1.2;  // 活动系数：久坐1.2/日常走动1.35/活动较多1.5
-      const met = appData.profile.trainingMET || 6;     // 训练强度：轻4/中6/高8
+      const met = appData.profile.trainingMET || 3.2;     // 训练强度（含组间休息）：初学3/中4/高5，Keep实测拉日约188-200
       const mins = appData.profile.trainingMinutes || 60;
       // 休息日消耗 = BMR × 活动系数
       const restBurn = Math.round(bmr * af);
@@ -5203,7 +5211,7 @@ let PRODUCT_LIBRARY = {
       document.getElementById('setting-bmr').value = appData.profile.bmr || 1447;
       document.getElementById('setting-activity').value = String(appData.profile.activityFactor || 1.2);
       document.getElementById('setting-training-mins').value = appData.profile.trainingMinutes || 60;
-      document.getElementById('setting-training-met').value = String(appData.profile.trainingMET || 6);
+      document.getElementById('setting-training-met').value = String(appData.profile.trainingMET || 3.2);
       document.getElementById('setting-train-deficit').value = appData.profile.trainDeficit || 400;
       document.getElementById('setting-rest-deficit').value = appData.profile.restDeficit || 600;
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
@@ -5228,7 +5236,7 @@ let PRODUCT_LIBRARY = {
       appData.profile.bmr = parseFloat(document.getElementById('setting-bmr').value) || 1447;
       appData.profile.activityFactor = parseFloat(document.getElementById('setting-activity').value) || 1.2;
       appData.profile.trainingMinutes = parseFloat(document.getElementById('setting-training-mins').value) || 60;
-      appData.profile.trainingMET = parseFloat(document.getElementById('setting-training-met').value) || 6;
+      appData.profile.trainingMET = parseFloat(document.getElementById('setting-training-met').value) || 3.2;
       appData.profile.trainDeficit = parseFloat(document.getElementById('setting-train-deficit').value) || 400;
       appData.profile.restDeficit = parseFloat(document.getElementById('setting-rest-deficit').value) || 600;
       // 参数变化 → 重新生成周配餐
