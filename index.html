@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.29";
+    const VERSION = "2.4.30";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -399,7 +399,7 @@
     exercises: [
       {
         id: "barbell_bench_press",
-        name: "杠铃卧推",
+        name: "杠铃平板卧推",
         target: "胸大肌",
         sets: 4,
         reps: "8-12",
@@ -407,12 +407,12 @@
         beginnerWeight: "20kg（含杆）",
         advancedWeight: "40kg（含杆）",
         steps: [
-          { name: "起始姿势", desc: "仰卧哑铃凳，双眼位于杠铃正下方，双脚踩实，肩胛骨后缩下沉，握距略宽于肩。", key: "肩胛下沉、双脚踩实" },
+          { name: "起始姿势", desc: "仰卧平板凳，双眼位于杠铃正下方，双脚踩实，肩胛骨后缩下沉，握距略宽于肩。", key: "肩胛下沉、双脚踩实" },
           { name: "下放", desc: "吸气控制杠铃下放至胸部中下沿，手肘约45度夹角，停顿1秒。", key: "肘45度、触胸即停" },
           { name: "推起", desc: "呼气发力将杠铃推回起始位置，手臂接近伸直，不锁死。", key: "推起不锁肘" }
         ],
         mistakes: ["错误：手腕后折 → 腕压大", "错误：杠铃落点在颈部 → 肩压力大", "错误：弓腰过高"],
-        tips: "握距略宽于肩，杠铃下放至乳头连线附近。Keep搜索：杠铃卧推。"
+        tips: "握距略宽于肩，杠铃下放至乳头连线附近。Keep搜索：杠铃平板卧推。"
       },
       {
         id: "bench_press",
@@ -433,20 +433,20 @@
       },
       {
         id: "incline_dumbbell_press",
-        name: "哑铃上斜卧推",
+        name: "哑铃上斜反手卧推",
         target: "胸大肌上束",
-        sets: 4,
+        sets: 3,
         reps: "12",
         rest: "75秒",
         beginnerWeight: "8kg/只",
         advancedWeight: "16kg/只",
         steps: [
-          { name: "起始姿势", desc: "哑铃凳调至30-45度上斜，肩胛骨后缩下沉贴紧靠背，双手持哑铃于胸上方，掌心朝前。", key: "凳30-45度、肩胛贴背" },
-          { name: "顶峰收缩", desc: "呼气发力将哑铃推向上胸上方，轨迹略向内收，停顿1秒。", key: "推向上胸、向内收" },
+          { name: "起始姿势", desc: "哑铃凳调至30-45度上斜，肩胛骨后缩下沉贴紧靠背，双手反手握住哑铃于胸上方，掌心朝身体。", key: "凳30-45度、反手握铃" },
+          { name: "顶峰收缩", desc: "呼气发力将哑铃推向上胸上方，轨迹略向内收，大臂向内夹，停顿1秒。", key: "推向上胸、大臂内夹" },
           { name: "还原位置", desc: "吸气控制下放，手肘呈90度，感受上胸拉伸。", key: "控制下放、肩胛固定" }
         ],
         mistakes: ["错误：凳角太大 → 变成推举", "错误：腰部悬空弓起 → 腰椎压力大"],
-        tips: "凳角30-45度，想象上胸推天花板。谭师本人也做此动作。Keep搜索：哑铃上斜卧推。"
+        tips: "凳角30-45度，反手握法更侧重上胸和三头。Keep搜索：哑铃上斜反手卧推。"
       },
       {
         id: "fly_dumbbell",
@@ -486,7 +486,7 @@
         id: "lateral_raise",
         name: "哑铃侧平举",
         target: "三角肌中束",
-        sets: 3,
+        sets: 4,
         reps: "15",
         rest: "60秒",
         beginnerWeight: "4kg/只",
@@ -524,40 +524,6 @@
     calories: 400,
     exercises: [
       {
-        id: "barbell_row",
-        name: "杠铃俯身划船",
-        target: "背阔肌、菱形肌",
-        sets: 4,
-        reps: "10-12",
-        rest: "90秒",
-        beginnerWeight: "20kg（含杆）",
-        advancedWeight: "40kg（含杆）",
-        steps: [
-          { name: "起始姿势", desc: "双脚与肩同宽，屈髋俯身约45度，双手正握杠铃自然下垂，背部平直。", key: "髋铰链、背部平直" },
-          { name: "拉起", desc: "呼气将杠铃拉向腹部下沿，肩胛骨后缩，停顿1秒。", key: "拉向腹部、夹背" },
-          { name: "还原位置", desc: "吸气控制下放，感受背部拉伸。", key: "控制下放" }
-        ],
-        mistakes: ["错误：弓背 → 腰部受伤", "错误：用惯性甩起", "错误：站太直变成直立划船"],
-        tips: "俯身角度约45度，杠铃贴大腿上拉至腹部。Keep搜索：杠铃俯身划船。"
-      },
-      {
-        id: "lunge_row",
-        name: "弓步单臂划船",
-        target: "背阔肌",
-        sets: 4,
-        reps: "12/边",
-        rest: "75秒",
-        beginnerWeight: "8kg",
-        advancedWeight: "16kg",
-        steps: [
-          { name: "起始姿势", desc: "弓步站立，同侧手扶凳，背部挺直，另一手持哑铃自然下垂。", key: "背部平直、核心收紧" },
-          { name: "顶峰收缩", desc: "呼气将哑铃拉向髋部，感受背阔肌收缩，停顿1秒。", key: "拉向髋部" },
-          { name: "还原位置", desc: "吸气控制下放，充分拉伸背部。", key: "控制下放" }
-        ],
-        mistakes: ["错误：身体晃动 → 借力", "错误：耸肩"],
-        tips: "拉向髋部而非胸口，专注背部。Keep搜索：弓步单臂划船。"
-      },
-      {
         id: "bent_row",
         name: "俯身哑铃划船",
         target: "背阔肌、菱形肌",
@@ -573,6 +539,40 @@
         ],
         mistakes: ["错误：弓背 → 腰部受伤", "错误：用惯性甩起"],
         tips: "俯身角度约45度，拉向腹部两侧。Keep搜索：俯身哑铃划船。"
+      },
+      {
+        id: "lunge_row_left",
+        name: "弓步左侧单臂划船",
+        target: "背阔肌（左侧）",
+        sets: 3,
+        reps: "12",
+        rest: "60秒",
+        beginnerWeight: "8kg",
+        advancedWeight: "16kg",
+        steps: [
+          { name: "起始姿势", desc: "弓步站立，右手扶凳，背部挺直，左手持哑铃自然下垂。", key: "背部平直、核心收紧" },
+          { name: "顶峰收缩", desc: "呼气将哑铃拉向髋部，感受左侧背阔肌收缩，停顿1秒。", key: "拉向髋部" },
+          { name: "还原位置", desc: "吸气控制下放，充分拉伸背部。", key: "控制下放" }
+        ],
+        mistakes: ["错误：身体晃动 → 借力", "错误：耸肩"],
+        tips: "拉向髋部而非胸口，专注背部。Keep搜索：弓步左侧单臂划船。"
+      },
+      {
+        id: "lunge_row_right",
+        name: "弓步右侧单臂划船",
+        target: "背阔肌（右侧）",
+        sets: 3,
+        reps: "12",
+        rest: "60秒",
+        beginnerWeight: "8kg",
+        advancedWeight: "16kg",
+        steps: [
+          { name: "起始姿势", desc: "弓步站立，左手扶凳，背部挺直，右手持哑铃自然下垂。", key: "背部平直、核心收紧" },
+          { name: "顶峰收缩", desc: "呼气将哑铃拉向髋部，感受右侧背阔肌收缩，停顿1秒。", key: "拉向髋部" },
+          { name: "还原位置", desc: "吸气控制下放，充分拉伸背部。", key: "控制下放" }
+        ],
+        mistakes: ["错误：身体晃动 → 借力", "错误：耸肩"],
+        tips: "拉向髋部而非胸口，专注背部。Keep搜索：弓步右侧单臂划船。"
       },
       {
         id: "wide_row",
@@ -593,20 +593,20 @@
       },
       {
         id: "reverse_fly",
-        name: "俯身哑铃反向飞鸟",
+        name: "俯卧哑铃反向飞鸟",
         target: "三角肌后束、上背",
-        sets: 3,
+        sets: 4,
         reps: "15",
         rest: "60秒",
         beginnerWeight: "4kg/只",
         advancedWeight: "10kg/只",
         steps: [
-          { name: "起始姿势", desc: "俯身接近平行地面，双手持哑铃下垂，掌心相对。", key: "背部平直" },
-          { name: "顶峰收缩", desc: "呼气向两侧打开手臂至与地面平行，感受后束收缩，停顿1秒。", key: "向后打开" },
-          { name: "还原位置", desc: "吸气缓慢还原。", key: "控制还原" }
+          { name: "起始姿势", desc: "将哑铃凳椅背调至30度左右，趴在椅背上，前脚掌踩稳地面，腰背挺直，双手握住哑铃，拳心朝内后方。", key: "趴凳30度、腰背挺直" },
+          { name: "顶峰收缩", desc: "肩后束发力，手臂内旋使手臂外展，至手臂与地面平行稍作停留，肩膀始终保持稳定。", key: "手臂外展、肩后束发力" },
+          { name: "还原位置", desc: "缓慢外旋手臂下落，至手臂垂直于地面即可。", key: "控制下落" }
         ],
         mistakes: ["错误：耸肩", "错误：用背部猛甩"],
-        tips: "重量轻，动作慢，专注后束。Keep搜索：俯身哑铃反向飞鸟。"
+        tips: "趴在上斜凳上比站姿更稳定，重量轻，动作慢，专注后束。Keep搜索：俯卧哑铃反向飞鸟。"
       },
       {
         id: "bicep_curl",
@@ -667,27 +667,10 @@
         tips: "慢下快起，脚跟始终踩实。Keep搜索：杠铃深蹲。"
       },
       {
-        id: "dumbbell_squat",
-        name: "哑铃深蹲",
-        target: "股四头肌、臀大肌",
-        sets: 4,
-        reps: "15",
-        rest: "90秒",
-        beginnerWeight: "10kg/只",
-        advancedWeight: "24kg/只",
-        steps: [
-          { name: "起始姿势", desc: "双脚与肩同宽，双手持哑铃于体侧或肩前，核心收紧。", key: "核心收紧、脚踩实" },
-          { name: "下蹲", desc: "吸气屈髋屈膝下蹲至大腿平行地面或略低，膝盖与脚尖同向。", key: "蹲至平行" },
-          { name: "起身", desc: "呼气发力站起，臀腿同时发力，顶部不要锁定过猛。", key: "臀腿发力" }
-        ],
-        mistakes: ["错误：膝盖内扣", "错误：重心前倾"],
-        tips: "慢下快起，膝盖与脚尖同向。Keep搜索：哑铃深蹲。"
-      },
-      {
         id: "romanian_deadlift",
         name: "哑铃罗马尼亚硬拉",
         target: "腘绳肌、臀大肌",
-        sets: 4,
+        sets: 6,
         reps: "12",
         rest: "90秒",
         beginnerWeight: "10kg/只",
@@ -701,11 +684,11 @@
         tips: "想象用臀部去关车门。Keep搜索：哑铃罗马尼亚硬拉。"
       },
       {
-        id: "bulgarian_split_squat",
-        name: "哑铃保加利亚分腿蹲",
-        target: "臀大肌、股四头肌",
-        sets: 4,
-        reps: "12/边",
+        id: "bulgarian_left",
+        name: "左侧保加利亚深蹲",
+        target: "臀大肌、股四头肌（左侧）",
+        sets: 3,
+        reps: "12",
         rest: "75秒",
         beginnerWeight: "6kg/只",
         advancedWeight: "16kg/只",
@@ -715,7 +698,24 @@
           { name: "起身", desc: "呼气前脚发力站起，主要刺激臀部。", key: "前脚发力" }
         ],
         mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
-        tips: "练臀利器，重心放在前脚。Keep搜索：哑铃保加利亚分腿蹲。"
+        tips: "练臀利器，重心放在前脚。Keep搜索：左侧保加利亚深蹲。"
+      },
+      {
+        id: "bulgarian_right",
+        name: "右侧保加利亚深蹲",
+        target: "臀大肌、股四头肌（右侧）",
+        sets: 3,
+        reps: "12",
+        rest: "75秒",
+        beginnerWeight: "6kg/只",
+        advancedWeight: "16kg/只",
+        steps: [
+          { name: "起始姿势", desc: "背对哑铃凳，后脚脚背搭在凳上，前脚向前一步站稳，双手持哑铃于体侧。", key: "后脚搭凳、前脚踩实" },
+          { name: "下蹲", desc: "吸气垂直下蹲，前腿膝盖与脚尖同向，后膝接近地面。", key: "垂直下蹲" },
+          { name: "起身", desc: "呼气前脚发力站起，主要刺激臀部。", key: "前脚发力" }
+        ],
+        mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
+        tips: "练臀利器，重心放在前脚。Keep搜索：右侧保加利亚深蹲。"
       },
       {
         id: "sumo_squat",
@@ -736,26 +736,26 @@
       },
       {
         id: "glute_bridge",
-        name: "哑铃臀桥",
+        name: "臀桥",
         target: "臀大肌",
-        sets: 3,
+        sets: 4,
         reps: "15",
         rest: "60秒",
-        beginnerWeight: "10kg",
-        advancedWeight: "24kg",
+        beginnerWeight: "自重",
+        advancedWeight: "自重+哑铃负重（自己加）",
         steps: [
-          { name: "起始姿势", desc: "仰卧屈膝，双脚踩实，将哑铃放在髋部上方，双手扶住。", key: "髋部放铃" },
+          { name: "起始姿势", desc: "仰卧屈膝，双脚踩实，双手放身体两侧。如需负重，将哑铃放在髋部上方，双手扶住。", key: "双脚踩实" },
           { name: "顶峰收缩", desc: "呼气臀部发力向上顶起，躯干与大腿呈一条直线，顶部停顿2秒。", key: "顶髋、停2秒" },
           { name: "还原位置", desc: "吸气缓慢下放，不落地。", key: "控制下放" }
         ],
         mistakes: ["错误：用腰代偿", "错误：顶部不足"],
-        tips: "顶部用力夹臀停顿。Keep搜索：哑铃臀桥。"
+        tips: "顶部用力夹臀停顿。⚠️ Keep只有自重版，可自己加哑铃负重。Keep搜索：臀桥。"
       },
       {
         id: "calf_raise",
         name: "站姿小哑铃提踵",
         target: "小腿三头肌",
-        sets: 3,
+        sets: 4,
         reps: "20",
         rest: "45秒",
         beginnerWeight: "6kg/只",
@@ -1119,55 +1119,59 @@ const DEFAULT_INGREDIENT_PRICES = {
     // ===== Keep 动作对照表：每动作预计消耗(kcal/10分钟)/器械/Keep自定义训练里的动作名 =====
 
 const EXERCISE_META = {
-  barbell_bench_press: { kcal: 50, equip: "杠铃", keep: "杠铃卧推" },
-  barbell_row: { kcal: 40, equip: "杠铃", keep: "杠铃俯身划船" },
+  barbell_bench_press: { kcal: 50, equip: "杠铃+凳", keep: "杠铃平板卧推" },
   barbell_squat: { kcal: 55, equip: "杠铃", keep: "杠铃深蹲" },
-  bench_press: { kcal: 45, equip: "哑铃", keep: "哑铃平地卧推" },
-  incline_dumbbell_press: { kcal: 45, equip: "哑铃+凳", keep: "哑铃上斜卧推" },
-  fly_dumbbell: { kcal: 35, equip: "哑铃", keep: "哑铃平地飞鸟" },
+  bench_press: { kcal: 45, equip: "哑铃+凳", keep: "哑铃平地卧推" },
+  incline_dumbbell_press: { kcal: 45, equip: "哑铃+凳", keep: "哑铃上斜反手卧推" },
+  fly_dumbbell: { kcal: 35, equip: "哑铃+凳", keep: "哑铃平地飞鸟" },
   shoulder_press: { kcal: 40, equip: "哑铃+凳", keep: "坐姿哑铃推举" },
   lateral_raise: { kcal: 30, equip: "哑铃", keep: "哑铃侧平举" },
   triceps_extension: { kcal: 30, equip: "哑铃", keep: "俯身哑铃臂屈伸" },
-  lunge_row: { kcal: 40, equip: "哑铃", keep: "弓步单臂划船" },
+  lunge_row_left: { kcal: 40, equip: "哑铃", keep: "弓步左侧单臂划船" },
+  lunge_row_right: { kcal: 40, equip: "哑铃", keep: "弓步右侧单臂划船" },
   bent_row: { kcal: 40, equip: "哑铃", keep: "俯身哑铃划船" },
   wide_row: { kcal: 35, equip: "哑铃", keep: "俯身哑铃宽距划船" },
-  reverse_fly: { kcal: 30, equip: "哑铃", keep: "俯身哑铃反向飞鸟" },
+  reverse_fly: { kcal: 30, equip: "哑铃+凳", keep: "俯卧哑铃反向飞鸟" },
   bicep_curl: { kcal: 25, equip: "哑铃", keep: "哑铃弯举" },
   hammer_curl: { kcal: 25, equip: "哑铃", keep: "哑铃锤式弯举" },
-  dumbbell_squat: { kcal: 45, equip: "哑铃", keep: "哑铃深蹲" },
   romanian_deadlift: { kcal: 45, equip: "哑铃", keep: "哑铃罗马尼亚硬拉" },
-  bulgarian_split_squat: { kcal: 50, equip: "哑铃+凳", keep: "哑铃保加利亚分腿蹲" },
+  bulgarian_left: { kcal: 50, equip: "哑铃+凳", keep: "左侧保加利亚深蹲" },
+  bulgarian_right: { kcal: 50, equip: "哑铃+凳", keep: "右侧保加利亚深蹲" },
   sumo_squat: { kcal: 40, equip: "哑铃", keep: "哑铃相扑深蹲" },
-  glute_bridge: { kcal: 30, equip: "哑铃", keep: "哑铃臀桥" },
+  glute_bridge: { kcal: 30, equip: "自重", keep: "臀桥" },
   calf_raise: { kcal: 20, equip: "哑铃", keep: "站姿小哑铃提踵" },
   crunch: { kcal: 25, equip: "自重", keep: "卷腹" },
-  leg_raise: { kcal: 25, equip: "自重", keep: "仰卧举腿" },
+  leg_raise: { kcal: 25, equip: "自重", keep: "反向卷腹举腿" },
   russian_twist: { kcal: 30, equip: "自重", keep: "俄罗斯转体" },
   plank: { kcal: 20, equip: "自重", keep: "平板支撑" },
   mountain_climber: { kcal: 40, equip: "自重", keep: "登山跑" },
   dead_bug: { kcal: 15, equip: "自重", keep: "死虫式" }
 };
 
-// v2.4.29：练前热身动作库（通用，5-8分钟）
+// v2.4.30：练前热身动作库（通用，5-8分钟，全部Keep可搜）
 const WARMUP_EXERCISES = [
-  { name: "开合跳", target: "全身热身", sets: 2, reps: "30秒", rest: "20秒", tips: "保持节奏，手臂伸直，膝盖微屈" },
-  { name: "高抬腿", target: "心肺+下肢", sets: 2, reps: "30秒", rest: "20秒", tips: "膝盖抬至髋部高度，摆臂配合" },
-  { name: "手臂环绕", target: "肩关节活动", sets: 2, reps: "前后各20次", rest: "15秒", tips: "双臂伸直画大圆，先向后再向前" },
-  { name: "髋关节环绕", target: "髋关节活动", sets: 2, reps: "左右各20次", rest: "15秒", tips: "双手叉腰，髋部画大圆" },
-  { name: "猫牛式", target: "脊柱灵活", sets: 2, reps: "10次", rest: "15秒", tips: "四点跪姿，吸气塌腰抬头，呼气拱背低头" },
-  { name: "世界最伟大拉伸", target: "全身动态拉伸", sets: 2, reps: "每侧5次", rest: "20秒", tips: "弓步姿势，手肘触地，旋转上身打开" },
+  { name: "开合跳", target: "全身热身", sets: 1, reps: "30秒", rest: "20秒", tips: "保持节奏，手臂伸直，膝盖微屈" },
+  { name: "高抬腿", target: "心肺+下肢", sets: 1, reps: "30秒", rest: "20秒", tips: "膝盖抬至髋部高度，摆臂配合" },
+  { name: "手臂环绕", target: "肩关节活动", sets: 1, reps: "前后各20次", rest: "15秒", tips: "双臂伸直画大圆，先向后再向前" },
+  { name: "髋关节环绕", target: "髋关节活动", sets: 1, reps: "左右各20次", rest: "15秒", tips: "双手叉腰，髋部画大圆" },
+  { name: "膝关节热身", target: "膝关节活动", sets: 1, reps: "30秒", rest: "15秒", tips: "双脚与肩同宽，微屈膝，双手扶膝，顺时针逆时针转动" },
+  { name: "最伟大伸展", target: "全身动态拉伸", sets: 1, reps: "每侧5次", rest: "20秒", tips: "弓步姿势，手肘触地，旋转上身打开" },
   { name: "轻重量热身组", target: "第一个动作专项热身", sets: 1, reps: "15次（空杆/轻重量）", rest: "30秒", tips: "用正式重量的50%做一组，找动作感觉" }
 ];
 
-// v2.4.29：练后拉伸动作库（通用，5-8分钟）
+// v2.4.30：练后拉伸动作库（通用，5-8分钟，全部Keep可搜）
 const COOLDOWN_EXERCISES = [
-  { name: "胸部门框拉伸", target: "胸大肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "小臂贴门框，身体前倾，感受胸部拉伸" },
-  { name: "肩部交叉拉伸", target: "三角肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "一臂伸直横过胸前，另一手压住手肘" },
-  { name: "婴儿式", target: "背部放松", sets: 2, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地" },
-  { name: "大腿前侧拉伸", target: "股四头肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "单脚站立，另一脚后勾，手抓脚踝" },
-  { name: "大腿后侧拉伸", target: "腘绳肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "坐姿，一腿伸直，身体前倾够脚尖" },
-  { name: "臀部4字拉伸", target: "臀大肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "仰卧，一脚踝放另一腿膝盖上，双手抱腿拉向胸口" },
-  { name: "小腿推墙拉伸", target: "小腿三头肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" }
+  { name: "左侧胸部拉伸", target: "胸大肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
+  { name: "右侧胸部拉伸", target: "胸大肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
+  { name: "左臂后侧拉伸", target: "肱三头肌、肩后束（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "左臂上举屈肘，右手拉左手肘向对侧" },
+  { name: "右臂后侧拉伸", target: "肱三头肌、肩后束（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "右臂上举屈肘，左手拉右手肘向对侧" },
+  { name: "跪姿背部拉伸", target: "背阔肌、上背", sets: 1, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地，感受背部拉伸" },
+  { name: "左侧大腿前侧拉伸", target: "股四头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，左脚后勾，左手抓脚踝，髋部前顶" },
+  { name: "右侧大腿前侧拉伸", target: "股四头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，右脚后勾，右手抓脚踝，髋部前顶" },
+  { name: "俯身左腿后侧拉伸", target: "腘绳肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，左腿伸直，身体前倾够脚尖" },
+  { name: "俯身右腿后侧拉伸", target: "腘绳肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，右腿伸直，身体前倾够脚尖" },
+  { name: "靠墙左侧小腿拉伸", target: "小腿三头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" },
+  { name: "靠墙右侧小腿拉伸", target: "小腿三头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" }
 ];
 
 let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
@@ -1193,7 +1197,7 @@ let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     }
     // 每次启动同步默认动作库到运行时库：移除废弃器械动作、同名覆盖关键字段、补充缺失动作
     function syncDefaultTraining() {
-      const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old'];
+      const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old', 'barbell_row', 'dumbbell_squat', 'bulgarian_split_squat', 'lunge_row'];
       Object.values(TRAINING_LIBRARY).forEach(t => {
         t.exercises = (t.exercises || []).filter(e => !REMOVE_IDS.includes(e.id));
       });
@@ -3845,7 +3849,7 @@ let PRODUCT_LIBRARY = {
 - 训练分：推日（胸/肩/三头）、拉日（背/二头）、腿日、腹肌日，各约 45-60 分钟，组次 3-4组×12-15次
 - 器械仅：跳绳+哑铃（可组杠铃）+哑铃凳+瑜伽垫；无龙门架/单杠/双杠/腿举机/坐姿划船机
 - 严禁使用需要未持有器械的动作：绳索下压、直臂下压、高位下拉、引体向上、坐姿划船、器械夹胸、腿举、面拉等一律不许出现在训练库/训练计划中
-- 训练计划要体现全部器材：杠铃（杠铃卧推/杠铃深蹲/杠铃俯身划船）+哑铃+跳绳（空腹有氧）
+- 训练计划要体现全部器材：杠铃（杠铃平板卧推/杠铃深蹲）+哑铃+哑铃凳（俯卧哑铃反向飞鸟/保加利亚深蹲/坐姿哑铃推举）+跳绳（空腹有氧）
 - 所有动作必须是 Keep 上能搜到的同名动作（如「坐姿哑铃推肩」「哑铃侧平举」「哑铃弯举」「哑铃罗马尼亚硬拉」），用户要在 Keep 里照着编排课程跟练
 - 安排训练时给出 Keep 动作名+组次+次数，方便用户直接去 Keep 自定义课程
 - 用户告知新增/更换器材、增删改动作时，必须调用 update_training 真正写入训练库并持久化，不能只口头建议
@@ -4203,10 +4207,10 @@ let PRODUCT_LIBRARY = {
             </div>
             <div class="space-y-3">
         `;
-        if ([3, 0].includes(dayIndex)) {
+        if ([1, 5].includes(dayIndex)) {
           html += `
           <div class="bg-green-50 rounded-xl p-3 text-sm text-green-800 leading-relaxed">
-            🔸 <b>腹肌碎片 10 分钟</b>（每周 2 次，周三/周日腿日末尾）：平板支撑 3×45秒 + 卷腹 3×15 + 俄罗斯转体 3×12，
+            🔸 <b>腹肌碎片 10 分钟</b>（每周 2 次，推日/腿日末尾）：卷腹 3×15 + 反向卷腹举腿 3×12 + 俄罗斯转体 3×20（推日）/ 平板支撑 3×45秒 + 死虫式 3×每侧10次（腿日），
             腹部恢复快可高频，放在大肌群后不冲突。
           </div>`;
         }
