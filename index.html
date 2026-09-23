@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.28";
+    const VERSION = "2.4.29";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1147,6 +1147,28 @@ const EXERCISE_META = {
   mountain_climber: { kcal: 40, equip: "自重", keep: "登山跑" },
   dead_bug: { kcal: 15, equip: "自重", keep: "死虫式" }
 };
+
+// v2.4.29：练前热身动作库（通用，5-8分钟）
+const WARMUP_EXERCISES = [
+  { name: "开合跳", target: "全身热身", sets: 2, reps: "30秒", rest: "20秒", tips: "保持节奏，手臂伸直，膝盖微屈" },
+  { name: "高抬腿", target: "心肺+下肢", sets: 2, reps: "30秒", rest: "20秒", tips: "膝盖抬至髋部高度，摆臂配合" },
+  { name: "手臂环绕", target: "肩关节活动", sets: 2, reps: "前后各20次", rest: "15秒", tips: "双臂伸直画大圆，先向后再向前" },
+  { name: "髋关节环绕", target: "髋关节活动", sets: 2, reps: "左右各20次", rest: "15秒", tips: "双手叉腰，髋部画大圆" },
+  { name: "猫牛式", target: "脊柱灵活", sets: 2, reps: "10次", rest: "15秒", tips: "四点跪姿，吸气塌腰抬头，呼气拱背低头" },
+  { name: "世界最伟大拉伸", target: "全身动态拉伸", sets: 2, reps: "每侧5次", rest: "20秒", tips: "弓步姿势，手肘触地，旋转上身打开" },
+  { name: "轻重量热身组", target: "第一个动作专项热身", sets: 1, reps: "15次（空杆/轻重量）", rest: "30秒", tips: "用正式重量的50%做一组，找动作感觉" }
+];
+
+// v2.4.29：练后拉伸动作库（通用，5-8分钟）
+const COOLDOWN_EXERCISES = [
+  { name: "胸部门框拉伸", target: "胸大肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "小臂贴门框，身体前倾，感受胸部拉伸" },
+  { name: "肩部交叉拉伸", target: "三角肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "一臂伸直横过胸前，另一手压住手肘" },
+  { name: "婴儿式", target: "背部放松", sets: 2, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地" },
+  { name: "大腿前侧拉伸", target: "股四头肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "单脚站立，另一脚后勾，手抓脚踝" },
+  { name: "大腿后侧拉伸", target: "腘绳肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "坐姿，一腿伸直，身体前倾够脚尖" },
+  { name: "臀部4字拉伸", target: "臀大肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "仰卧，一脚踝放另一腿膝盖上，双手抱腿拉向胸口" },
+  { name: "小腿推墙拉伸", target: "小腿三头肌", sets: 2, reps: "每侧30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" }
+];
 
 let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     // ===== 器械过滤：用户只有跳绳/哑铃/哑铃凳/杠铃（无龙门架/单杠/双杠/腿举机等），
@@ -4188,6 +4210,26 @@ let PRODUCT_LIBRARY = {
             腹部恢复快可高频，放在大肌群后不冲突。
           </div>`;
         }
+        // v2.4.29：练前热身
+        html += `
+          <div class="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-yellow-800">🔥 练前热身（5-8分钟）</h3>
+              <span class="text-xs text-yellow-600">必做，防受伤</span>
+            </div>
+            <div class="space-y-2">
+              ${WARMUP_EXERCISES.map((w, i) => `
+                <div class="flex items-start gap-2 text-sm">
+                  <span class="bg-yellow-200 text-yellow-800 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">${i+1}</span>
+                  <div class="flex-1">
+                    <div class="font-medium text-yellow-900">${w.name} <span class="text-xs font-normal text-yellow-600">${w.sets}组×${w.reps} · 休${w.rest}</span></div>
+                    <div class="text-xs text-yellow-700">${w.tips}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
         (training.exercises || []).forEach((ex, idx) => {
           const meta = EXERCISE_META[ex.id] || {};
           html += `
@@ -4233,6 +4275,26 @@ let PRODUCT_LIBRARY = {
             </div>
           `;
         });
+        // v2.4.29：练后拉伸
+        html += `
+          <div class="bg-purple-50 rounded-xl p-4 border border-purple-200">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-purple-800">🧘 练后拉伸（5-8分钟）</h3>
+              <span class="text-xs text-purple-600">必做，促恢复</span>
+            </div>
+            <div class="space-y-2">
+              ${COOLDOWN_EXERCISES.map((c, i) => `
+                <div class="flex items-start gap-2 text-sm">
+                  <span class="bg-purple-200 text-purple-800 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">${i+1}</span>
+                  <div class="flex-1">
+                    <div class="font-medium text-purple-900">${c.name} <span class="text-xs font-normal text-purple-600">${c.sets}组×${c.reps} · 休${c.rest}</span></div>
+                    <div class="text-xs text-purple-700">${c.tips}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
         html += `</div></div>`;
       } else {
         // v2.4.3：有氧安排在周一/三/五（训练日早上），休息日不做有氧
