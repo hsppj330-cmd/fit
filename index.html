@@ -386,7 +386,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.36";
+    const VERSION = "2.4.37";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -3915,7 +3915,14 @@ let PRODUCT_LIBRARY = {
         ];
         
         if (imageBase64) {
-          messages[1].content = [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64 } }];
+          // v2.4.37 修复：图片必须附加到【最后一条user消息】（当前识别prompt），
+          // 之前写死 messages[1] 会挂到历史消息上导致AI看不到图
+          const lastIdx = messages.length - 1;
+          const lastContent = messages[lastIdx].content;
+          messages[lastIdx].content = [
+            { type: "text", text: typeof lastContent === 'string' ? lastContent : JSON.stringify(lastContent) },
+            { type: "image_url", image_url: { url: imageBase64 } }
+          ];
         }
         
         // 工具调用循环（最多 4 轮，防止死循环）
