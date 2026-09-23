@@ -268,9 +268,10 @@
               <div>
                 <label class="text-sm text-gray-600">训练强度（MET）</label>
                 <select id="setting-training-met" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                  <option value="4">4（轻强度）</option>
-                  <option value="6">6（中等强度，推荐）</option>
-                  <option value="8">8（高强度）</option>
+                  <option value="3">3（初学，含组间休息）</option>
+                  <option value="3.2">3.2（当前，Keep实测约200大卡）</option>
+                  <option value="3.5">3.5（进阶，组休缩短）</option>
+                  <option value="4">4（中高强度）</option>
                 </select>
               </div>
               <div>
@@ -385,8 +386,8 @@
   </div>
 
   <script>
-    const VERSION = "2.4.33";
-    const DATA_VERSION = 12;
+    const VERSION = "2.4.34";
+    const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
     
@@ -896,7 +897,7 @@ const DEFAULT_MEAL_LIBRARY = {
             "鸡蛋2个：冷水下锅，水开后再煮6-8分钟（溏心到全熟之间），捞出过凉水剥壳",
             "南瓜子仁15g：约一小把，直接撒在燕麦上，不用加工",
             "蓝莓80g：冲洗后直接食用，如没有蓝莓可用草莓/猕猴桃/小番茄代替",
-            "按份制作：每份称好燕麦+蛋+南瓜子仁+蓝莓，共约450大卡/26g蛋白"
+            "按份制作：每份称好燕麦+蛋+南瓜子仁+蓝莓，共约495大卡/28g蛋白"
           ],
           marinade: "无需腌制",
           batchNote: "早餐每日现做（5分钟），不建议批量冷冻；燕麦可按周分装成小袋"
@@ -1974,6 +1975,11 @@ let PRODUCT_LIBRARY = {
         }
         data.dataVersion = 12;
       }
+      if (data.dataVersion < 13) {
+        // v2.4.34：修复今日热量监控训练日未含有氧消耗（getTodayTDEE与配餐口径对齐）
+        // 跳绳打卡消耗统一为MET10公式（30分钟≈341大卡）；无需改用户数据，仅推进版本号
+        data.dataVersion = 13;
+      }
       return data;
     }
     
@@ -2245,7 +2251,7 @@ let PRODUCT_LIBRARY = {
       return computeDayMacros(dt[dn[new Date().getDay()]] || 'rest');
     }
     function getTodayTargetCalories() {
-      // v2.2.6：今日目标 = 当日配餐实际热量（训练日 1622 / 休息日 1484），缺口由 TDEE−目标自然体现
+      // 今日目标 = 当日配餐实际热量（getTodayTargetCalories），缺口由 TDEE−目标自然体现
       return getTodayPlanMacros().calories;
     }
 
@@ -2272,12 +2278,13 @@ let PRODUCT_LIBRARY = {
       const dayType = getTodayType();
       const restBurn = Math.round(bmr * af);
       if (dayType === 'rest' || dayType === 'abs') return restBurn;
-      // 训练日 = 休息日消耗 + 训练消耗
+      // 训练日 = 休息日消耗 + 力量训练消耗 + 跳绳有氧消耗（周一/三/五早上，与配餐设计口径一致）
       const trainBurn = Math.round(met * 3.5 * w / 200 * mins);
-      return restBurn + trainBurn;
+      const aerobicBurn = Math.round(10 * 3.5 * w / 200 * 30);  // 约340kcal
+      return restBurn + trainBurn + aerobicBurn;
     }
-    // v2.2.6 实时热量缺口：总消耗 = 基准TDEE（训练日×1.45 已含计划训练消耗），
-    // 训练打卡只作记录确认（trainBurn 保留展示），不再叠加，避免「1.45因子+打卡消耗」双重计算导致缺口虚高
+    // v2.4.33 实时热量缺口：总消耗 = 基准TDEE（训练日=休息日BMR×1.2 + 力量训练MET3.2 + 跳绳有氧MET10），
+    // 训练打卡只作记录确认（trainBurn 保留展示），不再叠加，避免「基准+打卡消耗」双重计算导致缺口虚高
     function computeDailyDeficit() {
       const today = getTodayStr();
       const tdee = getTodayTDEE();
@@ -2678,8 +2685,8 @@ let PRODUCT_LIBRARY = {
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 53], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);  // 鸡蛋带壳60g，蛋壳约12%，可食53g（用户实测）
-      // 午餐蔬菜=上海青+大青椒（西兰花移到晚餐）；晚餐=土豆+卤鸡腿+水煮西兰花250g
-      // v2.2.3：蛋带壳60g(可食53g) + 练后乳清30g一勺：训练日≈碳200/蛋124/脂54/热1761（1.88g/kg蛋白）；休息日≈碳144/蛋113/脂53/热1484
+      // 午餐蔬菜=动态蔬菜（当前小水白菜，按替换自动算克数，保持蔬菜总热量≈37kcal）；晚餐=土豆+卤鸡腿+水煮西兰花250g
+      // 早餐+练后乳清30g固定；蛋白=剩余蛋白反推（鸡胸60%+琵琶腿40%），脂肪=剩余全由牛油果油补
       // v2.2.5：训练日主食按目标碳水反推（糙米60% + 土豆40% 分担主食碳），carbOverrideK=2.5 时自动减主食、缺口拉至300-500；
       //         休息日低碳固定（糙米52/土豆200）不受影响；carbOverrideK 未设(=3.0档)时保持原克数
       // v2.2.54：先确定新蔬菜名+克数，再 buildMeal，再算 fixedProtein（顺序修正）
@@ -3047,10 +3054,10 @@ let PRODUCT_LIBRARY = {
       appData.trainingRecords.push(record);
       
       // 记录当日训练消耗
-      appData.trainingBurnToday[today] = (appData.trainingBurnToday[today] || 0) + (training.calories || 400);
+      appData.trainingBurnToday[today] = (appData.trainingBurnToday[today] || 0) + (training.calories || 200);
       
       saveData();
-      return { success: true, message: `已记录今日${training.name}训练完成。\n预计消耗约${training.calories || 400}大卡，今日热量目标已自动上调。\n📈 渐进超负荷：下次同部位训练同动作 +1-2 次/组；能完成全部组数就加重（上肢+2.5kg/只、下肢+5kg）。` };
+      return { success: true, message: `已记录今日${training.name}训练完成。\n预计消耗约${training.calories || 200}大卡，今日热量目标已自动上调。\n📈 渐进超负荷：下次同部位训练同动作 +1-2 次/组；能完成全部组数就加重（上肢+2.5kg/只、下肢+5kg）。` };
     }
 
     // ========== Keep 跟练打卡：记录实际训练时长/消耗并联动 ==========
@@ -3234,7 +3241,7 @@ let PRODUCT_LIBRARY = {
       if (paramMatch) return { type: "set_param", key: "proteinCoefficient", value: parseFloat(paramMatch[2]) };
       const jumpMatch = text.match(/跳绳\s*(\d+)?\s*分钟?/i);
       if (jumpMatch || (/(跳绳|跳完)/.test(text) && (text.includes("完成") || text.includes("跳完") || text.includes("打卡") || text.includes("了")))) {
-        const mins = jumpMatch ? Math.max(5, Math.min(120, parseInt(jumpMatch[1]))) : 20;
+        const mins = jumpMatch ? Math.max(5, Math.min(120, parseInt(jumpMatch[1]))) : 30;
         return { type: "record_cardio", args: { minutes: mins } };
       }
       
@@ -3259,8 +3266,10 @@ let PRODUCT_LIBRARY = {
         case "update_profile_setting": return handleUpdateProfileSetting((cmd && cmd.args) || {});
         case "replace_ingredient_multi": return executeToolCall("replace_ingredient_multi", cmd.args);
         case "record_cardio": {
-          const mins = parseInt((cmd && cmd.args && cmd.args.minutes) || 20);
-          const kcal = Math.round(mins * 10);  // 66kg 中速跳绳约 10kcal/分钟
+          const mins = parseInt((cmd && cmd.args && cmd.args.minutes) || 30);
+          // v2.4.33：跳绳消耗统一用 MET10 公式（与配餐设计口径一致），30分钟≈341大卡
+          const w = appData.profile.weight || 65;
+          const kcal = Math.round(10 * 3.5 * w / 200 * mins);
           return recordWorkout("空腹跳绳", "cardio", mins, kcal);
         }
         case "set_stock_target": {
@@ -3692,10 +3701,10 @@ let PRODUCT_LIBRARY = {
       msg += "· 每周运动时长 " + p.weekHours + " 小时（谭师档位）\n\n";
       msg += "【碳水倍率】\n";
       msg += "· 训练日（推/拉/腿）：碳水 " + t.carbsK + "g/kg → " + t.carbs + "g\n";
-      msg += "· 休息日：碳水 2.2g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
+      msg += "· 休息日：碳水 " + rest.carbsK + "g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
       msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 " + t.fatK + "g/kg → " + t.fat + "g（全天固定）\n\n";
       msg += "【热量缺口】\n";
-      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×" + (getTodayType() === 'rest' ? '1.25' : '1.45') + "，训练日含训练）\n";
+      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.2" + (getTodayType() === 'rest' || getTodayType() === 'abs' ? "" : " + 力量训练消耗 + 跳绳有氧≈340") + "，训练日含训练）\n";
       msg += "· 今日（" + todayType + "）目标 " + target + " 大卡 → 当日缺口约 " + Math.max(0, tdee - target) + " 大卡\n";
       msg += "· 本周平均目标 " + weekAvg + " 大卡 → 平均缺口约 " + Math.max(0, tdee - weekAvg) + " 大卡（当前阶段安全缺口 300-500，保肌优先）\n";
       if (weekPlan && weekPlan.weekStart) msg += "\n本周配餐起始日 " + weekPlan.weekStart + "（起始体重 " + weekPlan.weekStartWeight + "kg）";
@@ -3800,7 +3809,9 @@ let PRODUCT_LIBRARY = {
       if (appData.weeklyPlan && appData.weeklyPlan.days) generateWeeklyPlanV2();
       saveData();
       const t = getTanshiMacrosV2();
-      return { success: true, message: "已调整：" + updates.join("，") + "\n\n已按新参数重新生成周配餐：\n· 训练日目标：碳水" + t.carbs + "g / 蛋白" + t.protein + "g / 脂肪" + t.fat + "g / " + t.calories + "kcal\n· 休息日碳水 2.2g/kg，腹肌日 2.5g/kg\n去「饮食 → 本周配餐」查看最新计划，看板今日目标已同步" };
+      const rest = computeDayMacros('rest');
+      const absMacros = computeDayMacros('abs');
+      return { success: true, message: "已调整：" + updates.join("，") + "\n\n已按新参数重新生成周配餐：\n· 训练日目标：碳水" + t.carbs + "g / 蛋白" + t.protein + "g / 脂肪" + t.fat + "g / " + t.calories + "kcal\n· 休息日碳水 " + rest.carbsK + "g/kg（约" + rest.carbs + "g），腹肌日" + absMacros.carbsK + "g/kg（约" + absMacros.carbs + "g）\n去「饮食 → 本周配餐」查看最新计划，看板今日目标已同步" };
     }
 
     async function callAI(prompt, imageBase64 = null, searchResults = null) {
@@ -3826,16 +3837,16 @@ let PRODUCT_LIBRARY = {
 
 【配餐模式 v2：周节点循环】
 1. 以周为节点：周初生成一周配餐计划（周一生成，存于 weeklyPlan），每天按计划吃，周末做周复盘（reviewWeekly：对比周初体重与当前体重，决定下周碳水调整）
-2. 一周结构：周一推/周二拉/周三腿/周四休/周五推/周六拉/周日腿（三分化；周三/周日另加10分钟腹肌碎片）
-3. 训练日碳水=当前倍率（profile.carbOverrideK，默认2.5g/kg，把缺口拉到300-500安全区），休息日碳水=2.2g/kg（低碳），腹肌日=2.5g/kg；蛋白脂肪全天固定。用户说「碳水改成X倍/碳水倍率调到X」→ 调 profile.carbOverrideK 并重新配餐
+2. 一周结构（实际排期，勿写错）：周一推/周二休/周三拉/周四休/周五腿/周六腹肌/周日休；腹肌碎片10分钟在推日（周一）和腿日（周五）末尾做，腹部一周两练
+3. 训练日碳水=按训练日热量目标反推（总消耗−500缺口−蛋白−脂肪后÷4），不是简单倍率×体重；休息日碳水同理按休息日热量反推（约100g）；蛋白1.8g/kg、脂肪0.8g/kg全天固定。用户说「碳水改成X倍」→ 调 profile.carbOverrideK 并重新配餐（该值仅展示用）
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
 4. 当前固定三餐体系（v2.1+，用户定制；配餐营养=熟后口径，采购清单和商品库=生重口径）：
    - 早餐（每日现做，微波中高火3分钟）：燕麦60g+生全蛋1个+南瓜子仁10g+巴西莓粉5g（替代蓝莓）+纯牛奶250g
-   - 午餐（周备餐冷冻）：糙米+鸡胸+蔬菜+牛油果油（克数按目标碳水/蛋白/脂肪动态计算，不是固定值）
+   - 午餐（周备餐冷冻）：长粒香米+鸡胸+蔬菜+牛油果油（克数按目标碳水/蛋白/脂肪动态计算，不是固定值）
    - 晚餐（清淡无油）：土豆+琵琶腿+西兰花（克数同上动态计算）
    - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（一勺，约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
-   - 生熟换算：鸡胸生→熟×0.75、琵琶腿生→熟×0.6、糙米干→熟饭×2.5、土豆生→熟×0.9
+   - 生熟换算：鸡胸生→熟×0.75、琵琶腿带骨生→去皮去骨纯熟肉×0.5、长粒香米干→熟饭×2.3、土豆生→熟×0.9
 5. 用户说「重新配餐/根据新身体数据重新配餐/按今早体测重新算/按最新体重调整下周吃什么」→ 必须先调 update_profile_setting 把最新体重/体脂写入 profile（体重体脂来自用户刚说的或最近一次体测记录），再调 generate_week_plan_v2 强制重算覆盖本周计划；说「复盘」→ 调 weekly_review
 5b. 用户说「根据新的身体数据制定新的周配餐计划」「按我刚测的数据重新配」这类话，不要只回复"本周已存在"，必须实际调 update_profile_setting + generate_week_plan_v2 两步执行
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
@@ -3844,7 +3855,7 @@ let PRODUCT_LIBRARY = {
 1. 减脂≠减重：别追求掉秤速度，生活化减脂才能长期坚持；薄肌阶段优先保肌肉、看线条与体脂而非体重
 2. 温和缺口：热量缺口 200-300 大卡更保肌肉（用户当前缺口 ${appData.profile.calorieDeficit} 大卡，若觉乏力/易怒/训练欲望低，建议调低到 200-300）
 3. 按运动量定营养素（g/kg 体重）：每周运动 2-3h → 碳水2.2/蛋白1.4/脂肪0.8；4-5h → 2.5/1.6/0.8；6-7h → 3.0/1.88/0.8；8-9h → 3.5/1.8/0.8（女生碳水略低、脂肪+0.15-0.2）
-4. 训练日碳水用当前倍率（默认2.5）；休息日 2.2g/kg；平台期才考虑碳循环（40天固定版+高碳日）
+4. 训练日碳水按热量反推（当前约3.3g/kg）；休息日约1.5-1.7g/kg（热量受蛋白脂肪约束自然低于目标倍率，属正常）；平台期才考虑碳循环（40天固定版+高碳日）
 5. 碳水是调节工具：馋干净碳水→小幅加碳；没胃口/反胃→减碳；饿到发虚/心慌→马上补碳；碳水下降明显→保持，不明显→减15-20g，上升→减25g
 6. 蛋白按消化反馈调（1.2-2.0g/kg）：放屁多且臭→减量；消化顺畅→可加量
 7. 脂肪固定 0.6-0.8g/kg：优先橄榄油/坚果/牛油果（Omega-3）
@@ -4192,13 +4203,13 @@ let PRODUCT_LIBRARY = {
               <h2 class="text-xl font-bold">今日训练 · ${training.name}${dayIndex === 0 ? '（轻量·后链优先）' : ''}</h2>
               <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
             </div>
-            <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 400} 大卡，Keep 跟练后按实际消耗打卡更准</p>
-            ${[2, 6].includes(dayIndex) ? `
+            <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 200} 大卡，Keep 跟练后按实际消耗打卡更准</p>
+            ${[1, 3, 5].includes(dayIndex) ? `
             <div class="bg-orange-50 rounded-xl p-4 mb-4 text-sm text-orange-800 leading-relaxed">
-              <b>🌅 本周有氧日（每周3-4次）：跳绳 20-30 分钟</b><br>
-              今天力量后或傍晚跳绳 20-30 分钟，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130），
-              以不影响力量状态为准（谭师建议：有氧每周 3-4 次、每次 30-40min）。跳完对我说「跳绳了」自动打卡。<br>
-              <span class="text-orange-600">本周有氧安排：周二 / 周四（40min）/ 周六，共 3 次</span>
+              <b>🌅 今早空腹跳绳 30 分钟 / 3000 个</b><br>
+              训练前已完成或练后补跳，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130），
+              约消耗 340 大卡（已计入今日总消耗）。跳完对我说「跳绳了」自动打卡。<br>
+              <span class="text-orange-600">本周有氧安排：周一 / 周三 / 周五 早上，共 3 次</span>
             </div>` : ''}
             <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-blue-800 leading-relaxed">
               <b>📈 渐进超负荷（谭师核心）</b><br>
@@ -4327,7 +4338,7 @@ let PRODUCT_LIBRARY = {
             ${hasCardio ? `
             <div class="bg-orange-50 rounded-xl p-4 mx-2 mb-4 text-sm text-orange-800 leading-relaxed text-left">
               <b>🌅 早上空腹跳绳 30 分钟 / 3000 个</b><br>
-              中低强度，约消耗 300kcal。跳完对我说「跳绳了」自动打卡。
+              中低强度，约消耗 340kcal。跳完对我说「跳绳了」自动打卡。
             </div>
             ` : `
             <div class="bg-gray-50 rounded-xl p-4 mx-2 mb-4 text-sm text-gray-600 leading-relaxed text-left">
