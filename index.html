@@ -386,7 +386,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.35";
+    const VERSION = "2.4.36";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -5382,7 +5382,7 @@ let PRODUCT_LIBRARY = {
           const cf = String(confirmCls || '').replace(/[^01]/g, '');
           if (cf === '1') typeNum = '1';
         }
-        if (typeNum === '2') {
+        if (typeNum === '3') {
           // ===== 商品截图（食材/饮品/补剂）：识别 → 导入商品库 + 营养/财务参考，不入库存 =====
           addMessage('assistant', "🛒 正在识别商品信息...");
           const result = await callAI("这是电商/买菜APP的商品详情页截图。请识别这个商品，用JSON数组返回（不要输出其他文字）：[{\"name\":\"商品中文名（如：长粒香米/纯牛奶/鸡胸肉）\",\"brand\":\"品牌（如：十月稻田/新希望），无则null\",\"spec\":\"规格（如：5kg/袋）\",\"unit\":\"计价基准单位（如：500g/1L/盒）\",\"weight\":\"整件重量或容量数字（5kg→5000，500g→500），无则null\",\"price\":\"整件价格元（券后价）\",\"perPrice\":\"折合每500g或每500ml价格元，无则null\",\"nutritionPer100\":{\"calories\":\"每100g或100ml热量千卡（包装上有营养成分表就用表上的，没有就填null不要猜）\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"},\"category\":\"食材/饮品/补剂\"}]。注意：这是商品页，不是餐食照片，不是训练记录。营养成分表没有的字段填null，不要编造。", e.target.result);
@@ -5475,7 +5475,7 @@ let PRODUCT_LIBRARY = {
           msg += "\n\n⚠️ 商品已入商品库（知识参考），尚未记入库存。买了请说「买了" + imported[0] + "多少多少」";
           addMessage('assistant', msg);
           saveData();
-        } else if (typeNum === '3') {
+        } else if (typeNum === '2') {
           // ===== Keep 训练记录截图：跟练打卡联动 =====
           addMessage('assistant', "🏋️ 正在识别训练记录...");
           const result = await callAI("请识别这张Keep/运动App训练记录截图，用一个JSON对象返回（不要输出其他文字）：{\"name\":\"课程或训练名称\",\"type\":\"训练类型push/pull/legs/cardio/full_body，看不出则null\",\"duration\":\"训练时长分钟数\",\"calories\":\"消耗热量大卡数\"}。识别不到的字段设为null", e.target.result);
@@ -5492,7 +5492,7 @@ let PRODUCT_LIBRARY = {
             addMessage('assistant', "未能从这张截图中识别出训练数据。\n\n也可以直接说：\n· 「推日练完了，45分钟，消耗320大卡」\n· 「Keep跟练打卡：腿部训练 50分钟」");
           }
           saveData();
-        } else if (typeNum === '5') {
+        } else if (typeNum === '4') {
           // ===== 餐食照片：识别食物 → 估算热量营养 → 记录当日饮食，与配餐宏量联动 =====
           addMessage('assistant', "正在识别餐食并估算热量...");
           const mealInfo = await callAI("请识别这张餐食照片，用JSON返回（不要输出其他文字）：{\"foods\":[{\"name\":\"食物/食材名称\",\"grams\":\"估算重量克数\",\"calories\":\"估算热量千卡\",\"protein\":\"蛋白质g\",\"carbs\":\"碳水g\",\"fat\":\"脂肪g\"}],\"mealType\":\"breakfast/lunch/dinner/snack\",\"notes\":\"一句话评价（是否符合减脂配餐：碳水/蛋白/蔬菜比例、油盐程度）\"}。按常见份量合理估算，识别不准的字段null，不要编造精确数字", e.target.result);
