@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.26";
+    const VERSION = "2.4.27";
     const DATA_VERSION = 11;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4616,7 +4616,7 @@ let PRODUCT_LIBRARY = {
                   <div class="text-xs text-gray-500 mb-1">低碳餐（休息日）</div>
                   <div class="text-sm">午餐：<span id="stock-lunch-rest">${appData.mealStock?.lunch_rest || 0}</span> 份</div>
                   <div class="text-sm mb-2">晚餐：<span id="stock-dinner-rest">${appData.mealStock?.dinner_rest || 0}</span> 份</div>
-                  <button class="text-xs bg-gray-500 text-white px-2 py-1 rounded" onclick="manualStockIn('rest')">+ 入库</button>
+                  <button class="text-xs bg-blue-500 text-white px-2 py-1 rounded" onclick="manualStockIn('rest')">+ 入库</button>
                 </div>
               </div>
               <div class="text-xs text-gray-500 mt-2">备餐完成后点入库，入库后每天吃会自动扣库存</div>
@@ -4690,9 +4690,11 @@ let PRODUCT_LIBRARY = {
       if (!appData.mealStock) appData.mealStock = {};
       const lunchKey = 'lunch_' + type;
       const dinnerKey = 'dinner_' + type;
-      const lunchCount = prompt('高碳午餐入库几份？（输入数字）', '3');
+      const typeLabel = type === 'train' ? '高碳' : '低碳';
+      const defaultCount = type === 'train' ? '3' : '4';
+      const lunchCount = prompt(typeLabel + '午餐入库几份？（输入数字）', defaultCount);
       if (lunchCount === null) return;
-      const dinnerCount = prompt('高碳晚餐入库几份？（输入数字）', '3');
+      const dinnerCount = prompt(typeLabel + '晚餐入库几份？（输入数字）', defaultCount);
       if (dinnerCount === null) return;
       appData.mealStock[lunchKey] = (appData.mealStock[lunchKey] || 0) + parseInt(lunchCount);
       appData.mealStock[dinnerKey] = (appData.mealStock[dinnerKey] || 0) + parseInt(dinnerCount);
@@ -4706,9 +4708,12 @@ let PRODUCT_LIBRARY = {
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       if (!dayPlan || !dayPlan.meals || !dayPlan.meals[mealKey]) { alert('本周配餐中该餐不存在，请先生成周餐'); return; }
-      const meal = dayPlan.meals[mealKey];
+      // v2.4.27：防重复打卡检查
       if (!appData.mealRecords) appData.mealRecords = {};
       if (!appData.mealRecords[today]) appData.mealRecords[today] = [];
+      const alreadyEaten = appData.mealRecords[today].some(r => r.planned && r.type === (mealKey === 'breakfast' ? 'breakfast' : mealKey === 'lunch' ? 'lunch' : 'dinner'));
+      if (alreadyEaten) { alert('今天这餐已经打过卡了，不要重复点哦'); return; }
+      const meal = dayPlan.meals[mealKey];
       appData.mealRecords[today].push({
         type: mealKey === 'breakfast' ? 'breakfast' : mealKey === 'lunch' ? 'lunch' : 'dinner',
         planned: true,
@@ -4767,12 +4772,17 @@ let PRODUCT_LIBRARY = {
         const isTrainDay = ['push', 'pull', 'legs'].includes(dayType);
         const stockKey = isCookedMeal ? (key + '_' + (isTrainDay ? 'train' : 'rest')) : null;
         const stockLeft = stockKey ? (appData.mealStock && appData.mealStock[stockKey] !== undefined ? appData.mealStock[stockKey] : 0) : null;
+        // v2.4.27：检查这餐今天是否已吃过
+        const mealType = key === 'breakfast' ? 'breakfast' : key === 'lunch' ? 'lunch' : 'dinner';
+        const alreadyEaten = appData.mealRecords && appData.mealRecords[today] && appData.mealRecords[today].some(r => r.planned && r.type === mealType);
         if (meal) {
           return `
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 ${alreadyEaten ? 'opacity-60' : ''}">
               <div class="flex items-center justify-between mb-2">
                 <h3 class="font-medium">${label}${stockLeft !== null ? ' <span class="text-xs font-normal text-gray-500">(剩 ' + stockLeft + ' 份)</span>' : ''}</h3>
-                <button class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg" onclick="recordPlannedMeal('${key}')">这餐吃了</button>
+                ${alreadyEaten 
+                  ? '<span class="text-xs bg-gray-300 text-gray-600 px-3 py-1.5 rounded-lg">✓ 已吃</span>'
+                  : '<button class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg" onclick="recordPlannedMeal(\'' + key + '\')">这餐吃了</button>'}
               </div>
               <div class="text-sm text-gray-600 space-y-0.5">${meal.items.map(it => { const showG = isCookedMeal ? (cookedWeightGrams(it.name, it.grams) || it.grams) : it.grams; return '<div>· ' + it.name + ' ' + showG + 'g（' + it.kcal + 'kcal）</div>'; }).join('')}</div>
               <div class="text-xs text-gray-400 mt-2">合计 ${meal.sum.calories}kcal · 蛋白${meal.sum.protein}g · 碳水${meal.sum.carbs}g · 脂肪${meal.sum.fat}g${meal.cost ? ' · 约' + meal.cost + '元' : ''}</div>
