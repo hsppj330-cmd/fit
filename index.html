@@ -385,7 +385,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.32";
+    const VERSION = "2.4.33";
     const DATA_VERSION = 12;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1968,9 +1968,9 @@ let PRODUCT_LIBRARY = {
       }
       if (data.dataVersion < 12) {
         // v2.4.32：训练消耗MET从6降到3.2（Keep实测拉日约188-200大卡，原400偏高一倍）
+        // 注意：不自动清空weeklyPlan，用户已配好的餐继续用，下周点重新配餐才用新参数
         if (data.profile.trainingMET && data.profile.trainingMET >= 5) {
           data.profile.trainingMET = 3.2;
-          data.weeklyPlan = null;   // 触发重新生成周配餐
         }
         data.dataVersion = 12;
       }
