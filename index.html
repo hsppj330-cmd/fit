@@ -386,7 +386,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.37";
+    const VERSION = "2.4.38";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -691,15 +691,15 @@
         sets: 3,
         reps: "12",
         rest: "75秒",
-        beginnerWeight: "6kg/只",
-        advancedWeight: "16kg/只",
+        beginnerWeight: "自重（双手叉腰）",
+        advancedWeight: "可进阶「哑铃保加利亚分腿蹲」",
         steps: [
-          { name: "起始姿势", desc: "背对哑铃凳，后脚脚背搭在凳上，前脚向前一步站稳，双手持哑铃于体侧。", key: "后脚搭凳、前脚踩实" },
+          { name: "起始姿势", desc: "背对哑铃凳，左脚脚背搭在凳上，右腿向前一步站稳，双手叉腰。", key: "后脚搭凳、前脚踩实" },
           { name: "下蹲", desc: "吸气垂直下蹲，前腿膝盖与脚尖同向，后膝接近地面。", key: "垂直下蹲" },
           { name: "起身", desc: "呼气前脚发力站起，主要刺激臀部。", key: "前脚发力" }
         ],
         mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
-        tips: "练臀利器，重心放在前脚。Keep搜索：左侧保加利亚深蹲。"
+        tips: "Keep同名动作双手叉腰、自重完成（不持哑铃），练臀利器，重心放在前脚。Keep搜索：左侧保加利亚深蹲。"
       },
       {
         id: "bulgarian_right",
@@ -708,15 +708,15 @@
         sets: 3,
         reps: "12",
         rest: "75秒",
-        beginnerWeight: "6kg/只",
-        advancedWeight: "16kg/只",
+        beginnerWeight: "自重（双手叉腰）",
+        advancedWeight: "可进阶「哑铃保加利亚分腿蹲」",
         steps: [
-          { name: "起始姿势", desc: "背对哑铃凳，后脚脚背搭在凳上，前脚向前一步站稳，双手持哑铃于体侧。", key: "后脚搭凳、前脚踩实" },
+          { name: "起始姿势", desc: "背对哑铃凳，右脚脚背搭在凳上，左腿向前一步站稳，双手叉腰。", key: "后脚搭凳、前脚踩实" },
           { name: "下蹲", desc: "吸气垂直下蹲，前腿膝盖与脚尖同向，后膝接近地面。", key: "垂直下蹲" },
           { name: "起身", desc: "呼气前脚发力站起，主要刺激臀部。", key: "前脚发力" }
         ],
         mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
-        tips: "练臀利器，重心放在前脚。Keep搜索：右侧保加利亚深蹲。"
+        tips: "Keep同名动作双手叉腰、自重完成（不持哑铃），练臀利器，重心放在前脚。Keep搜索：右侧保加利亚深蹲。"
       },
       {
         id: "sumo_squat",
@@ -1136,8 +1136,8 @@ const EXERCISE_META = {
   bicep_curl: { kcal: 25, equip: "哑铃", keep: "哑铃弯举" },
   hammer_curl: { kcal: 25, equip: "哑铃", keep: "哑铃锤式弯举" },
   romanian_deadlift: { kcal: 45, equip: "哑铃", keep: "哑铃罗马尼亚硬拉" },
-  bulgarian_left: { kcal: 50, equip: "哑铃+凳", keep: "左侧保加利亚深蹲" },
-  bulgarian_right: { kcal: 50, equip: "哑铃+凳", keep: "右侧保加利亚深蹲" },
+  bulgarian_left: { kcal: 50, equip: "自重+凳", keep: "左侧保加利亚深蹲" },
+  bulgarian_right: { kcal: 50, equip: "自重+凳", keep: "右侧保加利亚深蹲" },
   sumo_squat: { kcal: 40, equip: "哑铃", keep: "哑铃相扑深蹲" },
   glute_bridge: { kcal: 30, equip: "自重", keep: "臀桥" },
   calf_raise: { kcal: 20, equip: "哑铃", keep: "站姿小哑铃提踵" },
@@ -2011,6 +2011,25 @@ let PRODUCT_LIBRARY = {
       if (appData.trainingLibrary && appData.trainingLibrary.push && appData.trainingLibrary.pull && appData.trainingLibrary.legs) {
         try { TRAINING_LIBRARY = appData.trainingLibrary; } catch (e) {}
       }
+      // v2.4.38 修复：用户数据加载后必须再清一次废弃动作（此前只在初始化对默认库清理，
+      // 导致旧版 bulgarian_split_squat「哑铃保加利亚分腿蹲」等残留，与新版左右侧保加利亚深蹲并存造成"重复"假象）
+      (function cleanDeprecatedExercises() {
+        const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old', 'barbell_row', 'dumbbell_squat', 'bulgarian_split_squat', 'lunge_row'];
+        Object.values(TRAINING_LIBRARY).forEach(t => {
+          t.exercises = (t.exercises || []).filter(e => !REMOVE_IDS.includes(e.id));
+        });
+        // 定向同步腿日关键动作：保加利亚深蹲左右侧强制为Keep同名自重版（旧用户数据可能残留"持哑铃6kg"负重版，与Keep不一致）
+        const dLegs = DEFAULT_TRAINING_LIBRARY.legs;
+        const legs = TRAINING_LIBRARY.legs;
+        if (dLegs && legs) {
+          const dMap = {};
+          dLegs.exercises.forEach(de => { dMap[de.id] = de; });
+          legs.exercises = (legs.exercises || []).map(e => {
+            if (dMap[e.id]) return Object.assign({}, JSON.parse(JSON.stringify(dMap[e.id])), { userWeight: e.userWeight });
+            return e;
+          });
+        }
+      })();
       // 器械过滤：本地库/云端库可能被旧版本AI加入绳索下压等需龙门架动作，一律清理并持久化
       sanitizeTrainingEquipment(TRAINING_LIBRARY);
       // v2.2.26：强制覆盖——确保用最新API配置（不管localStorage旧值）
@@ -2146,7 +2165,13 @@ let PRODUCT_LIBRARY = {
       
       const data = await gistGetAll();
       if (data) {
-        if (data["动作库.json"]) TRAINING_LIBRARY = mergeTrainingFromCloud(data["动作库.json"]);
+        if (data["动作库.json"]) {
+          TRAINING_LIBRARY = mergeTrainingFromCloud(data["动作库.json"]);
+          // v2.4.38：云端动作库也可能含旧版废弃动作（如bulgarian_split_squat），一并清理
+          const REMOVE_IDS = ['shoulder_press_old', 'incline_dumbbell_press_old', 'face_pull_old', 'leg_extension_old', 'barbell_row', 'dumbbell_squat', 'bulgarian_split_squat', 'lunge_row'];
+          Object.values(TRAINING_LIBRARY).forEach(t => { t.exercises = (t.exercises || []).filter(e => !REMOVE_IDS.includes(e.id)); });
+          sanitizeTrainingEquipment(TRAINING_LIBRARY);
+        }
         if (data["餐谱库.json"]) MEAL_LIBRARY = mergeMealFromCloud(data["餐谱库.json"]);
         if (data["食材价格库.json"]) INGREDIENT_PRICES = mergePricesFromCloud(data["食材价格库.json"]);
         if (data["商品库.json"]) {
