@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.44";
+    const VERSION = "2.4.45";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2623,17 +2623,17 @@ let PRODUCT_LIBRARY = {
       };
     }
 
-    // v2.4.44：训练日碳水回到 3.1g/kg（两种餐方案），缺口偏大改由「适当加餐提醒」处理（看板/配餐卡提示补充量）
+    // v2.4.45：训练日碳水 3.1g/kg 两种餐；rest/abs 同吃低碳餐；返回含 proteinK/fatK（头部目标显示用）
     function computeDayMacros(dayType) {
       if (dayType === 'rest' || dayType === 'abs') {
         const base = getTanshiMacrosV2('rest');
-        return { carbs: base.restCarbs, protein: base.protein, fat: base.fat, calories: base.restCal, carbsK: base.restCarbs / base.weight };
+        return { carbs: base.restCarbs, protein: base.protein, fat: base.fat, calories: base.restCal, carbsK: base.restCarbs / base.weight, proteinK: base.proteinK, fatK: base.fatK };
       }
       const w = appData.profile.weight || 65;
       const protein = Math.round(w * 1.8), fat = Math.round(w * 0.8);
       const carbs = Math.round(w * 3.1);
       const calories = carbs * 4 + protein * 4 + fat * 9;
-      return { carbs, protein, fat, calories, carbsK: carbs / w };
+      return { carbs, protein, fat, calories, carbsK: carbs / w, proteinK: 1.8, fatK: 0.8 };
     }
 
     function sumMacros(items) {
@@ -2746,7 +2746,8 @@ let PRODUCT_LIBRARY = {
       // v2.4.16：晚餐蔬菜动态读取（支持替换西兰花→其他）
       const dinnerVegName = (appData.ingredientSwaps && appData.ingredientSwaps["西兰花"]) || "西兰花";
       const dinnerSide = buildMeal([[dinnerVegName, 250]], lib);
-      const postWorkout = (dayType && dayType !== 'rest')
+      // v2.4.45：练后餐仅推/拉/腿训练日配；腹肌日吃低碳餐、与休息日完全一致（无练后餐，避免午晚被挤瘦与组装表不一致）
+      const postWorkout = (dayType === 'push' || dayType === 'pull' || dayType === 'legs')
         ? buildMeal([["乳清蛋白粉", 30]], lib)  // 一勺30g（用户实测）
         : null;
       // v2.2.37：午餐蔬菜动态克数——换蔬菜后按新蔬菜热量调整克数，保持蔬菜总热量≈37kcal
@@ -4697,11 +4698,11 @@ let PRODUCT_LIBRARY = {
               ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
             </div>
             ${(() => {
-              // v2.4.44：预算缺口偏大提醒——按 Keep 预算算当日缺口，>500 提示适当补热量稳在 400-500
+              // v2.4.45：预算缺口偏大提醒——>520 才提示（400-500 稳定档，略超不打扰）
               const burnInfo = getTanshiMacrosV2(t);
               const budget = t === 'rest' ? burnInfo.restBurn : (t === 'abs' ? burnInfo.restBurn + 134 : burnInfo.restBurn + (KEEP_BURN[t] || 169) + JUMP_ROPE_KCAL);
               const deficitKcal = budget - m.calories;
-              if (deficitKcal <= 500) return '';
+              if (deficitKcal <= 520) return '';
               const extra = deficitKcal - 500;
               const carbG = Math.round(extra / 4);
               const tip = t === 'abs' ? '如半个苹果或一小把南瓜子仁（约5g）' : '如熟米饭约130g（≈150kcal/33g碳水）或1根香蕉（≈105kcal/27g碳水）';
