@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.39";
+    const VERSION = "2.4.40";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2590,18 +2590,21 @@ let PRODUCT_LIBRARY = {
       // 休息日消耗 = BMR × 活动系数
       const restBurn = Math.round(bmr * af);
       // 力量训练消耗 = Keep 预览（按日类型；预览值通常高于实际完成，预算偏高=摄入更高=实际缺口更温和，符合保肌）
-      const dayKey = ['push', 'pull', 'legs', 'abs'].includes(dayType) ? dayType : 'push';
+      // v2.4.39b 修复：'rest' 必须走休息日分支，不能落入训练日（此前 rest 被映射成 push，休息日被算成训练日）
+      const isRest = dayType === 'rest';
+      const dayKey = isRest ? 'rest' : (['push', 'pull', 'legs', 'abs'].includes(dayType) ? dayType : 'push');
       const trainBurn = KEEP_BURN[dayKey] || 169;
       // 跳绳有氧消耗（周一/三/五早上，预算按实际水平取300）
       const aerobicBurn = JUMP_ROPE_KCAL;
-      // 腹肌日只有腹肌训练（无跳绳）；训练日 = 休息日 + 力量 + 跳绳
-      const totalTrainBurn = dayKey === 'abs' ? restBurn + trainBurn : restBurn + trainBurn + aerobicBurn;
       // 缺口：训练日500 / 休息日400 / 腹肌日266（休息日碳水不低于100g，更科学）
       const trainDeficit = appData.profile.trainDeficit || 500;
       const restDeficit = appData.profile.restDeficit || 400;
       const absDeficit = appData.profile.absDeficit || 266;
-      const deficit = dayKey === 'rest' ? restDeficit : (dayKey === 'abs' ? absDeficit : trainDeficit);
-      const cal = totalTrainBurn - deficit;
+      let totalTrainBurn, deficit, cal;
+      if (isRest) { totalTrainBurn = restBurn; deficit = restDeficit; }
+      else if (dayKey === 'abs') { totalTrainBurn = restBurn + trainBurn; deficit = absDeficit; }
+      else { totalTrainBurn = restBurn + trainBurn + aerobicBurn; deficit = trainDeficit; }
+      cal = totalTrainBurn - deficit;
       const restCal = restBurn - restDeficit;
       // 蛋白 1.8g/kg，脂肪 0.8g/kg（固定）
       const proteinK = appData.profile.proteinCoefficient || 1.8, fatK = 0.8;
