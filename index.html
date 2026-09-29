@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.41";
+    const VERSION = "2.4.42";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2623,11 +2623,17 @@ let PRODUCT_LIBRARY = {
       };
     }
 
-    // v2.3.0：训练日/休息日分开算热量——按日类型各自用 Keep 预览消耗与设计缺口
-    // v2.4.39：腹肌日独立口径（1736+134-266=1604），不再用 restCal×1.1 近似
+    // v2.4.42：配餐简化为两种餐——训练日（推/拉/腿）统一高碳餐（碳水 3.1g/kg 档位，热量=宏量反推）；休息日/腹肌日统一低碳餐（热量反推，腹肌日吃低碳餐）
     function computeDayMacros(dayType) {
-      const base = getTanshiMacrosV2(dayType);
-      return { carbs: base.carbs, protein: base.protein, fat: base.fat, calories: base.calories, carbsK: base.carbsK };
+      if (dayType === 'rest' || dayType === 'abs') {
+        const base = getTanshiMacrosV2('rest');
+        return { carbs: base.restCarbs, protein: base.protein, fat: base.fat, calories: base.restCal, carbsK: base.restCarbs / base.weight };
+      }
+      const w = appData.profile.weight || 65;
+      const protein = Math.round(w * 1.8), fat = Math.round(w * 0.8);
+      const carbs = Math.round(w * 3.1);
+      const calories = carbs * 4 + protein * 4 + fat * 9;
+      return { carbs, protein, fat, calories, carbsK: carbs / w };
     }
 
     function sumMacros(items) {
@@ -2822,7 +2828,7 @@ let PRODUCT_LIBRARY = {
         weekStart: getMonday(),
         generatedAt: getTodayStr(),
         weekStartWeight: appData.profile.weight,
-        targets: getTanshiMacrosV2(),
+        targets: computeDayMacros('push'),
         days: {}
       };
       Object.keys(dayTypes).forEach(day => {
@@ -4729,22 +4735,31 @@ let PRODUCT_LIBRARY = {
               <div class="text-xs text-gray-500 mt-1">卤汁盐≈${Math.round(weekDrumstickRaw / 100 * 0.5)}g/周（生抽+老抽隐形盐，全量计入）</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-emerald-500">
-              <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（7天 · 每份熟重克数）</div>
+              <div class="font-medium text-emerald-700 mb-1">🍱 Step 5 · 组装（两种餐 · 每份熟重克数）</div>
               <div class="space-y-2 mt-1">
-                ${['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map(d => {
-                  const dd = plan.days[d];
-                  if (!dd || !dd.meals) return '';
-                  const lbl = { push: '推日 · 高碳餐', pull: '拉日 · 高碳餐', legs: '腿日 · 高碳餐', abs: '腹肌日餐', rest: '休息日 · 低碳餐' }[dd.dayType] || dd.dayType;
-                  const isRest = dd.dayType === 'rest';
+                ${(() => {
+                  const groups = [];
+                  ['周一', '周二', '周三', '周四', '周五', '周六', '周日'].forEach(d => {
+                    const dd = plan.days[d];
+                    if (!dd || !dd.meals) return;
+                    const gkey = (dd.dayType === 'rest' || dd.dayType === 'abs') ? 'rest' : 'train';
+                    let g = groups.find(x => x.key === gkey);
+                    if (!g) { g = { key: gkey, days: [], sample: dd }; groups.push(g); }
+                    g.days.push(d);
+                  });
                   const fmt = (items) => items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ');
-                  return `<div class="${isRest ? 'bg-gray-50' : 'bg-blue-50'} rounded-lg p-2">
-                    <div class="text-xs font-medium ${isRest ? 'text-gray-700' : 'text-blue-700'} mb-1">${d} · ${lbl}</div>
-                    <div class="text-xs mb-1">午餐：${fmt(dd.meals.lunch.items)}</div>
-                    <div class="text-xs">晚餐：${fmt(dd.meals.dinner.items)}</div>
-                  </div>`;
-                }).join('')}
+                  return groups.map(g => {
+                    const isRest = g.key === 'rest';
+                    const lbl = isRest ? '低碳餐 · 休息日/腹肌日' : '高碳餐 · 训练日';
+                    return `<div class="${isRest ? 'bg-gray-50' : 'bg-blue-50'} rounded-lg p-2">
+                      <div class="text-xs font-medium ${isRest ? 'text-gray-700' : 'text-blue-700'} mb-1">【${lbl} · ${g.days.length}份 · ${g.days.join('/')}】</div>
+                      <div class="text-xs mb-1">午餐：${fmt(g.sample.meals.lunch.items)}</div>
+                      <div class="text-xs">晚餐：${fmt(g.sample.meals.dinner.items)}</div>
+                    </div>`;
+                  }).join('');
+                })()}
               </div>
-              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；按星期几取对应行组装（周一三五=高碳，周二四日=低碳，周六=腹肌餐）</div>
+              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；高碳餐 = 周一/三/五训练日吃，低碳餐 = 周二/四/六/日吃（周六腹肌日吃低碳餐）</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
