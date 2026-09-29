@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.43";
+    const VERSION = "2.4.44";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2623,7 +2623,7 @@ let PRODUCT_LIBRARY = {
       };
     }
 
-    // v2.4.43：训练日碳水 3.1→3.6g/kg（缺口 400-500 档：腿日按Keep预览335缺口≈500，推/拉更温和，周均≈420）
+    // v2.4.44：训练日碳水回到 3.1g/kg（两种餐方案），缺口偏大改由「适当加餐提醒」处理（看板/配餐卡提示补充量）
     function computeDayMacros(dayType) {
       if (dayType === 'rest' || dayType === 'abs') {
         const base = getTanshiMacrosV2('rest');
@@ -2631,7 +2631,7 @@ let PRODUCT_LIBRARY = {
       }
       const w = appData.profile.weight || 65;
       const protein = Math.round(w * 1.8), fat = Math.round(w * 0.8);
-      const carbs = Math.round(w * 3.6);
+      const carbs = Math.round(w * 3.1);
       const calories = carbs * 4 + protein * 4 + fat * 9;
       return { carbs, protein, fat, calories, carbsK: carbs / w };
     }
@@ -4696,6 +4696,17 @@ let PRODUCT_LIBRARY = {
               <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di, 'cooked')} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
               ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
             </div>
+            ${(() => {
+              // v2.4.44：预算缺口偏大提醒——按 Keep 预算算当日缺口，>500 提示适当补热量稳在 400-500
+              const burnInfo = getTanshiMacrosV2(t);
+              const budget = t === 'rest' ? burnInfo.restBurn : (t === 'abs' ? burnInfo.restBurn + 134 : burnInfo.restBurn + (KEEP_BURN[t] || 169) + JUMP_ROPE_KCAL);
+              const deficitKcal = budget - m.calories;
+              if (deficitKcal <= 500) return '';
+              const extra = deficitKcal - 500;
+              const carbG = Math.round(extra / 4);
+              const tip = t === 'abs' ? '如半个苹果或一小把南瓜子仁（约5g）' : '如熟米饭约130g（≈150kcal/33g碳水）或1根香蕉（≈105kcal/27g碳水）';
+              return `<div class="mt-2 text-xs bg-amber-50 rounded-lg p-2 text-amber-700">💡 今日预算缺口约 <b>${deficitKcal} 大卡</b>（略偏大），可适当补充约 <b>${extra} 大卡</b>（≈${carbG}g 碳水：${tip}）把缺口稳在 500 左右</div>`;
+            })()}
           </div>`;
       });
       html += `</div>
