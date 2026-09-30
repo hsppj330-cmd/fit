@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.47";
+    const VERSION = "2.4.48";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4258,6 +4258,14 @@ let PRODUCT_LIBRARY = {
     function renderWeightChart() {
       const ctx = document.getElementById('weightChart');
       if (!ctx) return;
+      // v2.4.48：Chart.js 外部CDN可能加载失败（jsdelivr在国内网络不稳定），失败时只降级图表，绝不拖垮整个页面（否则首页崩溃会连带配餐页/日历全部不渲染）
+      if (typeof Chart === 'undefined') {
+        try {
+          const wrap = ctx.parentElement;
+          if (wrap) wrap.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">体重趋势图暂不可用（图表库加载失败），不影响其他功能</div>';
+        } catch (e) {}
+        return;
+      }
       const labels = [];
       const data = [];
       appData.bodyRecords.slice(-10).forEach(r => { labels.push(r.date.slice(5)); data.push(r.weight); });
@@ -4570,6 +4578,12 @@ let PRODUCT_LIBRARY = {
 
     function renderDietView() {
       if (document.getElementById('calendar-grid')) renderCalendar();
+      // v2.4.48：四个面板各自隔离渲染——任何单个面板出错都不影响其他面板（尤其保证「本周配餐」含日历必渲染）
+      let dailyHtml = '', weekHtml = '', purchaseHtml = '', productsHtml = '';
+      try { dailyHtml = renderDailyDiet(); } catch (e) { console.error('每日饮食面板渲染失败(已隔离)', e); dailyHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">每日饮食加载失败，可刷新重试</div>'; }
+      try { weekHtml = renderWeeklyDiet(); } catch (e) { console.error('本周配餐面板渲染失败(已隔离)', e); weekHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">本周配餐加载失败，可刷新重试</div>'; }
+      try { purchaseHtml = renderPurchaseList(); } catch (e) { console.error('采购面板渲染失败(已隔离)', e); purchaseHtml = ''; }
+      try { productsHtml = renderProductLibrary(); } catch (e) { console.error('商品库面板渲染失败(已隔离)', e); productsHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">商品库加载失败，可刷新重试</div>'; }
       const html = `
         <div class="mb-4">
           <div class="flex bg-gray-100 rounded-lg p-1">
@@ -4581,10 +4595,10 @@ let PRODUCT_LIBRARY = {
             <button class="diet-tab flex-1 py-2 text-sm font-medium rounded-md text-gray-500" data-tab="products" onclick="switchDietTab('products')">商品库</button>
           </div>
         </div>
-        <div id="diet-daily" class="diet-panel">${renderDailyDiet()}</div>
-        <div id="diet-week" class="diet-panel hidden">${renderWeeklyDiet()}</div>
-        <div id="diet-purchase" class="diet-panel hidden">${renderPurchaseList()}</div>
-        <div id="diet-products" class="diet-panel hidden">${renderProductLibrary()}</div>
+        <div id="diet-daily" class="diet-panel">${dailyHtml}</div>
+        <div id="diet-week" class="diet-panel hidden">${weekHtml}</div>
+        <div id="diet-purchase" class="diet-panel hidden">${purchaseHtml}</div>
+        <div id="diet-products" class="diet-panel hidden">${productsHtml}</div>
       `;
       document.getElementById('view-diet').innerHTML = html;
       // v2.3.8: html 插入后再渲染日历
@@ -5780,10 +5794,11 @@ let PRODUCT_LIBRARY = {
       if (!appData.weeklyPlan || !appData.weeklyPlan.days) {
         try { generateWeeklyPlanV2(); } catch (e) { console.error("自动生成周计划失败", e); }
       }
-      renderDashboard();
-      renderTrainingView();
-      renderDietView();
-      renderSettingsView();
+      // v2.4.48：视图级防御——任何单个视图渲染失败（如外部图表库CDN加载失败）都不影响其他视图
+      // 此前 Chart.js CDN 失败会从首页抛错直接中断 init，导致配餐页/日历完全不渲染
+      [renderDashboard, renderTrainingView, renderDietView, renderSettingsView].forEach(function (fn) {
+        try { fn(); } catch (e) { console.error('视图渲染失败(已隔离，不影响其他功能)', e); }
+      });
       
       document.getElementById('chat-input').addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
