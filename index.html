@@ -193,6 +193,9 @@
             <p class="text-xs text-gray-400 mt-2" id="dash-week-note">周初生成计划 → 每日按餐吃 → 周末复盘调整下周</p>
           </div>
           
+          <!-- v2.4.50：首页看板训练日历（与配餐页日历独立渲染，同样支持顺延/恢复） -->
+          <div id="dash-calendar-wrap"></div>
+          
           <div class="bg-white rounded-2xl p-4 shadow-sm">
             <h3 class="font-medium mb-3">本周统计</h3>
             <div class="grid grid-cols-2 gap-3 text-center">
@@ -387,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.49";
+    const VERSION = "2.4.50";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4194,6 +4197,14 @@ let PRODUCT_LIBRARY = {
       updateTodayMonitor();
       
       renderWeightChart();
+      // v2.4.50：首页看板训练日历卡片（复用独立日历渲染，数据/图表异常不影响；配餐页日历照常）
+      try {
+        const calWrap = document.getElementById('dash-calendar-wrap');
+        if (calWrap) {
+          calWrap.innerHTML = calendarShellHtml('dash-calendar-grid', 'dash-cal-month-label', false);
+          renderCalendar('dash-calendar-grid', 'dash-cal-month-label');
+        }
+      } catch (e) { console.error('首页日历卡片渲染失败(已隔离)', e); }
     }
 
     function updateTodayMonitor() {
@@ -4509,6 +4520,8 @@ let PRODUCT_LIBRARY = {
       appData.profile.weight = savedW;
       saveData();
       renderCalendar();
+      // v2.4.50：首页看板日历同步刷新（独立实例）
+      try { if (document.getElementById('dash-calendar-grid')) renderCalendar('dash-calendar-grid', 'dash-cal-month-label'); } catch (e) { console.error('首页日历刷新失败(已隔离)', e); }
       renderDietView();
       const dates = getWeekTrainingDates();
       if (delta > 0) {
@@ -4518,11 +4531,16 @@ let PRODUCT_LIBRARY = {
       }
     }
     
-    function renderCalendar() {
+    function renderCalendar(gridId, monthLabelId) {
+      gridId = gridId || 'calendar-grid';
+      monthLabelId = monthLabelId || 'cal-month-label';
+      const gridEl = document.getElementById(gridId);
+      if (!gridEl) return;
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth();
-      document.getElementById('cal-month-label').textContent = year + '年' + (month + 1) + '月';
+      const ml = document.getElementById(monthLabelId);
+      if (ml) ml.textContent = year + '年' + (month + 1) + '月';
       const firstDay = new Date(year, month, 1);
       const startDow = firstDay.getDay() || 7;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -4557,7 +4575,7 @@ let PRODUCT_LIBRARY = {
         const editHint = calendarEditMode && isFuture ? 'ring-1 ring-dashed ring-yellow-400' : '';
         html += '<div class="aspect-square flex flex-col items-center justify-center rounded-lg text-xs ' + bg + ' ' + (isToday ? 'ring-2 ring-green-500 ring-offset-1' : '') + ' ' + editHint + ' ' + (clickable ? 'cursor-pointer hover:opacity-80' : 'cursor-default') + '" onclick="' + (clickable ? 'toggleDayType(\'' + dateStr + '\')' : '') + '"><div class="font-medium">' + d + '</div><div class="text-[10px] opacity-90">' + label + '</div>' + cardioBadge + '</div>';
       }
-      document.getElementById('calendar-grid').innerHTML = html;
+      gridEl.innerHTML = html;
     }
     function toggleDayType(dateStr) {
       if (!calendarEditMode) { alert('请先点击右上角「编辑」按钮，再调整日期'); return; }
@@ -4573,27 +4591,32 @@ let PRODUCT_LIBRARY = {
       appData.trainingDayOverrides[dateStr] = newType;
       saveData();
       renderCalendar();
+      try { if (document.getElementById('dash-calendar-grid')) renderCalendar('dash-calendar-grid', 'dash-cal-month-label'); } catch (e) { console.error('首页日历刷新失败(已隔离)', e); }
       alert((newType === 'rest' ? '已临时改为休息' : '已临时改为训练') + ': ' + dateStr);
     }
 
     // v2.4.49：训练日历容器独立渲染——即使配餐内容渲染失败（数据异常等），日历也保证显示
-    function calendarShellHtml() {
+    // v2.4.50：参数化支持多实例（首页看板 + 配餐页），gridId/monthLabelId 唯一避免 id 冲突；showEdit=false 时隐藏编辑按钮（首页只放顺延/恢复）
+    function calendarShellHtml(gridId, monthLabelId, showEdit) {
+      gridId = gridId || 'calendar-grid';
+      monthLabelId = monthLabelId || 'cal-month-label';
+      showEdit = (showEdit === undefined) ? true : showEdit;
       return `
         <div class="mb-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-bold text-base">📅 训练日历</h3>
             <div class="flex items-center gap-2">
-              <div class="text-xs text-gray-500" id="cal-month-label"></div>
+              <div class="text-xs text-gray-500" id="${monthLabelId}"></div>
               <!-- v2.4.47：训练顺延（今天没练→整体后移一天，训练-休息不连续） -->
               <button onclick="shiftTrainingPlan(1)" class="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium">⏩ 顺延1天</button>
               <button onclick="shiftTrainingPlan(0)" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 font-medium" title="恢复默认周模板">↩ 恢复</button>
-              <button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>
+              ${showEdit ? '<button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>' : ''}
             </div>
           </div>
           <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
             <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
           </div>
-          <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+          <div id="${gridId}" class="grid grid-cols-7 gap-1"></div>
           <div class="flex gap-3 mt-3 text-xs flex-wrap">
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span>推/拉/腿</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span>腹肌</span>
@@ -4601,7 +4624,7 @@ let PRODUCT_LIBRARY = {
             <span class="flex items-center gap-1">🔥3000</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
           </div>
-          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）；「✏️编辑」可单日临时切换训练/休息</p>
+          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）${showEdit ? '；「✏️编辑」可单日临时切换训练/休息' : ''}</p>
         </div>`;
     }
 
