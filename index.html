@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.46";
+    const VERSION = "2.4.47";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2273,9 +2273,7 @@ let PRODUCT_LIBRARY = {
         }, { carbs: 0, protein: 0, fat: 0, calories: 0 });
         return { carbs: Math.round(sum.carbs), protein: Math.round(sum.protein), fat: Math.round(sum.fat), calories: Math.round(sum.calories) };
       }
-      const dn = ['周日','周一','周二','周三','周四','周五','周六'];
-      const dt = {'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'};
-      return computeDayMacros(dt[dn[new Date().getDay()]] || 'rest');
+      return computeDayMacros(getPlannedTypeForDOW(new Date().getDay() || 7));
     }
     function getTodayTargetCalories() {
       // 今日目标 = 当日配餐实际热量（getTodayTargetCalories），缺口由 TDEE−目标自然体现
@@ -2290,15 +2288,48 @@ let PRODUCT_LIBRARY = {
     }
 
     // v2.2.4 今日类型（按周循环）与基准消耗 TDEE：训练日 BMR×1.45（含计划训练）、休息日 ×1.25
+    // v2.4.47：统一走 getPlannedTypeForDate（override→偏移模板），顺延/单日切换全局联动
     function getTodayType() {
-      const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
-      const plan = appData.weeklyPlan;
-      if (plan && plan.days && plan.days[dayName]) return plan.days[dayName].dayType;
-      const dn=['周日','周一','周二','周三','周四','周五','周六']; const dt={'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'}; return dt[dn[new Date().getDay()]] || 'rest';
+      return getPlannedTypeForDate(new Date());
     }
     // v2.4.39：消耗口径统一改为 Keep 预览实测——力量消耗按日（推169/拉189/腿335/腹肌134），跳绳预算按实际水平取300
     const KEEP_BURN = { push: 169, pull: 189, legs: 335, abs: 134 };
     const JUMP_ROPE_KCAL = 300;  // 跳绳预算（实际 250-315，取 300，不再用 MET10 的 342）
+    // v2.4.47：训练日历统一口径——TRAIN_TEMPLATE_DOW（dow 1..7）+ 全局偏移 trainingShift（顺延训练用）
+    // 顺延1天：今天=昨天的类型（如周三拉→周三休、周四拉），整体后移，训练-休息不连续
+    const TRAIN_TEMPLATE_DOW = { 1: 'push', 2: 'rest', 3: 'pull', 4: 'rest', 5: 'legs', 6: 'abs', 7: 'rest' };
+    function getPlannedTypeForDOW(dow) {
+      const shift = (appData.trainingShift || 0) % 7;
+      const idx = ((dow - 1 - shift) % 7 + 7) % 7;
+      return TRAIN_TEMPLATE_DOW[idx + 1];
+    }
+    function getPlannedTypeForDate(d) {
+      const dateStr = toLocalStr(d);
+      if (appData.trainingDayOverrides && appData.trainingDayOverrides[dateStr]) return appData.trainingDayOverrides[dateStr];
+      return getPlannedTypeForDOW(d.getDay() || 7);
+    }
+    // 本周内训练日（push/pull/legs，跳绳有氧日）日期列表
+    function getWeekTrainingDates() {
+      const ws = new Date(getMonday() + 'T00:00:00');
+      const out = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(ws); d.setDate(d.getDate() + i);
+        const t = getPlannedTypeForDate(d);
+        if (t === 'push' || t === 'pull' || t === 'legs') out.push(toLocalStr(d).slice(5));
+      }
+      return out;
+    }
+    // 周模板动态描述（含偏移，供 AI 提示/界面文案使用）
+    function getWeekTemplateDesc() {
+      const names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      const labels = { push: '推', pull: '拉', legs: '腿', abs: '腹肌', rest: '休' };
+      return names.map((n, i) => n + (labels[getPlannedTypeForDOW(i + 1)] || '休')).join('/');
+    }
+    // 本周训练日星期名（推/拉/腿，含偏移）
+    function getWeekTrainingDayNames() {
+      const names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      return names.filter((n, i) => ['push', 'pull', 'legs'].includes(getPlannedTypeForDOW(i + 1)));
+    }
     function getTodayTDEE() {
       const bmr = appData.profile.bmr || 1447;
       const af = appData.profile.activityFactor || 1.2;
@@ -2307,7 +2338,7 @@ let PRODUCT_LIBRARY = {
       if (dayType === 'rest') return restBurn;
       const trainBurn = KEEP_BURN[dayType] || 169;
       if (dayType === 'abs') return restBurn + trainBurn;
-      // 训练日 = 休息日消耗 + 力量训练消耗 + 跳绳有氧消耗（周一/三/五早上，与配餐设计口径一致）
+      // 训练日 = 休息日消耗 + 力量训练消耗 + 跳绳有氧消耗（推/拉/腿训练日早上，与配餐设计口径一致）
       return restBurn + trainBurn + JUMP_ROPE_KCAL;
     }
     // v2.4.33 实时热量缺口：总消耗 = 基准TDEE（训练日=休息日BMR×1.2 + Keep预览力量消耗 + 跳绳300预算），
@@ -2594,7 +2625,7 @@ let PRODUCT_LIBRARY = {
       const isRest = dayType === 'rest';
       const dayKey = isRest ? 'rest' : (['push', 'pull', 'legs', 'abs'].includes(dayType) ? dayType : 'push');
       const trainBurn = KEEP_BURN[dayKey] || 169;
-      // 跳绳有氧消耗（周一/三/五早上，预算按实际水平取300）
+      // 跳绳有氧消耗（推/拉/腿训练日早上，预算按实际水平取300）
       const aerobicBurn = JUMP_ROPE_KCAL;
       // 缺口：训练日500 / 休息日400 / 腹肌日266（休息日碳水不低于100g，更科学）
       const trainDeficit = appData.profile.trainDeficit || 500;
@@ -2822,9 +2853,11 @@ let PRODUCT_LIBRARY = {
       return { carbs: v.carbs, protein: v.protein, fat: v.fat, carbsK: v.carbsK, proteinK: v.proteinK, fatK: v.fatK };
     }
 
-    // 周配餐计划：推/拉/腿/休/推/拉/腹
+    // 周配餐计划：推/拉/腿/休/推/拉/腹（v2.4.47 起按 trainingShift 偏移生成，顺延训练全局联动）
     function generateWeeklyPlanV2() {
-      const dayTypes = { "周一": "push", "周二": "rest", "周三": "pull", "周四": "rest", "周五": "legs", "周六": "abs", "周日": "rest" };
+      const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      const dayTypes = {};
+      dayNames.forEach((n, i) => { dayTypes[n] = getPlannedTypeForDOW(i + 1); });
       const plan = {
         weekStart: getMonday(),
         generatedAt: getTodayStr(),
@@ -3381,7 +3414,7 @@ let PRODUCT_LIBRARY = {
     function handleGeneratePurchase() {
       const list = (appData.weeklyPlan && appData.weeklyPlan.days)
         ? generatePurchaseListV3()
-        : generatePurchaseListV2(generateWeekMealPlan(["周一", "周二", "周三", "周五", "周六", "周日"]));
+        : generatePurchaseListV2(generateWeekMealPlan(getWeekTrainingDayNames()));
       let msg = "📋 本周采购清单（按商品包装，含早餐食材）：\n\n";
       let totalPrice = 0;
       const categories = {};
@@ -3403,9 +3436,10 @@ let PRODUCT_LIBRARY = {
     }
     
     function handleGenerateWeekPlan() {
-      const trainingDays = ["周一", "周二", "周四", "周五"];
+      // v2.4.47：训练日/循环随偏移模板动态
+      const trainingDays = getWeekTrainingDayNames();
       const mealPlan = generateWeekMealPlan(trainingDays);
-      const trainingCycle = ["push", "pull", "rest", "legs", "push", "rest", "rest"];
+      const trainingCycle = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"].map((n, i) => getPlannedTypeForDOW(i + 1));
       const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
       let msg = "📅 本周训练+饮食计划：\n\n";
       days.forEach((day, i) => {
@@ -3894,7 +3928,7 @@ let PRODUCT_LIBRARY = {
 
 【配餐模式 v2：周节点循环】
 1. 以周为节点：周初生成一周配餐计划（周一生成，存于 weeklyPlan），每天按计划吃，周末做周复盘（reviewWeekly：对比周初体重与当前体重，决定下周碳水调整）
-2. 一周结构（实际排期，勿写错）：周一推/周二休/周三拉/周四休/周五腿/周六腹肌/周日休；腹肌碎片10分钟在推日（周一）和腿日（周五）末尾做，腹部一周两练
+2. 一周结构（实际排期，勿写错）：${getWeekTemplateDesc()}；腹肌碎片10分钟在推日和腿日末尾做，腹部一周两练（注意：用户顺延训练后，以当前周模板为准）
 3. 训练日碳水=按训练日热量目标反推（总消耗−500缺口−蛋白−脂肪后÷4），不是简单倍率×体重；休息日碳水同理按休息日热量反推（约100g）；蛋白1.8g/kg、脂肪0.8g/kg全天固定。用户说「碳水改成X倍」→ 调 profile.carbOverrideK 并重新配餐（该值仅展示用）
 3b. 当用户说「调整/调低/按建议来/改缺口/热量改」等（尤其上下文涉及缺口偏大、训练欲望低、掉秤快、犯困），必须调用 update_profile_setting 真正执行修改（缺口建议200-300），不得只回复方向让用户再选
 3c. 当用户问「缺口多少/几倍碳水/碳水倍率/热量目标/配餐参数/摄入多少」等数据查询，调用 query_plan_summary 直接给出计算好的数字；不要用 generate_week_plan_v2（那是生成/重算周餐用的）
@@ -3903,7 +3937,7 @@ let PRODUCT_LIBRARY = {
    - 午餐（周备餐冷冻）：长粒香米+鸡胸+蔬菜+牛油果油（克数按目标碳水/蛋白/脂肪动态计算，不是固定值）
    - 晚餐（清淡无油）：土豆+琵琶腿+西兰花（克数同上动态计算）
    - 训练日练后餐：力量训练后30分钟内喝乳清蛋白粉30g（一勺，约119kcal/22g蛋白），已计入当日配餐数值；休息日不补
-   - 生熟换算：鸡胸生→熟×0.75、琵琶腿带骨生→去皮去骨纯熟肉×0.5、长粒香米干→熟饭×2.3、土豆生→熟×0.9
+   - 生熟换算：鸡胸生→熟×0.75、琵琶腿带骨生→去皮去骨纯熟肉×0.5、三色糙米干→熟饭×2.5（当前主食；长粒香米×2.3）、土豆生→熟×0.9
 5. 用户说「重新配餐/根据新身体数据重新配餐/按今早体测重新算/按最新体重调整下周吃什么」→ 必须先调 update_profile_setting 把最新体重/体脂写入 profile（体重体脂来自用户刚说的或最近一次体测记录），再调 generate_week_plan_v2 强制重算覆盖本周计划；说「复盘」→ 调 weekly_review
 5b. 用户说「根据新的身体数据制定新的周配餐计划」「按我刚测的数据重新配」这类话，不要只回复"本周已存在"，必须实际调 update_profile_setting + generate_week_plan_v2 两步执行
 6. 采购联动：配餐→周采购清单（按商品包装规格换算件数）→入库后库存联动→备餐按份数消耗库存
@@ -4255,8 +4289,8 @@ let PRODUCT_LIBRARY = {
     
     function renderTrainingView() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "rest", 3: "pull", 4: "rest", 5: "legs", 6: "abs", 0: "rest" };
-      const todayType = trainingMap[dayIndex];
+      // v2.4.47：今日类型统一走偏移模板（顺延训练联动）
+      const todayType = getPlannedTypeForDOW(dayIndex || 7);
       
       let html = '';
       if (todayType && todayType !== 'rest') {
@@ -4268,12 +4302,12 @@ let PRODUCT_LIBRARY = {
               <span class="text-sm text-gray-500">目标肌群：${training.muscles}</span>
             </div>
             <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 200} 大卡，Keep 跟练后按实际消耗打卡更准</p>
-            ${[1, 3, 5].includes(dayIndex) ? `
+            ${['push', 'pull', 'legs'].includes(todayType) ? `
             <div class="bg-orange-50 rounded-xl p-4 mb-4 text-sm text-orange-800 leading-relaxed">
               <b>🌅 今早空腹跳绳 30 分钟 / 3000 个</b><br>
               训练前已完成或练后补跳，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130），
               约消耗 340 大卡（已计入今日总消耗）。跳完对我说「跳绳了」自动打卡。<br>
-              <span class="text-orange-600">本周有氧安排：周一 / 周三 / 周五 早上，共 3 次</span>
+              <span class="text-orange-600">本周有氧安排：${getWeekTrainingDates().join(' / ')} 早上（推/拉/腿训练日，共 ${getWeekTrainingDates().length} 次）</span>
             </div>` : ''}
             <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-blue-800 leading-relaxed">
               <b>📈 渐进超负荷（谭师核心）</b><br>
@@ -4391,9 +4425,9 @@ let PRODUCT_LIBRARY = {
         `;
         html += `</div></div>`;
       } else {
-        // v2.4.3：有氧安排在周一/三/五（训练日早上），休息日不做有氧
+        // v2.4.47：休息日不做有氧（配餐口径：跳绳只在推/拉/腿训练日，且已含在训练日预算）
         const todayDow = new Date().getDay();
-        const hasCardio = [1, 3, 5].includes(todayDow);  // 周一/三/五
+        const hasCardio = false;
         html = `
           <div class="text-center py-8">
             <div class="text-5xl mb-4">${hasCardio ? '🏃' : '🛋️'}</div>
@@ -4424,8 +4458,8 @@ let PRODUCT_LIBRARY = {
     
     function completeTraining() {
       const dayIndex = new Date().getDay();
-      const trainingMap = { 1: "push", 2: "rest", 3: "pull", 4: "rest", 5: "legs", 6: "abs", 0: "rest" };
-      const type = trainingMap[dayIndex];
+      // v2.4.47：今日类型统一走偏移模板
+      const type = getPlannedTypeForDOW(dayIndex || 7);
       if (!type || type === 'rest') { alert("今天是休息日哦"); return; }
       const result = quickRecordTraining(type);
       alert(result.message);
@@ -4446,6 +4480,35 @@ let PRODUCT_LIBRARY = {
       }
       renderCalendar();  // 重新渲染，更新视觉提示
     }
+
+    // v2.4.47：训练日历顺延/恢复（全局偏移，配餐/热量/日历同步联动，不改历史记录与库存）
+    function shiftTrainingPlan(delta) {
+      if (delta !== 0 && typeof delta !== 'number') return;
+      // 防误触：今天已打卡训练时，顺延需确认（顺延会把今天变为休息）
+      if (delta > 0) {
+        const today = getTodayStr();
+        const trainedToday = (appData.trainingRecords || []).some(r => r.date === today);
+        if (trainedToday && !confirm('今天已记录训练打卡，顺延会把今天改为休息，确定继续吗？')) return;
+      }
+      appData.trainingShift = ((appData.trainingShift || 0) + delta) % 7;
+      if (appData.trainingShift < 0) appData.trainingShift += 7;
+      // 重新生成本周配餐（dayType 随偏移变化，配餐卡/看板/缺口一致）
+      // 关键：按「本周起始体重」口径重算，避免当前体重变化导致已做好的餐盒克数漂移
+      const plan = appData.weeklyPlan;
+      const savedW = appData.profile.weight;
+      if (plan && plan.weekStartWeight) appData.profile.weight = plan.weekStartWeight;
+      generateWeeklyPlanV2();
+      appData.profile.weight = savedW;
+      saveData();
+      renderCalendar();
+      renderDietView();
+      const dates = getWeekTrainingDates();
+      if (delta > 0) {
+        alert('已顺延训练1天（今天自动变为休息，训练整体后移，不会连续练两天）\n本周训练日：' + dates.join(' / ') + '\n今日类型已同步看板，餐盒克数不变');
+      } else {
+        alert('已恢复默认周模板（周一推/周三拉/周五腿/周六腹）\n本周训练日：' + dates.join(' / ') + '');
+      }
+    }
     
     function renderCalendar() {
       const now = new Date();
@@ -4455,17 +4518,9 @@ let PRODUCT_LIBRARY = {
       const firstDay = new Date(year, month, 1);
       const startDow = firstDay.getDay() || 7;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const dowType = (dow) => {
-        if (dow === 1) return 'push';
-        if (dow === 2) return 'rest';
-        if (dow === 3) return 'pull';
-        if (dow === 4) return 'rest';
-        if (dow === 5) return 'legs';
-        if (dow === 6) return 'abs';
-        return 'rest';
-      };
-      // 有氧日：周一/三/五早上空腹跳绳 30min/3000个
-      const cardioDays = [1, 3, 5];
+      const dowType = (dow) => getPlannedTypeForDOW(dow);
+      // 有氧日：推/拉/腿训练日早上空腹跳绳 30min/3000个（v2.4.47 跟随训练日，不再写死周一三五）
+      const cardioDays = null;
       const overrides = appData.trainingDayOverrides || {};
       let html = '';
       for (let i = 1; i < startDow; i++) html += '<div></div>';
@@ -4486,8 +4541,8 @@ let PRODUCT_LIBRARY = {
           bg = 'bg-purple-500 text-white';
           label = '腹';
         }
-        // 有氧日加🔥标记
-        const hasCardio = cardioDays.includes(dow);
+        // 有氧日加🔥标记（跟随推/拉/腿训练日）
+        const hasCardio = (type === 'push' || type === 'pull' || type === 'legs');
         const cardioBadge = hasCardio ? '<div class="text-[8px] opacity-80">🔥3000</div>' : '';
         // 编辑模式下未来日期可点击，加边框提示；非编辑模式锁定，防止误触
         const clickable = isFuture && calendarEditMode;
@@ -4504,8 +4559,8 @@ let PRODUCT_LIBRARY = {
       appData.trainingDayOverrides = appData.trainingDayOverrides || {};
       const d = new Date(dateStr);
       const dow = (d.getDay() || 7);
-      const dowTypeMap = { 1:'push', 2:'rest', 3:'pull', 4:'rest', 5:'legs', 6:'abs', 7:'rest' };
-      const currentType = appData.trainingDayOverrides[dateStr] || dowTypeMap[dow];
+      // v2.4.47：当前类型统一走偏移模板（顺延联动）
+      const currentType = appData.trainingDayOverrides[dateStr] || getPlannedTypeForDOW(dow);
       const newType = (currentType === 'rest') ? 'push' : 'rest';
       appData.trainingDayOverrides[dateStr] = newType;
       saveData();
@@ -4650,6 +4705,9 @@ let PRODUCT_LIBRARY = {
             <h3 class="font-bold text-base">📅 训练日历</h3>
             <div class="flex items-center gap-2">
               <div class="text-xs text-gray-500" id="cal-month-label"></div>
+              <!-- v2.4.47：训练顺延（今天没练→整体后移一天，训练-休息不连续） -->
+              <button onclick="shiftTrainingPlan(1)" class="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium">⏩ 顺延1天</button>
+              <button onclick="shiftTrainingPlan(0)" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 font-medium" title="恢复默认周模板">↩ 恢复</button>
               <button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>
             </div>
           </div>
@@ -4664,7 +4722,7 @@ let PRODUCT_LIBRARY = {
             <span class="flex items-center gap-1">🔥3000</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
           </div>
-          <p class="text-xs text-gray-400 mt-2">周一/三/五早上空腹跳绳 30min/3000个；点击右上角「编辑」后可临时切换训练/休息</p>
+          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）；「✏️编辑」可单日临时切换训练/休息</p>
         </div>
         <div class="mb-4 grid grid-cols-2 gap-2">
           <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button>
@@ -4771,7 +4829,7 @@ let PRODUCT_LIBRARY = {
                   }).join('');
                 })()}
               </div>
-              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；高碳餐 = 周一/三/五训练日吃，低碳餐 = 周二/四/六/日吃（周六腹肌日吃低碳餐）</div>
+              <div class="text-xs text-gray-500 mt-2">每份克数以「本周配餐」实际数据为准（熟重口径）；高碳餐 = ${getWeekTrainingDayNames().join('、')}训练日吃，低碳餐 = 其余天数吃（含腹肌日）</div>
             </div>
             <div class="bg-white rounded-xl p-3">
               <div class="font-medium text-emerald-700 mb-1">💪 练后餐 · 训练日 · 力量训练后30分钟内</div>
@@ -4953,7 +5011,8 @@ let PRODUCT_LIBRARY = {
       const dayName = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date().getDay()];
       const dayPlan = appData.weeklyPlan && appData.weeklyPlan.days ? appData.weeklyPlan.days[dayName] : null;
       const dow = new Date().getDay();
-      const dayType = dayPlan ? dayPlan.dayType : (function() { const dn=['周日','周一','周二','周三','周四','周五','周六']; const dt={'周一':'push','周二':'rest','周三':'pull','周四':'rest','周五':'legs','周六':'abs','周日':'rest'}; return dt[dn[new Date().getDay()]] || 'rest'; })();
+      // v2.4.47：每日饮食类型统一走偏移模板/单日覆盖
+      const dayType = getPlannedTypeForDOW(dow || 7);
       // v2.2.6：目标 = 当天配餐实际宏量（含练后餐），与「吃满配餐」完全一致
       const target = getTodayPlanMacros();
       const daily = calculateDailyIntake(today);
