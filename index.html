@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.50";
+    const VERSION = "2.4.51";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2043,6 +2043,14 @@ let PRODUCT_LIBRARY = {
       appData.settings.apiUrl = DEFAULT_DATA.settings.apiUrl;
       appData.settings.model = DEFAULT_DATA.settings.model;
       appData.settings.gistId = DEFAULT_DATA.settings.gistId;
+      // v2.4.51：清理已过期（历史遗留）的单日临时设置——防止早期误触编辑留下的残留覆盖顺延结果（如9/22残留=rest导致顺延后连续3天休）
+      try {
+        const todayStr = getTodayStr();
+        const over = appData.trainingDayOverrides || {};
+        let changed = false;
+        Object.keys(over).forEach(k => { if (k < todayStr) { delete over[k]; changed = true; } });
+        if (changed) { appData.trainingDayOverrides = over; }
+      } catch (e) { console.error('清理过期单日设置失败(已隔离)', e); }
       saveData();
     }
     
@@ -4503,6 +4511,12 @@ let PRODUCT_LIBRARY = {
     // v2.4.47：训练日历顺延/恢复（全局偏移，配餐/热量/日历同步联动，不改历史记录与库存）
     function shiftTrainingPlan(delta) {
       if (delta !== 0 && typeof delta !== 'number') return;
+      // v2.4.51：顺延/恢复是整体调整——清除单日临时设置，防止历史残留覆盖顺延结果（如某天残留=rest导致连续3天休）
+      const overKeys = Object.keys(appData.trainingDayOverrides || {});
+      if (overKeys.length) {
+        if (!confirm('检测到 ' + overKeys.length + ' 条单日临时修改（手动切换的某天训练/休息）。\n顺延/恢复为整体调整，将清除这些临时设置并按下周模板显示，继续？')) return;
+        appData.trainingDayOverrides = {};
+      }
       // 防误触：今天已打卡训练时，顺延需确认（顺延会把今天变为休息）
       if (delta > 0) {
         const today = getTodayStr();
