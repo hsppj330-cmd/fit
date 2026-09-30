@@ -387,7 +387,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.48";
+    const VERSION = "2.4.49";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4576,12 +4576,45 @@ let PRODUCT_LIBRARY = {
       alert((newType === 'rest' ? '已临时改为休息' : '已临时改为训练') + ': ' + dateStr);
     }
 
+    // v2.4.49：训练日历容器独立渲染——即使配餐内容渲染失败（数据异常等），日历也保证显示
+    function calendarShellHtml() {
+      return `
+        <div class="mb-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-base">📅 训练日历</h3>
+            <div class="flex items-center gap-2">
+              <div class="text-xs text-gray-500" id="cal-month-label"></div>
+              <!-- v2.4.47：训练顺延（今天没练→整体后移一天，训练-休息不连续） -->
+              <button onclick="shiftTrainingPlan(1)" class="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium">⏩ 顺延1天</button>
+              <button onclick="shiftTrainingPlan(0)" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 font-medium" title="恢复默认周模板">↩ 恢复</button>
+              <button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
+            <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+          <div class="flex gap-3 mt-3 text-xs flex-wrap">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span>推/拉/腿</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span>腹肌</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-gray-200 rounded"></span>休息</span>
+            <span class="flex items-center gap-1">🔥3000</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）；「✏️编辑」可单日临时切换训练/休息</p>
+        </div>`;
+    }
+
     function renderDietView() {
-      if (document.getElementById('calendar-grid')) renderCalendar();
+      try { if (document.getElementById('calendar-grid')) renderCalendar(); } catch (e) { console.error('日历预渲染失败(已隔离)', e); }
       // v2.4.48：四个面板各自隔离渲染——任何单个面板出错都不影响其他面板（尤其保证「本周配餐」含日历必渲染）
       let dailyHtml = '', weekHtml = '', purchaseHtml = '', productsHtml = '';
       try { dailyHtml = renderDailyDiet(); } catch (e) { console.error('每日饮食面板渲染失败(已隔离)', e); dailyHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">每日饮食加载失败，可刷新重试</div>'; }
-      try { weekHtml = renderWeeklyDiet(); } catch (e) { console.error('本周配餐面板渲染失败(已隔离)', e); weekHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">本周配餐加载失败，可刷新重试</div>'; }
+      try { weekHtml = renderWeeklyDiet(); } catch (e) { console.error('本周配餐面板渲染失败(已隔离)', e); weekHtml = ''; }
+      // v2.4.49：日历容器独立保证——配餐内容失败时单独注入日历（日历永不消失），内容区域显示错误提示+修复入口
+      if (weekHtml.indexOf('calendar-grid') < 0) {
+        weekHtml = calendarShellHtml() + '<div class="mb-4 bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100"><p class="text-xs text-gray-500 mb-3">本周配餐内容加载失败（日历功能不受影响）</p><div class="flex gap-2 justify-center"><button class="bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button><button class="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-medium" onclick="generatePlanV2AndRender()">重新生成本周计划</button></div></div>' + weekHtml;
+      }
       try { purchaseHtml = renderPurchaseList(); } catch (e) { console.error('采购面板渲染失败(已隔离)', e); purchaseHtml = ''; }
       try { productsHtml = renderProductLibrary(); } catch (e) { console.error('商品库面板渲染失败(已隔离)', e); productsHtml = '<div class="bg-white rounded-xl p-6 text-center shadow-sm text-xs text-gray-500">商品库加载失败，可刷新重试</div>'; }
       const html = `
@@ -4697,7 +4730,9 @@ let PRODUCT_LIBRARY = {
       const weekCost = dayOrder.reduce((sum, d) => {
         const day = plan.days[d];
         if (!day || !day.meals) return sum;
-        return sum + (day.meals.breakfast.cost || 0) + (day.meals.lunch.cost || 0) + (day.meals.dinner.cost || 0);
+        // v2.4.49：cost 访问加保护（某餐缺失/结构异常时不崩，配餐内容照常渲染）
+        const b = day.meals.breakfast, l = day.meals.lunch, di = day.meals.dinner;
+        return sum + (b && b.cost ? b.cost : 0) + (l && l.cost ? l.cost : 0) + (di && di.cost ? di.cost : 0);
       }, 0);
       let html = `
         <div class="mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl p-5">
@@ -4714,30 +4749,7 @@ let PRODUCT_LIBRARY = {
           </div>
           <div class="text-xs opacity-70 mt-0.5">营养=做熟后入口口径（由生食材计算，烹饪不改变宏量总量）；采购/库存按生重</div>
         </div>
-        <div class="mb-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-base">📅 训练日历</h3>
-            <div class="flex items-center gap-2">
-              <div class="text-xs text-gray-500" id="cal-month-label"></div>
-              <!-- v2.4.47：训练顺延（今天没练→整体后移一天，训练-休息不连续） -->
-              <button onclick="shiftTrainingPlan(1)" class="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium">⏩ 顺延1天</button>
-              <button onclick="shiftTrainingPlan(0)" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 font-medium" title="恢复默认周模板">↩ 恢复</button>
-              <button id="cal-edit-btn" onclick="toggleCalendarEdit()" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">✏️ 编辑</button>
-            </div>
-          </div>
-          <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
-            <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
-          </div>
-          <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
-          <div class="flex gap-3 mt-3 text-xs flex-wrap">
-            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span>推/拉/腿</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span>腹肌</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-gray-200 rounded"></span>休息</span>
-            <span class="flex items-center gap-1">🔥3000</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）；「✏️编辑」可单日临时切换训练/休息</p>
-        </div>
+        ${calendarShellHtml()}
         <div class="mb-4 grid grid-cols-2 gap-2">
           <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="regenWeekPlan()">重新配餐（按新体重）</button>
           <button class="bg-white border border-gray-200 rounded-xl py-2.5 text-sm font-medium" onclick="doWeeklyReview()">周复盘 → 调下周</button>
@@ -4745,29 +4757,35 @@ let PRODUCT_LIBRARY = {
         <div class="space-y-3">`;
       dayOrder.forEach(day => {
         const dayPlan = plan.days[day];
-        if (!dayPlan) return;
+        if (!dayPlan || !dayPlan.meals) return;
         const t = dayPlan.dayType;
-        const m = dayPlan.macros;
+        const m = dayPlan.macros || {};
         const bf = dayPlan.meals.breakfast, lu = dayPlan.meals.lunch, di = dayPlan.meals.dinner, po = dayPlan.meals.postWorkout;
-        const fmtItems = (meal, mode) => meal.items.map(it => {
-          const label = it.name === "鸡蛋" ? "鸡蛋(带壳60g)" : it.name;
-          const cooked = cookedWeightGrams(it.name, it.grams);
-          if (mode === "cooked" && cooked) {
-            return label + "(熟) <b>" + cooked + "g</b><span class=\"text-xs text-gray-400\">(生" + it.grams + "g)</span>";
-          }
-          return label + " " + it.grams + "g";
-        }).join(" + ");
+        // v2.4.49：餐食/sum 缺失保护（数据异常时不崩，显示0或数据缺失）
+        const safeSum = (meal) => (meal && meal.sum) ? meal.sum : { calories: 0 };
+        const safeCost = (meal) => (meal && meal.cost) ? meal.cost : 0;
+        const fmtItems = (meal, mode) => {
+          if (!meal || !meal.items) return '<span class="text-gray-400">(数据缺失)</span>';
+          return meal.items.map(it => {
+            const label = it.name === "鸡蛋" ? "鸡蛋(带壳60g)" : it.name;
+            const cooked = cookedWeightGrams(it.name, it.grams);
+            if (mode === "cooked" && cooked) {
+              return label + "(熟) <b>" + cooked + "g</b><span class=\"text-xs text-gray-400\">(生" + it.grams + "g)</span>";
+            }
+            return label + " " + it.grams + "g";
+          }).join(" + ");
+        };
         html += `
           <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-2">
               <div class="font-bold">${day} <span class="text-xs text-blue-500 ml-1">${typeNames[t] || t}</span></div>
-              <div class="text-xs text-gray-400">${m.calories}kcal 碳${m.carbs}g 蛋${m.protein}g 脂${m.fat}g</div>
+              <div class="text-xs text-gray-400">${(m.calories || 0)}kcal 碳${(m.carbs || 0)}g 蛋${(m.protein || 0)}g 脂${(m.fat || 0)}g</div>
             </div>
             <div class="space-y-1.5 text-sm text-gray-600">
-              <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf, 'raw')} <span class="text-xs text-gray-400">${bf.sum.calories}kcal ${bf.cost ? '· ' + bf.cost + '元' : ''}</span></div>
-              <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu, 'cooked')} <span class="text-xs text-gray-400">${lu.sum.calories}kcal ${lu.cost ? '· ' + lu.cost + '元' : ''}</span></div>
-              <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di, 'cooked')} <span class="text-xs text-gray-400">${di.sum.calories}kcal ${di.cost ? '· ' + di.cost + '元' : ''}</span></div>
-              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + po.sum.calories + 'kcal · ' + (po.cost || 0) + '元</span></div>' : ''}
+              <div><span class="text-amber-600 font-medium">早</span> ${fmtItems(bf, 'raw')} <span class="text-xs text-gray-400">${safeSum(bf).calories || 0}kcal ${safeCost(bf) ? '· ' + safeCost(bf) + '元' : ''}</span></div>
+              <div><span class="text-blue-600 font-medium">午</span> ${fmtItems(lu, 'cooked')} <span class="text-xs text-gray-400">${safeSum(lu).calories || 0}kcal ${safeCost(lu) ? '· ' + safeCost(lu) + '元' : ''}</span></div>
+              <div><span class="text-purple-600 font-medium">晚</span> ${fmtItems(di, 'cooked')} <span class="text-xs text-gray-400">${safeSum(di).calories || 0}kcal ${safeCost(di) ? '· ' + safeCost(di) + '元' : ''}</span></div>
+              ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + (safeSum(po).calories || 0) + 'kcal · ' + (safeCost(po) || 0) + '元</span></div>' : ''}
             </div>
             ${(() => {
               // v2.4.45：预算缺口偏大提醒——>520 才提示（400-500 稳定档，略超不打扰）
@@ -4831,14 +4849,18 @@ let PRODUCT_LIBRARY = {
                     if (!g) { g = { key: gkey, days: [], sample: dd }; groups.push(g); }
                     g.days.push(d);
                   });
-                  const fmt = (items) => items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ');
+                  const fmt = (items) => {
+                    if (!items) return '<span class="text-gray-400">(数据缺失)</span>';
+                    return items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ');
+                  };
                   return groups.map(g => {
                     const isRest = g.key === 'rest';
                     const lbl = isRest ? '低碳餐 · 休息日/腹肌日' : '高碳餐 · 训练日';
+                    const sl = g.sample.meals.lunch, sd = g.sample.meals.dinner;
                     return `<div class="${isRest ? 'bg-gray-50' : 'bg-blue-50'} rounded-lg p-2">
                       <div class="text-xs font-medium ${isRest ? 'text-gray-700' : 'text-blue-700'} mb-1">【${lbl} · ${g.days.length}份 · ${g.days.join('/')}】</div>
-                      <div class="text-xs mb-1">午餐：${fmt(g.sample.meals.lunch.items)}</div>
-                      <div class="text-xs">晚餐：${fmt(g.sample.meals.dinner.items)}</div>
+                      <div class="text-xs mb-1">午餐：${sl ? fmt(sl.items) : '<span class="text-gray-400">(数据缺失)</span>'}</div>
+                      <div class="text-xs">晚餐：${sd ? fmt(sd.items) : '<span class="text-gray-400">(数据缺失)</span>'}</div>
                     </div>`;
                   }).join('');
                 })()}
