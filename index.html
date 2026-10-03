@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.51";
+    const VERSION = "2.4.52";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -672,10 +672,27 @@
         tips: "慢下快起，脚跟始终踩实。Keep搜索：杠铃深蹲。"
       },
       {
+        id: "sumo_squat",
+        name: "哑铃相扑深蹲",
+        target: "大腿内侧、臀大肌",
+        sets: 3,
+        reps: "15",
+        rest: "75秒",
+        beginnerWeight: "10kg",
+        advancedWeight: "24kg",
+        steps: [
+          { name: "起始姿势", desc: "宽站位（1.5倍肩宽），脚尖外展约45度，双手持一只哑铃于体前。", key: "宽站位、脚尖外展" },
+          { name: "下蹲", desc: "吸气沿大腿方向下蹲至大腿平行地面，膝盖与脚尖同向。", key: "膝盖向外" },
+          { name: "起身", desc: "呼气大腿内侧与臀部发力站起。", key: "内收发力" }
+        ],
+        mistakes: ["错误：膝盖内扣", "错误：重心前倾"],
+        tips: "练大腿内侧线条。放在杠铃深蹲后第2个做，趁股四还新鲜。Keep搜索：哑铃相扑深蹲。"
+      },
+      {
         id: "romanian_deadlift",
         name: "哑铃罗马尼亚硬拉",
         target: "腘绳肌、臀大肌",
-        sets: 6,
+        sets: 4,
         reps: "12",
         rest: "90秒",
         beginnerWeight: "10kg/只",
@@ -721,23 +738,6 @@
         ],
         mistakes: ["错误：身体前倾过多", "错误：重心不稳"],
         tips: "Keep同名动作双手叉腰、自重完成（不持哑铃），练臀利器，重心放在前脚。Keep搜索：右侧保加利亚深蹲。"
-      },
-      {
-        id: "sumo_squat",
-        name: "哑铃相扑深蹲",
-        target: "大腿内侧、臀大肌",
-        sets: 3,
-        reps: "15",
-        rest: "75秒",
-        beginnerWeight: "10kg",
-        advancedWeight: "24kg",
-        steps: [
-          { name: "起始姿势", desc: "宽站位（1.5倍肩宽），脚尖外展约45度，双手持一只哑铃于体前。", key: "宽站位、脚尖外展" },
-          { name: "下蹲", desc: "吸气沿大腿方向下蹲至大腿平行地面，膝盖与脚尖同向。", key: "膝盖向外" },
-          { name: "起身", desc: "呼气大腿内侧与臀部发力站起。", key: "内收发力" }
-        ],
-        mistakes: ["错误：膝盖内扣", "错误：重心前倾"],
-        tips: "练大腿内侧线条。Keep搜索：哑铃相扑深蹲。"
       },
       {
         id: "glute_bridge",
@@ -1165,19 +1165,37 @@ const WARMUP_EXERCISES = [
 ];
 
 // v2.4.30：练后拉伸动作库（通用，5-8分钟，全部Keep可搜）
-const COOLDOWN_EXERCISES = [
-  { name: "左侧胸部拉伸", target: "胸大肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
-  { name: "右侧胸部拉伸", target: "胸大肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
-  { name: "左臂后侧拉伸", target: "肱三头肌、肩后束（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "左臂上举屈肘，右手拉左手肘向对侧" },
-  { name: "右臂后侧拉伸", target: "肱三头肌、肩后束（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "右臂上举屈肘，左手拉右手肘向对侧" },
-  { name: "跪姿背部拉伸", target: "背阔肌、上背", sets: 1, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地，感受背部拉伸" },
-  { name: "左侧大腿前侧拉伸", target: "股四头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，左脚后勾，左手抓脚踝，髋部前顶" },
-  { name: "右侧大腿前侧拉伸", target: "股四头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，右脚后勾，右手抓脚踝，髋部前顶" },
-  { name: "俯身左腿后侧拉伸", target: "腘绳肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，左腿伸直，身体前倾够脚尖" },
-  { name: "俯身右腿后侧拉伸", target: "腘绳肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，右腿伸直，身体前倾够脚尖" },
-  { name: "靠墙左侧小腿拉伸", target: "小腿三头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" },
-  { name: "靠墙右侧小腿拉伸", target: "小腿三头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" }
-];
+// v2.4.52：拉伸按训练日分组——练哪拉哪，腿日不再拉胸
+const COOLDOWN_BY_DAY = {
+  push: [
+    { name: "左侧胸部拉伸", target: "胸大肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
+    { name: "右侧胸部拉伸", target: "胸大肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框或墙角，身体前倾，感受胸部拉伸" },
+    { name: "左臂后侧拉伸", target: "肱三头肌、肩后束（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "左臂上举屈肘，右手拉左手肘向对侧" },
+    { name: "右臂后侧拉伸", target: "肱三头肌、肩后束（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "右臂上举屈肘，左手拉右手肘向对侧" },
+    { name: "跪姿背部拉伸", target: "上背放松", sets: 1, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地" }
+  ],
+  pull: [
+    { name: "跪姿背部拉伸", target: "背阔肌、上背", sets: 1, reps: "30秒", rest: "15秒", tips: "跪姿，臀部坐脚跟，双手前伸，额头贴地，感受背部拉伸" },
+    { name: "左臂后侧拉伸", target: "肱三头肌、肩后束（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "左臂上举屈肘，右手拉左手肘向对侧" },
+    { name: "右臂后侧拉伸", target: "肱三头肌、肩后束（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "右臂上举屈肘，左手拉右手肘向对侧" },
+    { name: "左侧胸部拉伸", target: "胸小肌、胸肌", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框，身体前倾打开胸腔，改善圆肩" },
+    { name: "右侧胸部拉伸", target: "胸小肌、胸肌", sets: 1, reps: "30秒", rest: "15秒", tips: "小臂贴门框，身体前倾打开胸腔，改善圆肩" }
+  ],
+  legs: [
+    { name: "左侧大腿前侧拉伸", target: "股四头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，左脚后勾，左手抓脚踝，髋部前顶" },
+    { name: "右侧大腿前侧拉伸", target: "股四头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "单脚站立，右脚后勾，右手抓脚踝，髋部前顶" },
+    { name: "俯身左腿后侧拉伸", target: "腘绳肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，左腿伸直，身体前倾够脚尖" },
+    { name: "俯身右腿后侧拉伸", target: "腘绳肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "坐姿，右腿伸直，身体前倾够脚尖" },
+    { name: "靠墙左侧小腿拉伸", target: "小腿三头肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" },
+    { name: "靠墙右侧小腿拉伸", target: "小腿三头肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "双手推墙，后腿伸直脚跟踩地，身体前倾" }
+  ],
+  abs: [
+    { name: "跪姿背部拉伸", target: "下背放松", sets: 1, reps: "30秒", rest: "15秒", tips: "跪姿婴儿式，臀部坐脚跟，双手前伸放松下背" },
+    { name: "眼镜蛇式伸展", target: "腹直肌拉伸", sets: 1, reps: "30秒", rest: "15秒", tips: "俯卧，双手撑地抬起上身，髋部贴地，感受腹部拉伸" },
+    { name: "左侧大腿前侧拉伸", target: "髂腰肌（左侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "弓步跪地，髋部前顶，拉伸左侧髂腰肌" },
+    { name: "右侧大腿前侧拉伸", target: "髂腰肌（右侧）", sets: 1, reps: "30秒", rest: "15秒", tips: "弓步跪地，髋部前顶，拉伸右侧髂腰肌" }
+  ]
+};
 
 let TRAINING_LIBRARY = JSON.parse(JSON.stringify(DEFAULT_TRAINING_LIBRARY));
     // ===== 器械过滤：用户只有跳绳/哑铃/哑铃凳/杠铃（无龙门架/单杠/双杠/腿举机等），
@@ -2023,15 +2041,15 @@ let PRODUCT_LIBRARY = {
         Object.values(TRAINING_LIBRARY).forEach(t => {
           t.exercises = (t.exercises || []).filter(e => !REMOVE_IDS.includes(e.id));
         });
-        // 定向同步腿日关键动作：保加利亚深蹲左右侧强制为Keep同名自重版（旧用户数据可能残留"持哑铃6kg"负重版，与Keep不一致）
+        // 定向同步腿日：按默认库顺序重排（v2.4.52：相扑深蹲提前到第2位、RDL 6→4组），强制Keep同名自重版，保留用户自设重量
         const dLegs = DEFAULT_TRAINING_LIBRARY.legs;
         const legs = TRAINING_LIBRARY.legs;
         if (dLegs && legs) {
-          const dMap = {};
-          dLegs.exercises.forEach(de => { dMap[de.id] = de; });
-          legs.exercises = (legs.exercises || []).map(e => {
-            if (dMap[e.id]) return Object.assign({}, JSON.parse(JSON.stringify(dMap[e.id])), { userWeight: e.userWeight });
-            return e;
+          const uMap = {};
+          (legs.exercises || []).forEach(ue => { uMap[ue.id] = ue; });
+          legs.exercises = dLegs.exercises.map(de => {
+            const ue = uMap[de.id];
+            return Object.assign({}, JSON.parse(JSON.stringify(de)), ue && ue.userWeight ? { userWeight: ue.userWeight } : {});
           });
         }
       })();
@@ -4438,7 +4456,7 @@ let PRODUCT_LIBRARY = {
               <span class="text-xs text-purple-600">必做，促恢复</span>
             </div>
             <div class="space-y-2">
-              ${COOLDOWN_EXERCISES.map((c, i) => `
+              ${(COOLDOWN_BY_DAY[todayType] || COOLDOWN_BY_DAY.legs).map((c, i) => `
                 <div class="flex items-start gap-2 text-sm">
                   <span class="bg-purple-200 text-purple-800 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">${i+1}</span>
                   <div class="flex-1">
