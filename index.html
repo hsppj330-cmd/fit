@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.52";
+    const VERSION = "2.4.53";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2321,9 +2321,8 @@ let PRODUCT_LIBRARY = {
     function getTodayType() {
       return getPlannedTypeForDate(new Date());
     }
-    // v2.4.39：消耗口径统一改为 Keep 预览实测——力量消耗按日（推169/拉189/腿335/腹肌134），跳绳预算按实际水平取300
+    // v2.4.39：消耗口径统一改为 Keep 预览实测——力量消耗按日（推169/拉189/腿335/腹肌134）
     const KEEP_BURN = { push: 169, pull: 189, legs: 335, abs: 134 };
-    const JUMP_ROPE_KCAL = 300;  // 跳绳预算（实际 250-315，取 300，不再用 MET10 的 342）
     // v2.4.47：训练日历统一口径——TRAIN_TEMPLATE_DOW（dow 1..7）+ 全局偏移 trainingShift（顺延训练用）
     // 顺延1天：今天=昨天的类型（如周三拉→周三休、周四拉），整体后移，训练-休息不连续
     const TRAIN_TEMPLATE_DOW = { 1: 'push', 2: 'rest', 3: 'pull', 4: 'rest', 5: 'legs', 6: 'abs', 7: 'rest' };
@@ -2367,8 +2366,8 @@ let PRODUCT_LIBRARY = {
       if (dayType === 'rest') return restBurn;
       const trainBurn = KEEP_BURN[dayType] || 169;
       if (dayType === 'abs') return restBurn + trainBurn;
-      // 训练日 = 休息日消耗 + 力量训练消耗 + 跳绳有氧消耗（推/拉/腿训练日早上，与配餐设计口径一致）
-      return restBurn + trainBurn + JUMP_ROPE_KCAL;
+      // v2.4.53：停止跳绳（关节痛主因）——训练日总消耗 = 基准 + Keep预览力量消耗，缺口完全靠力量+饮食控制
+      return restBurn + trainBurn;
     }
     // v2.4.33 实时热量缺口：总消耗 = 基准TDEE（训练日=休息日BMR×1.2 + Keep预览力量消耗 + 跳绳300预算），
     // v2.4.39 力量消耗按日：推169/拉189/腿335/腹肌134（Keep课程预览），跳绳预算300
@@ -2654,8 +2653,8 @@ let PRODUCT_LIBRARY = {
       const isRest = dayType === 'rest';
       const dayKey = isRest ? 'rest' : (['push', 'pull', 'legs', 'abs'].includes(dayType) ? dayType : 'push');
       const trainBurn = KEEP_BURN[dayKey] || 169;
-      // 跳绳有氧消耗（推/拉/腿训练日早上，预算按实际水平取300）
-      const aerobicBurn = JUMP_ROPE_KCAL;
+      // v2.4.53：停止跳绳（关节痛主因）——有氧消耗归零，训练日缺口完全靠 Keep 力量消耗 + 饮食控制
+      const aerobicBurn = 0;
       // 缺口：训练日500 / 休息日400 / 腹肌日266（休息日碳水不低于100g，更科学）
       const trainDeficit = appData.profile.trainDeficit || 500;
       const restDeficit = appData.profile.restDeficit || 400;
@@ -2663,7 +2662,7 @@ let PRODUCT_LIBRARY = {
       let totalTrainBurn, deficit, cal;
       if (isRest) { totalTrainBurn = restBurn; deficit = restDeficit; }
       else if (dayKey === 'abs') { totalTrainBurn = restBurn + trainBurn; deficit = absDeficit; }
-      else { totalTrainBurn = restBurn + trainBurn + aerobicBurn; deficit = trainDeficit; }
+      else { totalTrainBurn = restBurn + trainBurn; deficit = trainDeficit; }
       cal = totalTrainBurn - deficit;
       const restCal = restBurn - restDeficit;
       // 蛋白 1.8g/kg，脂肪 0.8g/kg（固定）
@@ -2683,16 +2682,22 @@ let PRODUCT_LIBRARY = {
       };
     }
 
-    // v2.4.45：训练日碳水 3.1g/kg 两种餐；rest/abs 同吃低碳餐；返回含 proteinK/fatK（头部目标显示用）
+    // v2.4.53：停跳绳后训练日碳水按热量反推（两种餐统一口径）——
+    // 训练日消耗 = 基准 + 推/拉/腿 Keep 预览平均消耗（169/189/335 → 231），缺口 500，碳水 = 剩余热量
     function computeDayMacros(dayType) {
       if (dayType === 'rest' || dayType === 'abs') {
         const base = getTanshiMacrosV2('rest');
         return { carbs: base.restCarbs, protein: base.protein, fat: base.fat, calories: base.restCal, carbsK: base.restCarbs / base.weight, proteinK: base.proteinK, fatK: base.fatK };
       }
       const w = appData.profile.weight || 65;
+      const bmr = appData.profile.bmr || 1447;
+      const af = appData.profile.activityFactor || 1.2;
+      const restBurn = Math.round(bmr * af);
+      const avgTrainBurn = Math.round((KEEP_BURN.push + KEEP_BURN.pull + KEEP_BURN.legs) / 3);
+      const deficit = appData.profile.trainDeficit || 500;
+      const calories = restBurn + avgTrainBurn - deficit;
       const protein = Math.round(w * 1.8), fat = Math.round(w * 0.8);
-      const carbs = Math.round(w * 3.1);
-      const calories = carbs * 4 + protein * 4 + fat * 9;
+      const carbs = Math.round((calories - protein * 4 - fat * 9) / 4);
       return { carbs, protein, fat, calories, carbsK: carbs / w, proteinK: 1.8, fatK: 0.8 };
     }
 
@@ -3358,10 +3363,10 @@ let PRODUCT_LIBRARY = {
       if (weekHoursMatch) return { type: "update_profile_setting", args: { weekHours: weekHoursMatch[1] + "-" + weekHoursMatch[2] } };
       const paramMatch = text.match(/蛋白.*(系数|目标)?.*改成\s*(\d+\.?\d*)/i);
       if (paramMatch) return { type: "set_param", key: "proteinCoefficient", value: parseFloat(paramMatch[2]) };
+      // v2.4.53：已停跳绳（关节痛主因）——跳绳打卡不再记录热量，仅给出提示
       const jumpMatch = text.match(/跳绳\s*(\d+)?\s*分钟?/i);
       if (jumpMatch || (/(跳绳|跳完)/.test(text) && (text.includes("完成") || text.includes("跳完") || text.includes("打卡") || text.includes("了")))) {
-        const mins = jumpMatch ? Math.max(5, Math.min(120, parseInt(jumpMatch[1]))) : 30;
-        return { type: "record_cardio", args: { minutes: mins } };
+        return { type: "jump_rope_stopped", args: {} };
       }
       
       return null;
@@ -3384,12 +3389,8 @@ let PRODUCT_LIBRARY = {
         case "query_stock": return handleQueryStock();
         case "update_profile_setting": return handleUpdateProfileSetting((cmd && cmd.args) || {});
         case "replace_ingredient_multi": return executeToolCall("replace_ingredient_multi", cmd.args);
-        case "record_cardio": {
-          const mins = parseInt((cmd && cmd.args && cmd.args.minutes) || 30);
-          // v2.4.39：跳绳兜底消耗按实际水平（MET8.8≈300/30min，与配餐跳绳预算一致；MET10 的342偏高）
-          const w = appData.profile.weight || 65;
-          const kcal = Math.round(8.8 * 3.5 * w / 200 * mins);
-          return recordWorkout("空腹跳绳", "cardio", mins, kcal);
+        case "jump_rope_stopped": {
+          return { success: true, message: "已停止跳绳（关节痛主因）：跳绳打卡不再计入消耗。热量缺口改由力量训练（Keep 预览消耗）+ 饮食控制保证——力量练完把 Keep 记录发我打卡，或用「推日练完45分钟320大卡」格式记录。" };
         }
         case "set_stock_target": {
           const cmdArgs = (cmd && cmd.args) || {};
@@ -3824,7 +3825,7 @@ let PRODUCT_LIBRARY = {
       msg += "· 休息日：碳水 " + rest.carbsK + "g/kg → " + rest.carbs + "g（刻意低碳，管理血糖）\n";
       msg += "· 蛋白 " + p.proteinCoefficient + "g/kg → " + t.protein + "g / 脂肪 " + t.fatK + "g/kg → " + t.fat + "g（全天固定）\n\n";
       msg += "【热量缺口】\n";
-      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.2" + (getTodayType() === 'rest' || getTodayType() === 'abs' ? "" : " + 力量训练消耗 + 跳绳有氧≈340") + "，训练日含训练）\n";
+      msg += "· 估算每日消耗 TDEE ≈ " + tdee + " 大卡（BMR×1.2" + (getTodayType() === 'rest' || getTodayType() === 'abs' ? "" : " + 力量训练消耗（Keep 预览）") + "，训练日含训练；已停跳绳）\n";
       msg += "· 今日（" + todayType + "）目标 " + target + " 大卡 → 当日缺口约 " + Math.max(0, tdee - target) + " 大卡\n";
       msg += "· 本周平均目标 " + weekAvg + " 大卡 → 平均缺口约 " + Math.max(0, tdee - weekAvg) + " 大卡（当前阶段安全缺口 300-500，保肌优先）\n";
       if (weekPlan && weekPlan.weekStart) msg += "\n本周配餐起始日 " + weekPlan.weekStart + "（起始体重 " + weekPlan.weekStartWeight + "kg）";
@@ -4340,6 +4341,7 @@ let PRODUCT_LIBRARY = {
       let html = '';
       if (todayType && todayType !== 'rest') {
         const training = TRAINING_LIBRARY[todayType];
+        const burnInfo = getTanshiMacrosV2(todayType);
         html = `
           <div class="mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -4349,10 +4351,9 @@ let PRODUCT_LIBRARY = {
             <p class="text-sm text-blue-600 mb-4">薄肌阶段 ${training.sets || 4}组×${training.reps || '12-15'}次 · 预计消耗约 ${training.calories || 200} 大卡，Keep 跟练后按实际消耗打卡更准</p>
             ${['push', 'pull', 'legs'].includes(todayType) ? `
             <div class="bg-orange-50 rounded-xl p-4 mb-4 text-sm text-orange-800 leading-relaxed">
-              <b>🌅 今早空腹跳绳 30 分钟 / 3000 个</b><br>
-              训练前已完成或练后补跳，中低强度、可间歇（跳 1 分钟歇 30 秒，心率约 110-130），
-              约消耗 340 大卡（已计入今日总消耗）。跳完对我说「跳绳了」自动打卡。<br>
-              <span class="text-orange-600">本周有氧安排：${getWeekTrainingDates().join(' / ')} 早上（推/拉/腿训练日，共 ${getWeekTrainingDates().length} 次）</span>
+              <b>🔥 已停跳绳（关节痛主因，v2.4.53）</b><br>
+              热量缺口完全靠力量训练 + 饮食控制：今日预计总消耗 = 基准 ${burnInfo.restBurn} + Keep力量 ${KEEP_BURN[todayType] || 169} ≈ <b>${burnInfo.restBurn + (KEEP_BURN[todayType] || 169)} 大卡</b>。
+              跟练完成把 Keep 记录截图发我，按实际消耗打卡校准。
             </div>` : ''}
             <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-blue-800 leading-relaxed">
               <b>📈 渐进超负荷（谭师核心）</b><br>
@@ -4470,25 +4471,16 @@ let PRODUCT_LIBRARY = {
         `;
         html += `</div></div>`;
       } else {
-        // v2.4.47：休息日不做有氧（配餐口径：跳绳只在推/拉/腿训练日，且已含在训练日预算）
-        const todayDow = new Date().getDay();
-        const hasCardio = false;
+        // v2.4.53：已停跳绳（关节痛主因）——休息日完全休息，无有氧安排
         html = `
           <div class="text-center py-8">
-            <div class="text-5xl mb-4">${hasCardio ? '🏃' : '🛋️'}</div>
+            <div class="text-5xl mb-4">🛋️</div>
             <h3 class="text-xl font-bold text-gray-800 mb-2">今日休息日 · 力量停</h3>
             <p class="text-gray-500 text-sm mb-4">肌肉恢复日，好好休息</p>
-            ${hasCardio ? `
-            <div class="bg-orange-50 rounded-xl p-4 mx-2 mb-4 text-sm text-orange-800 leading-relaxed text-left">
-              <b>🌅 早上空腹跳绳 30 分钟 / 3000 个</b><br>
-              中低强度，约消耗 300kcal。跳完对我说「跳绳了」自动打卡。
-            </div>
-            ` : `
             <div class="bg-gray-50 rounded-xl p-4 mx-2 mb-4 text-sm text-gray-600 leading-relaxed text-left">
               <b>😴 完全休息日</b><br>
-              今天不安排有氧，好好休息恢复。明天训练日见。
+              已停跳绳（关节痛主因），今天不安排有氧，好好休息恢复。明天训练日见。
             </div>
-            `}
             <p class="text-sm text-gray-400">今日热量目标已按休息日计算（低碳水）</p>
           </div>
         `;
@@ -4599,9 +4591,8 @@ let PRODUCT_LIBRARY = {
           bg = 'bg-purple-500 text-white';
           label = '腹';
         }
-        // 有氧日加🔥标记（跟随推/拉/腿训练日）
-        const hasCardio = (type === 'push' || type === 'pull' || type === 'legs');
-        const cardioBadge = hasCardio ? '<div class="text-[8px] opacity-80">🔥3000</div>' : '';
+        // v2.4.53：已停跳绳（关节痛），不再标记有氧日
+        const cardioBadge = '';
         // 编辑模式下未来日期可点击，加边框提示；非编辑模式锁定，防止误触
         const clickable = isFuture && calendarEditMode;
         const editHint = calendarEditMode && isFuture ? 'ring-1 ring-dashed ring-yellow-400' : '';
@@ -4653,10 +4644,9 @@ let PRODUCT_LIBRARY = {
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span>推/拉/腿</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span>腹肌</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-gray-200 rounded"></span>休息</span>
-            <span class="flex items-center gap-1">🔥3000</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span>今天</span>
           </div>
-          <p class="text-xs text-gray-400 mt-2">推/拉/腿训练日早上空腹跳绳 30min/3000个；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）${showEdit ? '；「✏️编辑」可单日临时切换训练/休息' : ''}</p>
+          <p class="text-xs text-gray-400 mt-2">热量缺口 = 力量训练（Keep 预览消耗）+ 饮食控制，已停跳绳（关节痛）；点「⏩顺延1天」整体后移训练（今天没练就用它，不会连续练两天）${showEdit ? '；「✏️编辑」可单日临时切换训练/休息' : ''}</p>
         </div>`;
     }
 
@@ -4843,9 +4833,9 @@ let PRODUCT_LIBRARY = {
               ${po ? '<div><span class="text-emerald-600 font-medium">练后</span> ' + fmtItems(po, 'cooked') + ' <span class="text-xs text-emerald-500">力量训练后30分钟内喝</span> <span class="text-xs text-gray-400">' + (safeSum(po).calories || 0) + 'kcal · ' + (safeCost(po) || 0) + '元</span></div>' : ''}
             </div>
             ${(() => {
-              // v2.4.45：预算缺口偏大提醒——>520 才提示（400-500 稳定档，略超不打扰）
+              // v2.4.53：缺口提醒用纯 Keep 力量口径（停跳绳），训练日 = 基准 + Keep预览
               const burnInfo = getTanshiMacrosV2(t);
-              const budget = t === 'rest' ? burnInfo.restBurn : (t === 'abs' ? burnInfo.restBurn + 134 : burnInfo.restBurn + (KEEP_BURN[t] || 169) + JUMP_ROPE_KCAL);
+              const budget = t === 'rest' ? burnInfo.restBurn : (t === 'abs' ? burnInfo.restBurn + 134 : burnInfo.restBurn + (KEEP_BURN[t] || 169));
               const deficitKcal = budget - m.calories;
               if (deficitKcal <= 520) return '';
               const extra = deficitKcal - 500;
@@ -5785,7 +5775,7 @@ let PRODUCT_LIBRARY = {
                   const r = recordBodyData(isNaN(w) ? undefined : w, isNaN(bf) ? undefined : bf, extra);
                   if (r && r.success === false) {
                     // v2.4.35：数据不合理被拒绝（如训练截图被误判为体脂秤），不更新看板
-                    addMessage('assistant', "⚠️ " + r.message + "\n\n如果这是训练/跳绳记录截图，请重新上传或直接说「跳绳30分钟」/「拉日练完了45分钟320大卡」打卡。");
+                    addMessage('assistant', "⚠️ " + r.message + "\n\n如果这是训练记录截图，请重新上传或直接说「推日练完了45分钟320大卡」打卡。");
                     recorded = true;
                   } else {
                     renderDashboard();
