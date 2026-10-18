@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.53";
+    const VERSION = "2.4.54";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -2723,8 +2723,8 @@ let PRODUCT_LIBRARY = {
       "土豆": { cooked: 0.9, note: "煮/蒸" },
       "贝贝南瓜": { cooked: 0.9, note: "蒸/烤" },
       "西兰花": { cooked: 0.85, note: "焯水后减15%（联网核实）" },
-      "上海青": { cooked: 0.75, note: "快炒后缩水（200g→150g，联网核实；水焯才是×0.6）" },
-      "小水白菜": { cooked: 0.75, note: "快炒后缩水（白菜类同上海青，×0.75）" },
+      "上海青": { cooked: 0.6, note: "v2.4.54午餐水煮（原快炒0.75；水焯×0.6）" },
+      "小水白菜": { cooked: 0.6, note: "v2.4.54午餐水煮（原快炒0.75；水焯×0.6）" },
       "西芹": { cooked: 0.8, note: "焯/炒" },
       "大青椒": { cooked: 0.8, note: "炒（辣椒0.75-0.85，联网核实）" },
       "混合蔬菜": { cooked: 0.85, note: "解冻快炒" },
@@ -2799,7 +2799,7 @@ let PRODUCT_LIBRARY = {
     function splitDayIntoMeals(macros, dayType) {
       const lib = getIngredientLib();
       // 固定三餐体系（用户定制）：
-      // 早餐=微波燕麦蛋杯+南瓜子仁+巴西莓粉+牛奶；午餐=糙米饭+炒鸡胸+炒蔬菜（牛油果油，油脂集中在早/午）；
+      // 早餐=微波燕麦蛋杯+南瓜子仁+巴西莓粉+牛奶；午餐=糙米饭+腌油鸡胸+水煮蔬菜（牛油果油全部并入腌料，油脂集中在早/午）；
       // 晚餐=烤/煮土豆+卤鸡腿(去皮食)+水煮西兰花（无油清淡）；训练日练后30分钟内乳清蛋白
       const isRest = dayType === 'rest';
       const breakfast = buildMeal([["燕麦片", 60], ["鸡蛋", 53], ["南瓜子仁", 10], ["巴西莓粉", 5], ["纯牛奶", 250]], lib);  // 鸡蛋带壳60g，蛋壳约12%，可食53g（用户实测）
@@ -4864,15 +4864,15 @@ let PRODUCT_LIBRARY = {
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
               <div class="font-medium text-blue-700 mb-1">🥩 Step 2 · 鸡胸肉：周生重 ${weekChickenRaw}g → 熟 ${Math.round(weekChickenRaw * 0.75)}g（腌制+炒制）</div>
               <div>① 称出生鸡胸 ${weekChickenRaw}g → 切条（约2cm粗）</div>
-              <div>② 腌制（按 ${weekChickenRaw}g/500g 缩放）：生抽 ${Math.round(weekChickenRaw / 500 * 10)}g + 蚝油 ${Math.round(weekChickenRaw / 500 * 5)}g + 料酒 ${Math.round(weekChickenRaw / 500 * 5)}g + 盐 ${Math.round(weekChickenRaw / 500 * 3)}g + 玉米淀粉 ${Math.round(weekChickenRaw / 500 * 10)}g + 黑胡椒 ${Math.round(weekChickenRaw / 500 * 2)}g，抓匀冷藏 30 分钟以上</div>
-              <div>③ 炒制：分 3 批炒熟（每批约 ${Math.round(weekChickenRaw / 3)}g 鸡胸），每批用油 ${Math.round(weekOilLunch * 0.7 / 3)}g（共 ${Math.round(weekOilLunch * 0.7)}g）→ 中大火每批炒至变色熟透（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
-              <div class="text-xs text-gray-500 mt-1">注：炒鸡胸油已含在周采购牛油果油内</div>
+              <div>② 腌制（按 ${weekChickenRaw}g/500g 缩放）：生抽 ${Math.round(weekChickenRaw / 500 * 10)}g + 蚝油 ${Math.round(weekChickenRaw / 500 * 5)}g + 料酒 ${Math.round(weekChickenRaw / 500 * 5)}g + 盐 ${Math.round(weekChickenRaw / 500 * 3)}g + 玉米淀粉 ${Math.round(weekChickenRaw / 500 * 10)}g + 黑胡椒 ${Math.round(weekChickenRaw / 500 * 2)}g + <b>牛油果油 ${Math.round(weekOilLunch)}g</b>，抓匀冷藏 30 分钟以上（v2.4.54：油全部进腌料，鸡胸更嫩不干）</div>
+              <div>③ 炒制：分 3 批炒熟（每批约 ${Math.round(weekChickenRaw / 3)}g 鸡胸），腌料自带油、<b>不再额外加油</b> → 中大火每批炒至变色熟透（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
+              <div class="text-xs text-gray-500 mt-1">注：腌制牛油果油已含在周采购牛油果油内（午餐油全部并入腌料，蔬菜改水煮不再用油）</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
-              <div class="font-medium text-blue-700 mb-1">🥦 Step 3 · 午餐蔬菜：${lunchVegName} ${weekVeg1Raw}g${lunchVegName !== lunchVeg2Name ? " + " + lunchVeg2Name + " " + weekVeg2Raw + "g" : ""}（生 → 熟约 ${Math.round((weekVeg1Raw + weekVeg2Raw) * 0.7)}g）</div>
+              <div class="font-medium text-blue-700 mb-1">🥦 Step 3 · 午餐蔬菜：${lunchVegName} ${weekVeg1Raw}g${lunchVegName !== lunchVeg2Name ? " + " + lunchVeg2Name + " " + weekVeg2Raw + "g" : ""}（生 → 熟约 ${Math.round((weekVeg1Raw + weekVeg2Raw) * 0.6)}g）</div>
               <div>① ${lunchVegName} ${weekVeg1Raw}g 洗净切配${lunchVegName !== lunchVeg2Name ? "、" + lunchVeg2Name + " " + weekVeg2Raw + "g" : ""}</div>
-              <div>② 分 2 批快炒（每批约 ${Math.round((weekVeg1Raw + weekVeg2Raw) / 2)}g 蔬菜）：每批用牛油果油 14g（共 28g）+ 盐 ${Math.round((weekVeg1Raw + weekVeg2Raw) / 100)}g，大火快炒断生即出锅</div>
-              <div class="text-xs text-gray-500 mt-1">熟菜共约 ${Math.round((weekVeg1Raw + weekVeg2Raw) * 0.7)}g</div>
+              <div>② 沸水下锅煮 1-2 分钟断生（不加油），捞出沥干 → 加盐 ${Math.round((weekVeg1Raw + weekVeg2Raw) / 100)}g 拌入（或蘸薄盐/生抽）</div>
+              <div class="text-xs text-gray-500 mt-1">熟菜共约 ${Math.round((weekVeg1Raw + weekVeg2Raw) * 0.6)}g（v2.4.54 午餐蔬菜改水煮，无油）</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-purple-500">
               <div class="font-medium text-purple-700 mb-1">🍗 Step 4 · 晚餐：卤鸡腿 + 土豆 + 西兰花（无油清淡）</div>
