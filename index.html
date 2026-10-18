@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.55";
+    const VERSION = "2.4.56";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4896,7 +4896,12 @@ let PRODUCT_LIBRARY = {
                   });
                   const fmt = (items) => {
                     if (!items) return '<span class="text-gray-400">(数据缺失)</span>';
-                    return items.map(i => (i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : i.name + '(熟)') + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g').join(' + ');
+                    return items.map(i => {
+                      // v2.4.56：无生熟差别的食材（牛油果油等 cooking=1）不标"(熟)"，避免歧义
+                      const noCook = !cookedWeightGrams(i.name, i.grams);
+                      const label = i.name === '琵琶腿' ? '卤鸡腿肉(熟·去骨去皮)' : (noCook ? i.name : i.name + '(熟)');
+                      return label + ' ' + (cookedWeightGrams(i.name, i.grams) || i.grams) + 'g';
+                    }).join(' + ');
                   };
                   return groups.map(g => {
                     const isRest = g.key === 'rest';
