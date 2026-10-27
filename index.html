@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.56";
+    const VERSION = "2.4.57";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -4865,8 +4865,8 @@ let PRODUCT_LIBRARY = {
               <div class="font-medium text-blue-700 mb-1">🥩 Step 2 · 鸡胸肉：周生重 ${weekChickenRaw}g → 熟 ${Math.round(weekChickenRaw * 0.75)}g（腌制+炒制）</div>
               <div>① 称出生鸡胸 ${weekChickenRaw}g → 切条（约2cm粗）</div>
               <div>② 腌制（按 ${weekChickenRaw}g/500g 缩放）：生抽 ${Math.round(weekChickenRaw / 500 * 10)}g + 蚝油 ${Math.round(weekChickenRaw / 500 * 5)}g + 料酒 ${Math.round(weekChickenRaw / 500 * 5)}g + 盐 ${Math.round(weekChickenRaw / 500 * 3)}g + 玉米淀粉 ${Math.round(weekChickenRaw / 500 * 10)}g + 黑胡椒 ${Math.round(weekChickenRaw / 500 * 2)}g + <b>牛油果油 28g</b>，抓匀冷藏 30 分钟以上（v2.4.55：原炒蔬菜油并入腌料，鸡胸更嫩不干）</div>
-              <div>③ 炒制：分 3 批炒熟（每批约 ${Math.round(weekChickenRaw / 3)}g 鸡胸），每批用油 ${Math.round(weekOilLunch * 0.7 / 3)}g（共 ${Math.round(weekOilLunch * 0.7)}g）→ 中大火每批炒至变色熟透（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
-              <div class="text-xs text-gray-500 mt-1">注：炒鸡胸油已含在周采购牛油果油内；蔬菜改水煮后，原炒菜油 28g/周并入鸡胸腌料</div>
+              <div>③ 炒制：分 3 批炒熟（每批约 ${Math.round(weekChickenRaw / 3)}g 鸡胸），每批用油 ${Math.max(0, Math.round((weekOilLunch - 28) / 3))}g（共 ${Math.max(0, Math.round(weekOilLunch - 28))}g）→ 中大火每批炒至变色熟透（每批别加水）→ 熟鸡胸共约 ${Math.round(weekChickenRaw * 0.75)}g</div>
+              <div class="text-xs text-gray-500 mt-1">注：炒鸡胸油已含在周采购牛油果油内（28g/周进腌料 + ${Math.max(0, Math.round(weekOilLunch - 28))}g 炒制 = 午餐油位 ${Math.round(weekOilLunch)}g）；蔬菜改水煮后，原炒菜油 28g/周并入鸡胸腌料</div>
             </div>
             <div class="bg-white rounded-xl p-3 border-l-4 border-blue-500">
               <div class="font-medium text-blue-700 mb-1">🥦 Step 3 · 午餐蔬菜：${lunchVegName} ${weekVeg1Raw}g${lunchVegName !== lunchVeg2Name ? " + " + lunchVeg2Name + " " + weekVeg2Raw + "g" : ""}（生 → 熟约 ${Math.round((weekVeg1Raw + weekVeg2Raw) * 0.6)}g）</div>
@@ -4922,8 +4922,8 @@ let PRODUCT_LIBRARY = {
               <div>乳清蛋白粉 30g 冲泡（一勺，约22g蛋白）</div>
             </div>
             <div class="bg-yellow-50 rounded-xl p-3 text-xs text-gray-600">
-              🧂 <b>每日盐量核算（全量计入，含酱油/蚝油隐形盐）：</b>腌制盐 4.7g÷7≈0.67g + 炒菜盐 0.8g + 卤汁隐形盐 3.7g÷7≈0.53g ≈ <b>2.0g/日</b> ＜ 5g 上限 ✓（复热/蘸料额外加盐请计入，总量别超5g；酱油建议薄盐型）
-              <div class="mt-1">🛢️ <b>油脂集中早/午：</b>早餐0油 + 午餐14g（训练日）/12g（休息日，炒鸡胸+炒菜+淋）+ 晚餐0油，符合「油脂集中在早午、晚餐清淡」</div>
+              🧂 <b>每日盐量核算（全量计入，含酱油/蚝油隐形盐）：</b>腌制盐 ${Math.round(weekChickenRaw / 500 * 3)}g÷7≈${(Math.round(weekChickenRaw / 500 * 3) / 7).toFixed(1)}g + 水煮菜盐 ${Math.round((weekVeg1Raw + weekVeg2Raw) / 100)}g÷7≈${(Math.round((weekVeg1Raw + weekVeg2Raw) / 100) / 7).toFixed(1)}g + 卤汁隐形盐 ${Math.round(weekDrumstickRaw / 100 * 0.5)}g÷7≈${(Math.round(weekDrumstickRaw / 100 * 0.5) / 7).toFixed(1)}g ≈ <b>${((Math.round(weekChickenRaw / 500 * 3) + Math.round((weekVeg1Raw + weekVeg2Raw) / 100) + Math.round(weekDrumstickRaw / 100 * 0.5)) / 7).toFixed(1)}g/日</b> ＜ 5g 上限 ✓（复热/蘸料额外加盐请计入，总量别超5g；酱油建议薄盐型）
+              <div class="mt-1">🛢️ <b>油脂集中早/午：</b>早餐0油 + 午餐牛油果油（训练日/休息日按组装表克数；28g/周进腌鸡胸 + ${Math.max(0, Math.round(weekOilLunch - 28))}g/周炒鸡胸，蔬菜水煮无油）+ 晚餐0油，符合「油脂集中在早午、晚餐清淡」</div>
               <div class="mt-1">❄️ 冷冻保存：午餐/晚餐分装冷冻7天，吃前复热至中心70℃以上；早餐不批量，每天现做</div>
             </div>
             <!-- v2.4.19：手动入库区域 -->
