@@ -250,7 +250,7 @@
               </div>
               <div>
                 <label class="text-sm text-gray-600">每日热量缺口 (大卡)</label>
-                <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
+                <input type="number" id="setting-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="400">
               </div>
               <div>
                 <label class="text-sm text-gray-600">基础代谢 BMR（体脂秤实测）</label>
@@ -280,7 +280,7 @@
               </div>
               <div>
                 <label class="text-sm text-gray-600">训练日热量缺口（大卡）</label>
-                <input type="number" id="setting-train-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="500">
+                <input type="number" id="setting-train-deficit" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="400">
               </div>
               <div>
                 <label class="text-sm text-gray-600">休息日热量缺口（大卡）</label>
@@ -390,7 +390,7 @@
   </div>
 
   <script>
-    const VERSION = "2.4.57";
+    const VERSION = "2.4.58";
     const DATA_VERSION = 13;
     const STORAGE_KEY = "fitness_ai_data_v200";
     const OLD_STORAGE_KEYS = ["fitness_ai_data_v150", "fitness_ai_data_v140", "fitness_ai_data_v130"];
@@ -1872,9 +1872,9 @@ let PRODUCT_LIBRARY = {
         activityFactor: 1.2,  // 活动系数：久坐1.2/日常走动1.35/活动较多1.5
         trainingMET: 3.2,       // 训练强度（含组间休息）：初学3/中4/高5，Keep实测拉日约188-200
         trainingMinutes: 60,  // 单次训练分钟
-        trainDeficit: 500,    // 训练日缺口
-        restDeficit: 400,     // 休息日缺口（碳水不低于100g，更科学）
-        absDeficit: 266,      // 腹肌日缺口（v2.4.39：腹肌日计入Keep预览134消耗后 1870-266=1604）
+        trainDeficit: 400,    // 训练日缺口（v2.4.58：从500收窄到400，更稳保肌）
+        restDeficit: 400,     // 休息日缺口
+        absDeficit: 400,      // 腹肌日缺口（v2.4.58：从266统一到400）
         proteinCoefficient: 1.8, 
         weekHours: "3次",     // 每周3练三分化
         trainingDays: ["周一","周三","周五","周六"]  // 推/拉/腿/腹
@@ -2002,6 +2002,18 @@ let PRODUCT_LIBRARY = {
         // v2.4.34：修复今日热量监控训练日未含有氧消耗（getTodayTDEE与配餐口径对齐）
         // 跳绳打卡消耗统一为MET10公式（30分钟≈341大卡）；无需改用户数据，仅推进版本号
         data.dataVersion = 13;
+      }
+      if (data.dataVersion < 14) {
+        // v2.4.58：缺口统一收窄到400（训练日500→400、腹肌日266→400，休息日已400）
+        if (data.profile.trainDeficit === 500) {
+          data.profile.trainDeficit = 400;
+          data.weeklyPlan = null;   // 触发重新生成周配餐
+        }
+        if (data.profile.absDeficit === 266) {
+          data.profile.absDeficit = 400;
+          data.weeklyPlan = null;
+        }
+        data.dataVersion = 14;
       }
       return data;
     }
@@ -2656,9 +2668,9 @@ let PRODUCT_LIBRARY = {
       // v2.4.53：停止跳绳（关节痛主因）——有氧消耗归零，训练日缺口完全靠 Keep 力量消耗 + 饮食控制
       const aerobicBurn = 0;
       // 缺口：训练日500 / 休息日400 / 腹肌日266（休息日碳水不低于100g，更科学）
-      const trainDeficit = appData.profile.trainDeficit || 500;
+      const trainDeficit = appData.profile.trainDeficit || 400;
       const restDeficit = appData.profile.restDeficit || 400;
-      const absDeficit = appData.profile.absDeficit || 266;
+      const absDeficit = appData.profile.absDeficit || 400;
       let totalTrainBurn, deficit, cal;
       if (isRest) { totalTrainBurn = restBurn; deficit = restDeficit; }
       else if (dayKey === 'abs') { totalTrainBurn = restBurn + trainBurn; deficit = absDeficit; }
@@ -2694,7 +2706,7 @@ let PRODUCT_LIBRARY = {
       const af = appData.profile.activityFactor || 1.2;
       const restBurn = Math.round(bmr * af);
       const avgTrainBurn = Math.round((KEEP_BURN.push + KEEP_BURN.pull + KEEP_BURN.legs) / 3);
-      const deficit = appData.profile.trainDeficit || 500;
+      const deficit = appData.profile.trainDeficit || 400;
       const calories = restBurn + avgTrainBurn - deficit;
       const protein = Math.round(w * 1.8), fat = Math.round(w * 0.8);
       const carbs = Math.round((calories - protein * 4 - fat * 9) / 4);
@@ -5457,7 +5469,7 @@ let PRODUCT_LIBRARY = {
       document.getElementById('setting-activity').value = String(appData.profile.activityFactor || 1.2);
       document.getElementById('setting-training-mins').value = appData.profile.trainingMinutes || 60;
       document.getElementById('setting-training-met').value = String(appData.profile.trainingMET || 3.2);
-      document.getElementById('setting-train-deficit').value = appData.profile.trainDeficit || 500;
+      document.getElementById('setting-train-deficit').value = appData.profile.trainDeficit || 400;
       document.getElementById('setting-rest-deficit').value = appData.profile.restDeficit || 400;
       document.getElementById('setting-api-url').value = appData.settings.apiUrl;
       document.getElementById('setting-apikey').value = appData.settings.apiKey;
@@ -5482,7 +5494,7 @@ let PRODUCT_LIBRARY = {
       appData.profile.activityFactor = parseFloat(document.getElementById('setting-activity').value) || 1.2;
       appData.profile.trainingMinutes = parseFloat(document.getElementById('setting-training-mins').value) || 60;
       appData.profile.trainingMET = parseFloat(document.getElementById('setting-training-met').value) || 3.2;
-      appData.profile.trainDeficit = parseFloat(document.getElementById('setting-train-deficit').value) || 500;
+      appData.profile.trainDeficit = parseFloat(document.getElementById("setting-train-deficit").value) || 400;
       appData.profile.restDeficit = parseFloat(document.getElementById('setting-rest-deficit').value) || 400;
       // 参数变化 → 重新生成周配餐
       if (appData.weeklyPlan && appData.weeklyPlan.days) generateWeeklyPlanV2();
